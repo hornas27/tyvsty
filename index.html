@@ -1,0 +1,347 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Ty vs. Ty</title>
+<meta name="theme-color" content="#141311">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;1,9..144,400&family=Inter:wght@400;500;600&display=swap">
+<style>
+/* Layout: one column (max 560px) on phone, two-column overview on desktop; bottom tab bar on phone, top nav on desktop */
+/* Výchozí = tmavý motiv (šetří oči ráno i večer). Světlý jen na přepnutí v Nastavení. */
+:root{
+  --bg:#141311; --card:#1E1C19; --ink:#E2DACD; --soft:#958C80; --line:#302C27;
+  --sage:#93A887; --sage-l:#252B21; --clay:#C9946F; --clay-l:#33281F;
+  --good:#86B080; --warn:#CFA45B; --bad:#CF7B6B;
+  --f-display:"Fraunces",Georgia,serif; --f-body:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  color-scheme:dark;
+}
+:root[data-theme="light"]{
+  --bg:#F6F2EA; --card:#FFFDF8; --ink:#2C2823; --soft:#7B7268; --line:#E7DFD3;
+  --sage:#7F9473; --sage-l:#E5EBDF; --clay:#B9825F; --clay-l:#F2E4D9;
+  --good:#5E8B5A; --warn:#B98A3A; --bad:#B4594A; color-scheme:light}
+
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink)}
+body{font-family:var(--f-body);font-size:15px;line-height:1.45;-webkit-tap-highlight-color:transparent;
+  padding-top:env(safe-area-inset-top,0px)}
+button,input,textarea,select{font:inherit;color:inherit}
+.wrap{max-width:980px;margin:0 auto;padding-block:16px 110px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.narrow{max-width:560px;margin:0 auto}
+
+/* header */
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px}
+.brand{font-family:var(--f-display);font-weight:400;font-size:24px;letter-spacing:-.01em}
+.brand em{font-style:italic;color:var(--clay)}
+.mode{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--soft)}
+.save{font-size:12px;color:var(--soft);min-height:16px;transition:opacity .3s}
+
+/* nav */
+nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--card);border-top:1px solid var(--line);
+  display:grid;grid-template-columns:repeat(4,1fr);
+  padding:6px max(8px,env(safe-area-inset-right,0px)) calc(6px + env(safe-area-inset-bottom,0px)) max(8px,env(safe-area-inset-left,0px))}
+nav.tabs button{background:none;border:0;padding:8px 4px;border-radius:12px;font-size:12px;color:var(--soft);display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer}
+nav.tabs button svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.7}
+nav.tabs button[aria-current="true"]{color:var(--ink);background:var(--clay-l)}
+@media (min-width:860px){
+  nav.tabs{position:static;border:1px solid var(--line);border-radius:14px;max-width:520px;margin:0 auto 20px;padding:5px}
+  nav.tabs button{flex-direction:row;justify-content:center;font-size:14px}
+  .wrap{padding-bottom:40px}
+}
+
+/* cards & sections */
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px 18px}
+.stack{display:flex;flex-direction:column;gap:14px}
+.sec-t{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--soft);font-weight:600;margin:0 0 10px}
+h2{font-family:var(--f-display);font-weight:400;font-size:22px;margin:0;text-wrap:balance}
+
+/* day header */
+.dayhead{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.dayhead .d{text-align:center;flex:1;min-width:0}
+.dayhead .d small{display:block;color:var(--soft);font-size:13px;margin-top:2px}
+.iconbtn{width:42px;height:42px;border-radius:50%;border:1px solid var(--line);background:var(--card);cursor:pointer;display:grid;place-items:center;flex:none}
+.iconbtn svg{width:18px;height:18px;stroke:var(--ink);fill:none;stroke-width:2}
+.iconbtn:disabled{opacity:.35;cursor:default}
+.todaylink{display:block;margin:6px auto 0;background:none;border:0;color:var(--clay);font-size:13px;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+
+/* fields */
+.fields{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.field label{display:block;font-size:12px;color:var(--soft);margin-bottom:5px}
+.field input,.field textarea,.field select{width:100%;border:1px solid var(--line);background:var(--bg);border-radius:12px;padding:11px 12px;font-size:17px;outline:none}
+.field input:focus,.field textarea:focus{border-color:var(--clay)}
+.field .unit{position:relative}
+.field .unit span{position:absolute;right:12px;top:50%;transform:translateY(-50%);color:var(--soft);font-size:13px;pointer-events:none}
+.field textarea{font-size:15px;min-height:70px;resize:vertical}
+.hint{font-size:12px;color:var(--soft);margin-top:8px}
+.full{grid-column:1/-1}
+
+/* checks */
+.checks{display:flex;flex-direction:column;gap:8px}
+.chk{display:flex;align-items:center;gap:12px;padding:12px 14px;border:1px solid var(--line);border-radius:14px;background:var(--bg);cursor:pointer;user-select:none;width:100%;text-align:left}
+.chk .box{width:24px;height:24px;border-radius:8px;border:1.5px solid var(--line);display:grid;place-items:center;flex:none;transition:all .15s}
+.chk .box svg{width:14px;height:14px;stroke:#fff;fill:none;stroke-width:3;opacity:0}
+.chk[aria-checked="true"]{border-color:var(--sage);background:var(--sage-l)}
+.chk[aria-checked="true"] .box{background:var(--sage);border-color:var(--sage)}
+.chk[aria-checked="true"] .box svg{opacity:1}
+.chk .tx{flex:1;min-width:0}
+.chk .tx b{font-weight:500;display:block}
+.chk .tx small{color:var(--soft);font-size:12px}
+.chk.train[aria-checked="true"]{border-color:var(--clay);background:var(--clay-l)}
+.chk.train[aria-checked="true"] .box{background:var(--clay);border-color:var(--clay)}
+.pill{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;padding:3px 9px;border-radius:99px;white-space:nowrap}
+.pill.gym{background:var(--clay-l);color:var(--clay)}
+.pill.run{background:var(--sage-l);color:var(--sage)}
+.pill.opt{background:transparent;color:var(--soft);border:1px solid var(--line)}
+
+/* exercise list */
+.exl{list-style:none;margin:12px 0 0;padding:0;display:flex;flex-direction:column}
+.exl li{display:grid;grid-template-columns:20px 1fr auto;gap:8px;align-items:baseline;padding:9px 2px;border-bottom:1px dashed var(--line);font-size:14px}
+.exl li:last-child{border-bottom:0}
+.exl li i{font-family:var(--f-display);font-style:italic;color:var(--clay);font-size:13px}
+.exl li span{min-width:0}
+.exl li b{font-weight:600;font-size:13px;color:var(--sage);font-variant-numeric:tabular-nums;white-space:nowrap}
+
+/* overview */
+.ov{display:grid;grid-template-columns:1fr;gap:14px}
+@media (min-width:860px){.ov{grid-template-columns:1fr 1fr}.ov .span2{grid-column:1/-1}}
+.kpis{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.kpi{background:var(--bg);border-radius:14px;padding:12px 14px;min-width:0}
+.kpi .l{font-size:12px;color:var(--soft)}
+.kpi .v{font-family:var(--f-display);font-size:26px;line-height:1.15;margin-top:2px;font-variant-numeric:tabular-nums}
+.kpi .v small{font-family:var(--f-body);font-size:13px;color:var(--soft);margin-left:3px}
+.kpi .s{font-size:12px;margin-top:3px;color:var(--soft)}
+.status{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:4px 10px;border-radius:99px}
+.status::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+.status.good{color:var(--good);background:color-mix(in srgb,var(--good) 14%,transparent)}
+.status.warn{color:var(--warn);background:color-mix(in srgb,var(--warn) 16%,transparent)}
+.status.bad{color:var(--bad);background:color-mix(in srgb,var(--bad) 14%,transparent)}
+.status.none{color:var(--soft);background:var(--bg)}
+.chart{width:100%;height:auto;display:block}
+.chart text{fill:var(--soft);font-size:10px;font-family:var(--f-body)}
+.bar-track{height:10px;border-radius:99px;background:var(--bg);overflow:hidden;margin-top:8px}
+.bar-fill{height:100%;border-radius:99px;background:var(--clay)}
+.goalrow{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.goalrow b{font-family:var(--f-display);font-weight:400;font-size:18px}
+.goalrow span{font-size:13px;color:var(--soft);font-variant-numeric:tabular-nums}
+.weekgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-top:10px}
+.wg{text-align:center;font-size:11px;color:var(--soft)}
+.wg i{display:block;height:34px;border-radius:9px;margin-top:4px;background:var(--bg);border:1px solid var(--line)}
+.wg i.full{background:var(--sage);border-color:var(--sage)}
+.wg i.part{background:var(--sage-l);border-color:var(--sage)}
+.wg i.today{outline:2px solid var(--clay);outline-offset:1px}
+
+/* history */
+.hist{display:flex;flex-direction:column;gap:8px}
+.hrow{display:grid;grid-template-columns:72px 1fr auto;gap:10px;align-items:center;padding:12px 14px;border:1px solid var(--line);border-radius:14px;background:var(--card);cursor:pointer;text-align:left;width:100%}
+.hrow .dt b{display:block;font-weight:600;font-size:14px}
+.hrow .dt small{color:var(--soft);font-size:12px}
+.hrow .vals{font-size:13px;color:var(--soft);font-variant-numeric:tabular-nums;min-width:0}
+.hrow .vals b{color:var(--ink);font-weight:500}
+.dots{display:flex;gap:4px;align-items:center}
+.dots i{width:9px;height:9px;border-radius:50%;background:var(--line)}
+.dots i.on{background:var(--sage)}
+.dots i.tr{border-radius:3px}
+.dots i.tr.on{background:var(--clay)}
+
+/* buttons */
+.btn{border:0;border-radius:12px;padding:12px 16px;font-weight:600;cursor:pointer;background:var(--ink);color:var(--bg)}
+.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+.btn:disabled{opacity:.5}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+textarea.export{width:100%;min-height:180px;border:1px solid var(--line);border-radius:12px;background:var(--bg);padding:12px;font-family:ui-monospace,Menlo,monospace;font-size:12px}
+
+/* auth */
+.auth{max-width:400px;margin:8vh auto 0}
+.auth h1{font-family:var(--f-display);font-weight:300;font-size:44px;line-height:1;margin:0 0 6px}
+.auth h1 em{font-style:italic;color:var(--clay)}
+.auth p{color:var(--soft);margin:0 0 22px}
+.err{color:var(--bad);font-size:13px;min-height:18px;margin-top:8px}
+.empty{color:var(--soft);font-size:14px;padding:6px 0}
+:focus-visible{outline:2px solid var(--clay);outline-offset:2px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <div class="brand">Ty <em>vs.</em> Ty</div>
+      <div class="mode" id="mode"></div>
+    </div>
+    <div class="save" id="saveState" aria-live="polite"></div>
+  </header>
+
+  <!-- AUTH -->
+  <section id="authView" class="auth" hidden>
+    <h1>Ty <em>vs.</em> Ty</h1>
+    <p>Přihlas se. Data se synchronizují mezi mobilem a PC.</p>
+    <div class="stack">
+      <div class="field"><label for="authEmail">E-mail</label><input id="authEmail" type="email" autocomplete="email"></div>
+      <div class="field"><label for="authPass">Heslo</label><input id="authPass" type="password" autocomplete="current-password"></div>
+      <div class="row">
+        <button class="btn" id="btnLogin">Přihlásit</button>
+        <button class="btn ghost" id="btnSignup">Vytvořit účet</button>
+      </div>
+      <div class="err" id="authErr"></div>
+    </div>
+  </section>
+
+  <div id="app" hidden>
+    <nav class="tabs" id="tabs">
+      <button data-view="today" aria-current="true"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="3"/><path d="M4 10h16M9 3v4M15 3v4"/></svg>Dnes</button>
+      <button data-view="overview"><svg viewBox="0 0 24 24"><path d="M4 19V9M10 19V5M16 19v-7M22 19H2"/></svg>Přehled</button>
+      <button data-view="history"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg>Historie</button>
+      <button data-view="settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg>Nastavení</button>
+    </nav>
+
+    <!-- TODAY -->
+    <section id="v-today" class="narrow stack">
+      <div class="dayhead">
+        <button class="iconbtn" id="prevDay" aria-label="Předchozí den"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button>
+        <div class="d"><h2 id="dayTitle">Dnes</h2><small id="daySub"></small></div>
+        <button class="iconbtn" id="nextDay" aria-label="Další den"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>
+      </div>
+      <button class="todaylink" id="goToday" hidden>Zpět na dnešek</button>
+
+      <div class="card">
+        <p class="sec-t">Ráno</p>
+        <div class="fields">
+          <div class="field full"><label for="f-weight">Váha (ráno po záchodě)</label><div class="unit"><input id="f-weight" type="number" inputmode="decimal" step="0.1" min="30" max="200" placeholder="—"><span>kg</span></div></div>
+          <div class="field"><label for="f-bed">Šel spát (minulá noc)</label><input id="f-bed" type="time"></div>
+          <div class="field"><label for="f-wake">Vstal</label><input id="f-wake" type="time"></div>
+        </div>
+        <div class="hint" id="sleepHint"></div>
+      </div>
+
+      <div class="card">
+        <p class="sec-t">Trénink</p>
+        <div class="checks" id="trainBox"></div>
+        <ol class="exl" id="exList" hidden></ol>
+        <div class="field" id="runField" hidden style="margin-top:12px"><label for="f-run">Trénink z Gemini (vlož a uloží se k tomuhle dni)</label><textarea id="f-run" placeholder="Např. 10 min rozklus, 6× 2 min rychle / 2 min klus, 10 min výklus"></textarea>
+          <div class="hint">Tip: šipkou vpravo se dostaneš až 14 dní dopředu a můžeš si tam vložit celý týden.</div></div>
+      </div>
+
+      <div class="card">
+        <p class="sec-t">Večer</p>
+        <div class="fields">
+          <div class="field full"><label for="f-kcal">Kalorie za den (finální číslo)</label><div class="unit"><input id="f-kcal" type="number" inputmode="numeric" step="10" min="0" max="10000" placeholder="—"><span>kcal</span></div></div>
+        </div>
+        <div class="hint" id="kcalHint"></div>
+      </div>
+
+      <div class="card">
+        <p class="sec-t">Návyky</p>
+        <div class="checks" id="habitBox"></div>
+      </div>
+
+      <div class="card">
+        <div class="field"><label for="f-note">Poznámka ke dni</label><textarea id="f-note" placeholder="Jak se cítíš, co šlo, co ne…"></textarea></div>
+      </div>
+    </section>
+
+    <!-- OVERVIEW -->
+    <section id="v-overview" hidden>
+      <div class="ov">
+        <div class="card">
+          <p class="sec-t">Objem · cíl <span id="tgtW">95</span> kg</p>
+          <div class="kpis">
+            <div class="kpi"><div class="l">Průměr 7 dní</div><div class="v" id="k-avg">—</div><div class="s" id="k-avgS"></div></div>
+            <div class="kpi"><div class="l">Tempo / týden</div><div class="v" id="k-rate">—</div><div class="s" id="k-rateS"></div></div>
+          </div>
+          <div style="margin-top:12px" id="rateStatus"></div>
+          <div style="margin-top:14px">
+            <div class="goalrow"><b>Cesta na <span id="tgtW2">95</span> kg</b><span id="goalTxt">—</span></div>
+            <div class="bar-track"><div class="bar-fill" id="goalBar" style="width:0%"></div></div>
+            <div class="hint" id="etaTxt"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <p class="sec-t">Tento týden</p>
+          <div class="kpis">
+            <div class="kpi"><div class="l">Tréninky</div><div class="v" id="k-train">—</div><div class="s" id="k-trainS"></div></div>
+            <div class="kpi"><div class="l">Návyky</div><div class="v" id="k-hab">—</div><div class="s">ze všech odškrtnutí</div></div>
+            <div class="kpi"><div class="l">Návyky v řadě</div><div class="v" id="k-streak">—</div><div class="s" id="k-streakS"></div></div>
+            <div class="kpi"><div class="l">Spánek Ø 7 dní</div><div class="v" id="k-sleep">—</div><div class="s" id="k-sleepS"></div></div>
+          </div>
+          <div class="weekgrid" id="weekGrid"></div>
+        </div>
+
+        <div class="card span2">
+          <p class="sec-t">Váha · posledních 60 dní</p>
+          <div id="wChart"></div>
+        </div>
+
+        <div class="card">
+          <p class="sec-t">Kalorie · 14 dní</p>
+          <div id="kChart"></div>
+        </div>
+        <div class="card">
+          <p class="sec-t">Spánek · 14 dní</p>
+          <div id="sChart"></div>
+        </div>
+
+        <div class="card span2">
+          <p class="sec-t">Cíle</p>
+          <div class="stack" id="goalsBox"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- HISTORY -->
+    <section id="v-history" class="narrow" hidden>
+      <div class="hist" id="histList"></div>
+    </section>
+
+    <!-- SETTINGS -->
+    <section id="v-settings" class="narrow stack" hidden>
+      <div class="card">
+        <p class="sec-t">Cíle a start</p>
+        <div class="fields">
+          <div class="field"><label for="s-startW">Startovní váha</label><div class="unit"><input id="s-startW" type="number" inputmode="decimal" step="0.1"><span>kg</span></div></div>
+          <div class="field"><label for="s-startD">Start objemu</label><input id="s-startD" type="date"></div>
+          <div class="field"><label for="s-targetW">Cílová váha</label><div class="unit"><input id="s-targetW" type="number" inputmode="decimal" step="0.1"><span>kg</span></div></div>
+          <div class="field"><label for="s-kcal">Cíl kalorií</label><div class="unit"><input id="s-kcal" type="number" inputmode="numeric" step="50"><span>kcal</span></div></div>
+          <div class="field"><label for="s-sleep">Cíl spánku</label><div class="unit"><input id="s-sleep" type="number" inputmode="decimal" step="0.5"><span>h</span></div></div>
+          <div class="field"><label for="s-hm">Půlmaraton (datum)</label><input id="s-hm" type="date"></div>
+        </div>
+        <div class="row" style="margin-top:14px"><button class="btn" id="saveSettings">Uložit</button><span class="hint" id="setSaved"></span></div>
+      </div>
+
+      <div class="card">
+        <p class="sec-t">Export pro Clauda / Gemini</p>
+        <div class="row" style="margin-bottom:10px">
+          <div class="field" style="flex:1;min-width:140px"><label for="exRange">Období</label>
+            <select id="exRange"><option value="14">14 dní</option><option value="30" selected>30 dní</option><option value="90">90 dní</option><option value="0">Vše</option></select>
+          </div>
+        </div>
+        <textarea class="export" id="exText" readonly></textarea>
+        <div class="row" style="margin-top:10px"><button class="btn" id="copyEx">Kopírovat</button><span class="hint" id="copyMsg"></span></div>
+      </div>
+
+      <div class="card">
+        <p class="sec-t">Účet</p>
+        <div class="hint" id="acctTxt" style="margin-top:0"></div>
+        <div class="row" style="margin-top:12px">
+          <button class="btn ghost" id="themeBtn">Motiv: tmavý</button>
+          <button class="btn ghost" id="logoutBtn">Odhlásit</button>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script src="config.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

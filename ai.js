@@ -4,7 +4,8 @@ import { initializeAppCheck, ReCaptchaEnterpriseProvider } from "https://www.gst
 import { getAI, getGenerativeModel, GoogleAIBackend } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-ai.js";
 
 // Zkouší modely postupně – když jeden Google vypne, přejde se na další.
-const MODELS = ["gemini-3.6-flash", "gemini-flash-latest", "gemini-2.5-flash"];
+// Při přetížení nebo vyčerpaném limitu jednoho modelu jde na další (každý má vlastní limit).
+const MODELS = ["gemini-3.6-flash", "gemini-3-flash-preview", "gemini-flash-latest", "gemini-3.5-flash-lite", "gemini-flash-lite-latest"];
 
 const PROMPT = `Jsi přesný výživový poradce. Odhadni nutriční hodnoty jídla z fotky a/nebo z popisu.
 Uživatel žije v Česku (české porce a potraviny). Počítej celou porci, která je na fotce nebo v popisu.
@@ -15,7 +16,7 @@ Vrať POUZE JSON přesně v tomto tvaru (žádný další text):
 Hodnoty kcal a gramy živin zaokrouhli na celá čísla; součty musí odpovídat položkám.
 Když na fotce není jídlo, vrať prázdné items, nuly a do note napiš proč.`;
 
-let ai = null, modelIdx = 0;
+let ai = null, modelIdx = 0; // modelIdx posune jen model, který přestal existovat
 
 function getAi() {
   if (ai) return ai;
@@ -56,12 +57,14 @@ async function estimate({ image, text, hint }) {
     try {
       const model = getGenerativeModel(getAi(), { model: MODELS[i], generationConfig: { responseMimeType: "application/json", temperature: 0.2 } });
       const res = await model.generateContent(parts);
-      modelIdx = i;
-      return parse(res.response.text());
+      return { ...parse(res.response.text()), model: MODELS[i] };
     } catch (e) {
       lastErr = e;
       const msg = String((e && (e.message || e.code)) || e);
-      if (!/not[ _-]?found|404|is not supported|unsupported model|does not exist/i.test(msg)) break; // jiná chyba než neexistující model
+      if (/not[ _-]?found|\[404|is not supported|unsupported model|does not exist/i.test(msg)) { modelIdx = Math.min(i + 1, MODELS.length - 1); continue; }
+      // přetížený model nebo vyčerpaný limit daného modelu → zkus další model
+      if (/high demand|overloaded|unavailable|try again later|\[50[0-4]|\[429|quota|resource.?exhausted|rate.?limit/i.test(msg)) continue;
+      break; // jiná chyba (App Check, síť…) – další model by nepomohl
     }
   }
   throw lastErr;

@@ -381,7 +381,7 @@
     $("p-name").value = v.name ?? ""; $("p-kcal").value = v.kcal ?? ""; $("p-prot").value = v.protein ?? "";
     $("p-carbs").value = v.carbs ?? ""; $("p-fat").value = v.fat ?? "";
     $("aiItems").innerHTML = (v.items || []).map(i => `<span>${esc(i.name)}${i.grams ? " " + i.grams + " g" : ""} · ${i.kcal} kcal</span>`).join("");
-    $("aiNote").textContent = v.note ? (v.confidence ? "Jistota: " + v.confidence + ". " : "") + v.note : "";
+    $("aiNote").textContent = (v.note ? (v.confidence ? "Jistota: " + v.confidence + ". " : "") + v.note : "") + (v.model && /lite/.test(v.model) ? " (Hlavní model byl vytížený, odhadl to záložní – radši zkontroluj čísla.)" : "");
     $("aiHintRow").hidden = src === "ručně";
     $("aiAdd").textContent = food.editId ? "Uložit změny" : "Přidat jídlo";
     $("aiBox").scrollIntoView({ behavior: "smooth", block: "nearest" });
@@ -394,7 +394,8 @@
   function aiErrorText(e) {
     const m = String((e && (e.message || e.code)) || e);
     if (/app.?check|attestation|unauthenticated|401/i.test(m)) return "AI zatím blokuje ochrana App Check (nastavení ještě není hotové). Zadej hodnoty ručně.";
-    if (/quota|429|resource.?exhausted|rate/i.test(m)) return "Dnešní limit AI je vyčerpaný. Zadej hodnoty ručně, zítra to pojede.";
+    if (/high demand|overloaded|unavailable|try again later|\[50[0-4]/i.test(m)) return "Gemini je teď u Googlu přetížený (všechny modely). Zkus to za pár minut, nebo zadej hodnoty ručně.";
+    if (/quota|\[429|resource.?exhausted|rate.?limit/i.test(m)) return "Denní limit AI je vyčerpaný. Zadej hodnoty ručně, zítra to pojede.";
     if (/network|failed to fetch|offline/i.test(m) || !navigator.onLine) return "Chybí internet. Odhad z fotky potřebuje připojení, hodnoty můžeš zadat ručně.";
     if (/JSON|Unexpected token/i.test(m)) return "AI vrátila nečitelnou odpověď. Zkus to znovu.";
     return "Odhad se nepovedl: " + m.slice(0, 140);

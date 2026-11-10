@@ -295,13 +295,15 @@
   const demoAI = { estimate: () => new Promise(r => setTimeout(() => r({ name: "Kuře s rýží (demo)", items: [{ name: "rýže", grams: 200, kcal: 260, protein: 5, carbs: 57, fat: 1 }, { name: "kuřecí prsa", grams: 150, kcal: 250, protein: 46, carbs: 0, fat: 6 }, { name: "olej", grams: 10, kcal: 90, protein: 0, carbs: 0, fat: 10 }], kcal: 600, protein: 51, carbs: 57, fat: 17, confidence: "střední", note: "Demo odhad – v appce s Firebase odhaduje Gemini." }), 700)) };
 
   function bindFood() {
-    $("f-photo").addEventListener("change", async e => {
+    const onPhoto = async e => {
       const f = e.target.files && e.target.files[0]; e.target.value = "";
       if (!f) return;
       closePending();
       try { food.img = await compressImage(f); } catch (err) { $("aiStatus").textContent = "Fotku se nepodařilo načíst."; return; }
       openPending("foto"); runEstimate();
-    });
+    };
+    $("f-photo").addEventListener("change", onPhoto);
+    $("f-gallery").addEventListener("change", onPhoto);
     $("btnText").onclick = () => { closePending(); $("textBox").hidden = false; $("f-foodText").focus(); };
     $("btnTextGo").onclick = () => {
       const t = $("f-foodText").value.trim(); if (!t) { $("f-foodText").focus(); return; }

@@ -113,7 +113,7 @@ h2{font-family:var(--f-display);font-weight:400;font-size:22px;margin:0;text-wra
 .mrow b{font-family:var(--f-display);font-weight:400;font-size:22px;color:var(--ink);font-variant-numeric:tabular-nums}
 .mrow small{font-size:12px;color:var(--soft)}
 .bar-fill.sage{background:var(--sage)}
-.foodbtns{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:8px;margin-top:14px}
+.foodbtns{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px}
 .foodbtns .btn{text-align:center;padding:12px 8px;font-size:14px;cursor:pointer}
 .panel{margin-top:12px;padding:14px;border:1px solid var(--line);border-radius:14px;background:var(--bg)}
 #aiImg{width:100%;max-height:220px;object-fit:cover;border-radius:10px;margin-bottom:10px;display:block}
@@ -264,8 +264,10 @@ textarea.export{width:100%;min-height:180px;border:1px solid var(--line);border-
         <div class="hint" id="kcalHint"></div>
 
         <div class="foodbtns">
-          <label class="btn" for="f-photo" role="button">📷 Vyfotit jídlo</label>
+          <label class="btn" for="f-photo" role="button">📷 Vyfotit</label>
           <input id="f-photo" type="file" accept="image/*" capture="environment" hidden>
+          <label class="btn ghost" for="f-gallery" role="button">🖼️ Z galerie</label>
+          <input id="f-gallery" type="file" accept="image/*" hidden>
           <button type="button" class="btn ghost" id="btnText">✍️ Popsat</button>
           <button type="button" class="btn ghost" id="btnManual">+ Ručně</button>
         </div>

@@ -3,32 +3,38 @@
   "use strict";
 
   // ---------- plán týdne (0 = neděle) ----------
+  const S2 = "1 + 2 do selhání"; // rozcvičková + 2 pracovní do selhání
   const PLAN = {
     1: { type: "run", label: "Tempo / intervaly" },
     2: { type: "gym", label: "Nohy", ex: [
-      ["Bulharské dřepy (smith)", "3×8–10 / noha"], ["Rumunský mrtvý tah", "3×8–10"], ["Leg press", "3×10–12"],
-      ["Zákopy", "3×10–12"], ["Předkopy", "3×12–15"], ["Třísla", "2–3×12–15"], ["Lýtka", "3–4×12–15"]] },
+      ["Bulharské dřepy (smith)", "2 do selhání", "bulgar"], ["Rumunský mrtvý tah", S2, "rdl"], ["Leg press", S2],
+      ["Zákopy", S2], ["Předkopy", S2], ["Třísla", S2], ["Lýtka", S2]] },
     3: { type: "gym", label: "Hrudník + biceps", ex: [
-      ["Smith bench", "3×6–8"], ["Šikmý tlak s jednoručkami", "3×8–10"], ["Rozpažky na stroji", "3×12–15"],
-      ["Upažování na kladce", "3×12–15"], ["Bayesian curl", "3×10–12"], ["Zdvih s lanem na kladce", "3×10–12"], ["Kladkový crunch v kleku", "3×12–15"]] },
+      ["Smith bench", S2, "bench"], ["Šikmý tlak s jednoručkami", S2], ["Rozpažky na stroji", S2],
+      ["Upažování na kladce", S2], ["Bayesian curl", S2], ["Zdvih s lanem na kladce", S2], ["Kladkový crunch v kleku", S2]] },
     4: { type: "run", label: "Chill run", optional: true },
     5: { type: "gym", label: "Záda + ramena + triceps", ex: [
-      ["Shyby se závažím / stahování na stroji", "4×6–10"], ["Přítahy úzké kladky vsedě", "3×10–12"], ["Úzké stahování kladky", "3×10–12"],
-      ["Tlaky na ramena na stroji", "3×8–10"], ["Zadní ramena na stroji", "3×15"], ["Triceps za hlavou na kladce", "3×10–12"],
-      ["Stahování kladky jednoruč", "3×12"], ["Hyperextenze se závažím", "3×10–12"]] },
+      ["Shyby se závažím / stahování na stroji", S2, "pull"], ["Přítahy úzké kladky vsedě", S2], ["Úzké stahování kladky", S2],
+      ["Tlaky na ramena na stroji", S2, "ohp"], ["Zadní ramena na stroji", S2], ["Triceps za hlavou na kladce", S2],
+      ["Stahování kladky jednoruč", S2], ["Hyperextenze se závažím", S2]] },
     6: { type: "run", label: "Long run" },
     0: { type: "gym", label: "Celý hořejšek", ex: [
-      ["Smith incline bench", "3×8–10"], ["Přítahy vsedě širokým úchopem", "3×10–12"], ["Upažování na kladce", "3×12–15"],
-      ["Zadní ramena na kladce", "3×12–15"], ["Triceps za hlavou", "2–3×12"], ["Bayesian curl", "2–3×12"]] }
+      ["Smith incline bench", S2, "incline"], ["Přítahy vsedě širokým úchopem", S2], ["Upažování na kladce", S2],
+      ["Zadní ramena na kladce", S2], ["Triceps za hlavou", S2], ["Bayesian curl", S2]] }
   };
+  // hlavní cviky, u kterých se zapisuje váha × opakování
+  const LIFTS = { bulgar: "Bulharské dřepy", rdl: "Rumunský mrtvý tah", bench: "Smith bench", pull: "Shyby / stahování", ohp: "Tlaky na ramena", incline: "Smith incline bench" };
+  const RUN_DAYS = [1, 4, 6]; // Po, Čt, So
   const PLAN_AHEAD_DAYS = 14; // dopředu jde vložit běh z Gemini až na 14 dní
   const REQUIRED_PER_WEEK = Object.values(PLAN).filter(p => !p.optional).length; // 6
   const HABITS = [
     { k: "mobil", t: "Mobil od 21:00 mimo dosah" },
     { k: "hygiena", t: "Hygiena a pleť" },
     { k: "gauc", t: "Nespal jsem na gauči" },
-    { k: "zapis", t: "Zápis do sešitu" }
+    { k: "zapis", t: "Zápis do sešitu" },
+    { k: "budik", t: "Vstal jsem na 1 budík", since: "2026-11-10" }
   ];
+  const habitsFor = k => HABITS.filter(h => !h.since || k >= h.since);
   const DEFAULT_SETTINGS = { startWeight: null, startDate: null, targetWeight: 95, kcalTarget: 4000, sleepTarget: 7, hmDate: "2027-06-30", proteinPerKg: 2 };
   const DAYS_CS = ["neděle", "pondělí", "úterý", "středa", "čtvrtek", "pátek", "sobota"];
   const DAYS_SHORT = ["Ne", "Po", "Út", "St", "Čt", "Pá", "So"];
@@ -108,20 +114,39 @@
 
   // ---------- save handling ----------
   let saveTimer = null, saveMsgTimer = null;
+  const sync = { pending: 0 };
+  function renderSync() {
+    const el = $("mode"); if (!el) return;
+    let t, c;
+    if (DEMO) { t = "Demo · data jen v tomto zařízení"; c = "demo"; }
+    else if (!navigator.onLine) { t = sync.pending ? "Offline · " + sync.pending + " " + (sync.pending === 1 ? "změna čeká" : "změny čekají") : "Offline · uloží se po připojení"; c = "off"; }
+    else if (sync.pending) { t = "Ukládám…"; c = "busy"; }
+    else { t = "Synchronizováno"; c = "ok"; }
+    el.textContent = t; el.className = "mode " + c;
+  }
+  function trackSave(promise) {
+    sync.pending++; renderSync();
+    return Promise.resolve(promise).finally(() => { sync.pending = Math.max(0, sync.pending - 1); renderSync(); });
+  }
   function showSave(t) {
     const el = $("saveState"); el.textContent = t; el.style.opacity = 1;
     clearTimeout(saveMsgTimer); saveMsgTimer = setTimeout(() => { el.style.opacity = 0; }, 1800);
   }
   function currentDay() { return state.days[state.key] || {}; }
-  function patchDay(patch, immediate) {
-    const k = state.key;
+  function patchDay(patch, immediate, key) {
+    const k = key || state.key, isCur = k === state.key;
     const d = { ...(state.days[k] || {}), ...patch, date: k, updatedAt: Date.now() };
     if (patch.habits) d.habits = { ...((state.days[k] || {}).habits || {}), ...patch.habits };
+    if (patch.lifts) d.lifts = { ...((state.days[k] || {}).lifts || {}), ...patch.lifts };
     state.days[k] = d;
-    clearTimeout(saveTimer);
-    const run = () => { saveTimer = null; store.saveDay(k, state.days[k]).then(() => showSave("Uloženo ✓")).catch(e => showSave("Neuloženo: " + (e.code || e.message))); };
-    if (immediate) run(); else saveTimer = setTimeout(run, 600);
-    renderTodayDerived();
+    const run = () => {
+      if (isCur) saveTimer = null;
+      if (!navigator.onLine && !DEMO) showSave("Offline · uloží se po připojení");
+      trackSave(store.saveDay(k, state.days[k])).then(() => showSave("Uloženo ✓")).catch(e => showSave("Neuloženo: " + (e.code || e.message)));
+    };
+    if (isCur) clearTimeout(saveTimer);
+    if (immediate || !isCur) run(); else saveTimer = setTimeout(run, 600);
+    if (isCur) renderTodayDerived();
   }
 
   // ---------- TODAY ----------
@@ -140,7 +165,7 @@
     $("f-prot").value = d.protein ?? "";
     $("f-note").value = d.note ?? "";
     $("f-run").value = d.run ?? "";
-    state.formKey = state.key;
+    state.formKey = state.key; state.exKey = null;
   }
 
   function renderToday() {
@@ -157,8 +182,10 @@
     $("trainBox").innerHTML = chkHtml("training", (p.type === "gym" ? "Gym · " : "Běh · ") + p.label, "Splněno", !!d.training, "train", pill);
     $("exList").hidden = p.type !== "gym";
     $("runField").hidden = p.type !== "run";
-    if (p.type === "gym") $("exList").innerHTML = p.ex.map((e, i) => `<li><i>${i + 1}</i><span>${esc(e[0])}</span><b>${esc(e[1])}</b></li>`).join("");
-    $("habitBox").innerHTML = HABITS.map(h => chkHtml("h-" + h.k, h.t, "", !!(d.habits || {})[h.k])).join("");
+    if (p.type === "gym") renderExList(k, p);
+    $("habitBox").innerHTML = habitsFor(k).map(h => chkHtml("h-" + h.k, h.t, "", !!(d.habits || {})[h.k])).join("");
+    renderEnergy(d);
+    renderBanners();
     if (food.dayKey !== k) closePending();
     renderMeals();
     renderTodayDerived();
@@ -194,8 +221,117 @@
     };
     $("trainBox").addEventListener("click", toggle);
     $("habitBox").addEventListener("click", toggle);
+    $("energyBox").addEventListener("click", e => {
+      const b = e.target.closest("button[data-e]"); if (!b) return;
+      const n = Number(b.dataset.e); patchDay({ energy: currentDay().energy === n ? null : n }, true); renderEnergy(currentDay());
+    });
   }
 
+
+  // ---------- cviky + váhy hlavních cviků ----------
+  function lastLift(id, beforeK) {
+    const ks = Object.keys(state.days).filter(k => k < beforeK && state.days[k].lifts && state.days[k].lifts[id] && state.days[k].lifts[id].w != null).sort();
+    if (!ks.length) return null;
+    const k = ks[ks.length - 1]; return { k, ...state.days[k].lifts[id] };
+  }
+  const fmtLift = l => l ? nf1.format(l.w).replace(/,0$/, "") + " kg" + (l.r ? " × " + l.r : "") : "";
+  function renderExList(k, p) {
+    const box = $("exList");
+    if (state.exKey === k && box.contains(document.activeElement)) return; // nepřepisuj během psaní
+    state.exKey = k;
+    const lifts = (state.days[k] || {}).lifts || {};
+    box.innerHTML = `<li class="exnote">Do selhání · cíl min. 6–8 opakování</li>` + p.ex.map((e, i) => {
+      const id = e[2];
+      let lift = "";
+      if (id) {
+        const cur = lifts[id] || {}, prev = lastLift(id, k);
+        lift = `<div class="lift" data-lift="${id}">
+          <div class="unit"><input type="number" inputmode="decimal" step="0.5" min="0" placeholder="0" value="${cur.w ?? ""}" data-f="w" aria-label="Váha ${esc(e[0])}"><span>kg</span></div>
+          <span class="x">×</span>
+          <div class="unit"><input type="number" inputmode="numeric" step="1" min="0" placeholder="opak." value="${cur.r ?? ""}" data-f="r" aria-label="Opakování ${esc(e[0])}"></div>
+          <small>${prev ? "minule " + fmtLift(prev) : "nejlepší série"}</small></div>`;
+      }
+      return `<li class="${id ? "haslift" : ""}"><i>${i + 1}</i><span>${esc(e[0])}</span><b>${esc(e[1])}</b>${lift}</li>`;
+    }).join("");
+  }
+  function bindLifts() {
+    $("exList").addEventListener("input", e => {
+      const inp = e.target.closest("input[data-f]"); if (!inp) return;
+      const id = inp.closest(".lift").dataset.lift, cur = { ...(((currentDay().lifts) || {})[id] || {}) };
+      cur[inp.dataset.f] = num(inp.value);
+      patchDay({ lifts: { [id]: cur } });
+    });
+  }
+
+  // ---------- energie 1–5 ----------
+  const ENERGY = ["", "Vyčerpaný", "Unavený", "OK", "Dobrý", "Nabitý"];
+  function renderEnergy(d) {
+    const v = d.energy || 0;
+    $("energyBox").innerHTML = [1, 2, 3, 4, 5].map(n => `<button type="button" class="en${v === n ? " on" : ""}" data-e="${n}" aria-pressed="${v === n}" title="${ENERGY[n]}">${n}</button>`).join("");
+    $("energyTxt").textContent = v ? ENERGY[v] : "Jak se dnes cítíš?";
+  }
+
+  // ---------- běhy na týden ----------
+  // celé názvy dnů stačí samy, zkratky (Po, Čt…) jen s oddělovačem („Po:“, „Po –“, „Po 10. 11.“), ať „Po rozklusu…“ není pondělí
+  const DAY_RE = /^[\s*#>\-•_]*(?:\*\*|__)?\s*(?:(pondělí|pondeli|úterý|utery|středa|streda|čtvrtek|ctvrtek|pátek|patek|sobota|neděle|nedele)(?![\p{L}])|(po|út|ut|st|čt|ct|pá|pa|so|ne)(?=\s*(?:[:\-–—).]|$|\d{1,2}\.\s*\d{1,2}\.)))/iu;
+  const DAY_NUM = { po: 1, pondělí: 1, pondeli: 1, út: 2, ut: 2, úterý: 2, utery: 2, st: 3, středa: 3, streda: 3, čt: 4, ct: 4, čtvrtek: 4, ctvrtek: 4, pá: 5, pa: 5, pátek: 5, patek: 5, so: 6, sobota: 6, ne: 0, neděle: 0, nedele: 0 };
+  function parseWeekPlan(text) {
+    const out = {}; let cur = null;
+    String(text).split(/\r?\n/).forEach(line => {
+      const m = line.match(DAY_RE);
+      if (m) {
+        cur = DAY_NUM[(m[1] || m[2]).toLowerCase()];
+        const rest = line.slice(m[0].length).replace(/^[\s.]*(\(?\d{1,2}\.\s*\d{1,2}\.(\s*\d{2,4})?\)?)?[\s*_:\-–—).]*/, "").replace(/\*\*/g, "").trim();
+        out[cur] = out[cur] || []; if (rest) out[cur].push(rest);
+      }
+      else if (cur != null && line.trim()) out[cur].push(line.trim().replace(/\*\*/g, ""));
+    });
+    const res = {}; Object.keys(out).forEach(k => { const t = out[k].join("\n").trim(); if (t) res[k] = t; });
+    return res;
+  }
+  const weekOf = k => mondayOf(k);
+  const runKeys = mon => RUN_DAYS.map(wd => addDays(mon, (wd + 6) % 7));
+  function weekHasRuns(mon) { return runKeys(mon).some(k => (state.days[k] || {}).run); }
+  function openWeekBox(mon) {
+    state.weekMon = mon || weekOf(state.key);
+    const [a, b] = [state.weekMon, addDays(state.weekMon, 6)];
+    $("wbTitle").textContent = "Běhy na týden " + fmtShort(a) + " – " + fmtShort(b);
+    $("wbText").value = ""; $("wbPreview").hidden = true; $("wbStep1").hidden = false; $("wbMsg").textContent = "";
+    $("weekBox").hidden = false; $("runBanner").hidden = true; $("weekBox").scrollIntoView({ behavior: "smooth", block: "start" }); $("wbText").focus();
+  }
+  function renderBanners() {
+    const tk = todayKey(), mon = weekOf(state.key), d = parseKey(tk);
+    const showRun = state.view === "today" && addDays(mon, 6) >= tk && !weekHasRuns(mon) && $("weekBox").hidden;
+    $("runBanner").hidden = !showRun;
+    if (showRun) $("runBannerTxt").textContent = mon === weekOf(tk) ? "Vlož běhy na tento týden" : "Vlož běhy na týden " + fmtShort(mon) + " – " + fmtShort(addDays(mon, 6));
+    $("sumBanner").hidden = !(state.key === tk && d.getDay() === 0 && new Date().getHours() >= 17);
+  }
+  function bindWeekBox() {
+    $("runBannerBtn").onclick = () => openWeekBox(weekOf(state.key));
+    $("weekLink").onclick = () => openWeekBox(weekOf(state.key));
+    $("wbCancel").onclick = $("wbCancel2").onclick = () => { $("weekBox").hidden = true; renderBanners(); };
+    $("wbSplit").onclick = () => {
+      const t = $("wbText").value.trim(); if (!t) { $("wbText").focus(); return; }
+      const parsed = parseWeekPlan(t);
+      const keys = runKeys(state.weekMon);
+      const found = RUN_DAYS.filter(wd => parsed[wd]).length;
+      RUN_DAYS.forEach((wd, i) => {
+        $("wb-" + wd).value = parsed[wd] || ((state.days[keys[i]] || {}).run || "");
+        $("wbl-" + wd).textContent = DAYS_CS[wd][0].toUpperCase() + DAYS_CS[wd].slice(1) + " " + fmtShort(keys[i]) + " · " + PLAN[wd].label;
+      });
+      const other = Object.keys(parsed).map(Number).filter(wd => !RUN_DAYS.includes(wd));
+      $("wbMsg").textContent = !found && !other.length ? "Nenašel jsem dny (Po/Čt/So). Celý text jsem dal k pondělí – rozděl ho prosím ručně."
+        : other.length ? "Pozor: plán obsahuje i jiné dny (" + other.map(w => DAYS_SHORT[w]).join(", ") + "). Ty se neuloží – případně je přesuň do polí." : "Zkontroluj rozdělení a ulož.";
+      if (!found && !other.length) $("wb-1").value = t;
+      $("wbStep1").hidden = true; $("wbPreview").hidden = false;
+    };
+    $("wbSave").onclick = () => {
+      const keys = runKeys(state.weekMon);
+      RUN_DAYS.forEach((wd, i) => { const v = $("wb-" + wd).value.trim(); patchDay({ run: v || null }, true, keys[i]); });
+      $("weekBox").hidden = true; state.formKey = null; renderToday(); showSave("Běhy na týden uloženy ✓");
+    };
+    $("sumBannerBtn").onclick = () => { state.sumWeek = weekOf(todayKey()); show("overview"); setTimeout(() => $("sumCard").scrollIntoView({ behavior: "smooth" }), 50); };
+  }
 
   // ---------- JÍDLO (foto / text → AI odhad → seznam jídel) ----------
   const food = { pending: null, img: null, text: "", src: "", editId: null, busy: false, dayKey: null, delArm: null };
@@ -344,15 +480,19 @@
   }
   const avg = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : null;
   function avg7(endK) { const w = weightsBetween(addDays(endK, -6), endK); return w.length >= 2 ? avg(w) : (w.length ? w[0] : null); }
-  function allHabits(d) { return d && d.habits && HABITS.every(h => d.habits[h.k]); }
-  function streaks() {
-    const tk = todayKey();
-    let k = allHabits(state.days[tk]) ? tk : addDays(tk, -1), cur = 0;
-    while (allHabits(state.days[k])) { cur++; k = addDays(k, -1); }
+  function allHabits(d, k) { return d && d.habits && habitsFor(k).every(h => d.habits[h.k]); }
+  function streaks(upTo) {
+    const tk = upTo || todayKey();
+    let k = allHabits(state.days[tk], tk) ? tk : addDays(tk, -1), cur = 0;
+    while (allHabits(state.days[k], k)) { cur++; k = addDays(k, -1); }
     let best = 0, run = 0;
     const keys = Object.keys(state.days).sort();
-    if (keys.length) for (let k2 = keys[0]; k2 <= tk; k2 = addDays(k2, 1)) { if (allHabits(state.days[k2])) { run++; best = Math.max(best, run); } else run = 0; }
+    if (keys.length) for (let k2 = keys[0]; k2 <= tk; k2 = addDays(k2, 1)) { if (allHabits(state.days[k2], k2)) { run++; best = Math.max(best, run); } else run = 0; }
     return { cur, best };
+  }
+  function rateAt(k) {
+    const a = weightsBetween(addDays(k, -6), k), b = weightsBetween(addDays(k, -13), addDays(k, -7));
+    return a.length >= 2 && b.length >= 2 ? avg(a) - avg(b) : null;
   }
   function firstWeight() { const ks = Object.keys(state.days).filter(k => state.days[k].weight != null).sort(); return ks.length ? state.days[ks[0]].weight : null; }
   function lastWeight() { const ks = Object.keys(state.days).filter(k => state.days[k].weight != null).sort(); return ks.length ? state.days[ks[ks.length - 1]].weight : null; }
@@ -420,6 +560,8 @@
       else st = '<span class="status bad">Moc rychle · uber 200 kcal</span>';
     }
     $("rateStatus").innerHTML = st;
+    renderKcalSuggest();
+    renderSummary();
 
     const start = s.startWeight ?? firstWeight(), now = cur ?? lastWeight();
     if (start != null && now != null && s.targetWeight > start) {
@@ -438,9 +580,10 @@
     for (let i = 0; i < 7; i++) {
       const k = addDays(mon, i), d = state.days[k] || {}, p = PLAN[parseKey(k).getDay()];
       if (d.training) { if (p.optional) bonus++; else done++; }
-      if (k <= tk) { hTotal += HABITS.length; hDone += HABITS.filter(h => (d.habits || {})[h.k]).length; }
-      const parts = HABITS.filter(h => (d.habits || {})[h.k]).length + (p.optional ? 0 : (d.training ? 1 : 0));
-      const max = HABITS.length + (p.optional ? 0 : 1);
+      const hs = habitsFor(k);
+      if (k <= tk) { hTotal += hs.length; hDone += hs.filter(h => (d.habits || {})[h.k]).length; }
+      const parts = hs.filter(h => (d.habits || {})[h.k]).length + (p.optional ? 0 : (d.training ? 1 : 0));
+      const max = hs.length + (p.optional ? 0 : 1);
       const cls = k > tk ? "" : parts >= max ? "full" : parts > 0 ? "part" : "";
       grid += `<div class="wg">${DAYS_SHORT[parseKey(k).getDay()]}<i class="${cls} ${k === tk ? "today" : ""}" title="${fmtShort(k)}: ${parts}/${max}"></i></div>`;
     }
@@ -488,6 +631,100 @@
       <div><div class="goalrow"><b>Půlmaraton pod 1:40</b><span>${hm ? "za " + wksToHm + " týdnů · " + hm.toLocaleDateString("cs-CZ", { month: "long", year: "numeric" }) : "—"}</span></div><div class="hint">Tempo 4:44 / km</div></div>`;
   }
 
+  // ---------- automatická úprava kalorického cíle ----------
+  function kcalSuggestion() {
+    const s = state.settings, tk = todayKey();
+    const r1 = rateAt(tk), r2 = rateAt(addDays(tk, -7));
+    if (r1 == null || r2 == null) return null;
+    if (s.kcalChangedAt && s.kcalChangedAt > addDays(tk, -14)) return null; // po změně nech 2 týdny působit
+    if (s.kcalDismissWeek === mondayOf(tk)) return null;
+    const a = Math.round(r1 * 100) / 100, b = Math.round(r2 * 100) / 100;
+    if (a < 0.25 && b < 0.25) return { delta: 200, why: "2 týdny pod 0,25 kg/týden (" + nf1.format(b) + " a " + nf1.format(a) + " kg)" };
+    if (a > 0.5 && b > 0.5) return { delta: -200, why: "2 týdny nad 0,5 kg/týden (" + nf1.format(b) + " a " + nf1.format(a) + " kg)" };
+    return null;
+  }
+  function renderKcalSuggest() {
+    const sg = kcalSuggestion(), box = $("kcalSuggest");
+    if (!sg) { box.hidden = true; return; }
+    const nt = state.settings.kcalTarget + sg.delta;
+    box.hidden = false;
+    $("ksTxt").textContent = (sg.delta > 0 ? "Přibíráš pomalu: " : "Přibíráš moc rychle: ") + sg.why + ".";
+    $("ksApply").textContent = (sg.delta > 0 ? "Zvýšit" : "Snížit") + " cíl na " + nf0.format(nt) + " kcal";
+    $("ksApply").onclick = () => saveSettingsPatch({ kcalTarget: nt, kcalChangedAt: todayKey() }, "Cíl kalorií změněn na " + nf0.format(nt) + " ✓");
+    $("ksLater").onclick = () => saveSettingsPatch({ kcalDismissWeek: mondayOf(todayKey()) });
+  }
+  function saveSettingsPatch(patch, msg) {
+    state.settings = { ...state.settings, ...patch };
+    trackSave(store.saveSettings(state.settings)).then(() => { if (msg) showSave(msg); }).catch(e => showSave("Chyba: " + (e.code || e.message)));
+    renderCurrent();
+  }
+
+  // ---------- týdenní souhrn ----------
+  function weekStats(mon) {
+    const tk = todayKey(), s = state.settings, end = addDays(mon, 6);
+    const ks = []; for (let i = 0; i < 7; i++) ks.push(addDays(mon, i));
+    const ds = ks.map(k => state.days[k] || {});
+    const vals = f => ds.map(f).filter(v => v != null);
+    const w = vals(d => d.weight), kc = vals(d => d.kcal), pr = vals(d => d.protein), en = vals(d => d.energy);
+    const sl = ds.map(d => sleepHours(d.bed, d.wake)).filter(v => v != null);
+    let done = 0, bonus = 0, hDone = 0, hTot = 0; const per = {};
+    ks.forEach((k, i) => {
+      const d = ds[i], p = PLAN[parseKey(k).getDay()];
+      if (d.training) { if (p.optional) bonus++; else done++; }
+      if (k <= tk) habitsFor(k).forEach(h => { hTot++; const on = !!(d.habits || {})[h.k]; if (on) hDone++; if (k < tk || on) { per[h.k] = per[h.k] || { t: h.t, n: 0, of: 0 }; per[h.k].of++; if (on) per[h.k].n++; } });
+    });
+    const prevW = weightsBetween(addDays(mon, -7), addDays(mon, -1));
+    const pt = proteinTarget();
+    const lifts = Object.keys(LIFTS).map(id => {
+      const best = ks.map(k => ((state.days[k] || {}).lifts || {})[id]).filter(l => l && l.w != null).sort((a, b) => (b.w * (1 + (b.r || 1) / 30)) - (a.w * (1 + (a.r || 1) / 30)))[0];
+      if (!best) return null;
+      const prev = lastLift(id, mon);
+      return { id, name: LIFTS[id], best, prev };
+    }).filter(Boolean);
+    return { mon, end, w: avg(w), wN: w.length, wPrev: avg(prevW), kc: avg(kc), kcN: kc.length, kcHit: kc.filter(v => v >= s.kcalTarget).length,
+      pr: avg(pr), prN: pr.length, prHit: pt ? pr.filter(v => v >= pt).length : 0, pt, sl: avg(sl), slLow: sl.filter(v => v < s.sleepTarget).length, slN: sl.length,
+      en: avg(en), done, bonus, habPct: hTot ? Math.round(hDone / hTot * 100) : null, per, lifts, streak: streaks(end < tk ? end : tk) };
+  }
+  function summaryInsights(st) {
+    const out = [], s = state.settings;
+    if (st.w != null && st.wPrev != null && st.wN >= 3) {
+      const ch = st.w - st.wPrev;
+      out.push(ch < 0.25 ? "Váha +" + nf1.format(ch) + " kg – pod tempem. Přidej jídlo, hlavně večer." : ch <= 0.5 ? "Váha +" + nf1.format(ch) + " kg – ideální tempo, drž to." : "Váha +" + nf1.format(ch) + " kg – moc rychle, uber ~200 kcal.");
+    }
+    if (st.kcN) out.push("Kalorický cíl splněn " + st.kcHit + " z " + st.kcN + " zapsaných dní.");
+    if (st.pt && st.prN && st.prHit < st.prN) out.push("Bílkoviny pod cílem " + (st.prN - st.prHit) + "× z " + st.prN + " dní.");
+    if (st.slLow) out.push("Spánek pod " + nf1.format(s.sleepTarget) + " h: " + st.slLow + "×.");
+    const weak = Object.values(st.per).filter(h => h.of).sort((a, b) => a.n / a.of - b.n / b.of)[0];
+    if (weak && weak.n < weak.of) out.push("Nejslabší návyk: " + weak.t + " (" + weak.n + "/" + weak.of + ").");
+    return out.slice(0, 4);
+  }
+  function renderSummary() {
+    const tk = todayKey();
+    const mon = state.sumWeek || weekOf(tk), st = weekStats(mon);
+    $("sumTitle").textContent = fmtShort(mon) + " – " + fmtShort(st.end);
+    $("sumLabel").textContent = mon === weekOf(tk) ? "Týdenní souhrn · tento týden" : mon === addDays(weekOf(tk), -7) ? "Týdenní souhrn · minulý týden" : "Týdenní souhrn";
+    $("sumNext").disabled = mon >= weekOf(tk);
+    const kpi = (l, v, sub) => `<div class="kpi"><div class="l">${l}</div><div class="v">${v}</div><div class="s">${sub || ""}</div></div>`;
+    const dash = "—";
+    const wCh = st.w != null && st.wPrev != null ? (st.w - st.wPrev >= 0 ? "+" : "") + nf1.format(st.w - st.wPrev) + " kg vs. minulý týden" : st.wN + "× vážení";
+    $("sumKpis").innerHTML =
+      kpi("Váha Ø", st.w != null ? nf1.format(st.w) + "<small>kg</small>" : dash, wCh) +
+      kpi("Kalorie Ø", st.kc != null ? nf0.format(st.kc) + "<small>kcal</small>" : dash, st.kcN ? "cíl splněn " + st.kcHit + "/" + st.kcN : "") +
+      kpi("Bílkoviny Ø", st.pr != null ? nf0.format(st.pr) + "<small>g</small>" : dash, st.pt ? "cíl " + st.pt + " g" : "") +
+      kpi("Spánek Ø", st.sl != null ? nf1.format(st.sl) + "<small>h</small>" : dash, st.slN ? "pod cílem " + st.slLow + "×" : "") +
+      kpi("Tréninky", st.done + "<small>/ " + REQUIRED_PER_WEEK + "</small>", st.bonus ? "+ chill run" : "4 gym + 2 běhy") +
+      kpi("Návyky", st.habPct != null ? st.habPct + "<small>%</small>" : dash, "série " + st.streak.cur + " dní") +
+      kpi("Energie Ø", st.en != null ? nf1.format(st.en) + "<small>/ 5</small>" : dash, "") +
+      kpi("Rekord série", st.streak.best + "<small>dní</small>", "cíl 30");
+    $("sumLifts").innerHTML = st.lifts.length ? st.lifts.map(l => {
+      const e = x => x.w * (1 + (x.r || 1) / 30), diff = l.prev ? e(l.best) - e(l.prev) : null;
+      const tag = diff == null ? "" : diff > 0.5 ? `<span class="up">▲ silnější</span>` : diff < -0.5 ? `<span class="down">▼ slabší</span>` : `<span class="eq">= stejně</span>`;
+      return `<li><span>${esc(l.name)}</span><b>${fmtLift(l.best)}</b>${tag}</li>`;
+    }).join("") : `<li class="empty">Tento týden bez zapsaných vah na hlavních cvicích.</li>`;
+    const ins = summaryInsights(st);
+    $("sumIns").innerHTML = ins.length ? ins.map(t => `<li>${esc(t)}</li>`).join("") : `<li class="empty">Málo dat na hodnocení – zapisuj a v neděli tu bude souhrn.</li>`;
+  }
+
   // ---------- HISTORY ----------
   function renderHistory() {
     const keys = Object.keys(state.days).sort().reverse();
@@ -496,7 +733,7 @@
       const d = state.days[k], h = sleepHours(d.bed, d.wake), p = PLAN[parseKey(k).getDay()];
       const vals = [d.weight != null ? "<b>" + nf1.format(d.weight) + "</b> kg" : null, d.kcal != null ? "<b>" + nf0.format(d.kcal) + "</b> kcal" : null, d.protein != null ? "<b>" + nf0.format(d.protein) + "</b> g B" : null, h != null ? "<b>" + nf1.format(h) + "</b> h" : null].filter(Boolean).join(" · ") || "—";
       const runTxt = d.run ? `<br><small style="color:var(--sage)">🏃 ${esc(d.run.split("\n")[0].slice(0, 60))}</small>` : "";
-      const dots = `<i class="tr ${d.training ? "on" : ""}" title="${esc(p.label)}"></i>` + HABITS.map(x => `<i class="${(d.habits || {})[x.k] ? "on" : ""}"></i>`).join("");
+      const dots = `<i class="tr ${d.training ? "on" : ""}" title="${esc(p.label)}"></i>` + habitsFor(k).map(x => `<i class="${(d.habits || {})[x.k] ? "on" : ""}"></i>`).join("") + (d.energy ? `<em class="hen">⚡${d.energy}</em>` : "");
       return `<button class="hrow" data-k="${k}"><span class="dt"><b>${fmtShort(k)}</b><small>${DAYS_CS[parseKey(k).getDay()]}</small></span><span class="vals">${vals}${runTxt}</span><span class="dots">${dots}</span></button>`;
     }).join("");
   }
@@ -518,12 +755,13 @@
       `Cíle: váha ${s.targetWeight} kg (start ${s.startWeight ?? "?"} kg), ${s.kcalTarget} kcal/den, bílkoviny ${s.proteinPerKg || 2} g/kg, spánek ${s.sleepTarget} h, půlmaraton pod 1:40 (${s.hmDate}). Objem: ideálně +0,25–0,5 kg/týden.`,
       "Plán: Po tempo/intervaly, Út nohy, St hrudník+biceps, Čt chill run (volitelně), Pá záda+ramena+triceps, So long run, Ne celý hořejšek.",
       "",
-      "datum;den;vaha_kg;kcal;bilkoviny_g;sacharidy_g;tuky_g;spat;vstal;spanek_h;trenink;splneno;mobil;hygiena;bez_gauce;zapis;trenink_detail;jidla;poznamka"
+      "datum;den;vaha_kg;kcal;bilkoviny_g;sacharidy_g;tuky_g;spat;vstal;spanek_h;energie_1_5;trenink;splneno;mobil;hygiena;bez_gauce;zapis;budik;hlavni_cviky;trenink_detail;jidla;poznamka"
     ];
     const rows = keys.map(k => {
       const d = state.days[k], p = PLAN[parseKey(k).getDay()], h = sleepHours(d.bed, d.wake), hb = d.habits || {};
-      return [k, DAYS_SHORT[parseKey(k).getDay()], d.weight ?? "", d.kcal ?? "", d.protein ?? "", d.carbs ?? "", d.fat ?? "", d.bed ?? "", d.wake ?? "", h != null ? h.toFixed(1) : "", p.label, d.training ? 1 : 0,
-        hb.mobil ? 1 : 0, hb.hygiena ? 1 : 0, hb.gauc ? 1 : 0, hb.zapis ? 1 : 0, (d.run || "").replace(/[;\n]/g, " | "), mealsOf(d).map(m => `${m.t} ${m.name} ${m.kcal}kcal/${m.protein}gB`).join(" | ").replace(/;/g, ","), (d.note || "").replace(/[;\n]/g, " ")].join(";");
+      return [k, DAYS_SHORT[parseKey(k).getDay()], d.weight ?? "", d.kcal ?? "", d.protein ?? "", d.carbs ?? "", d.fat ?? "", d.bed ?? "", d.wake ?? "", h != null ? h.toFixed(1) : "", d.energy ?? "", p.label, d.training ? 1 : 0,
+        hb.mobil ? 1 : 0, hb.hygiena ? 1 : 0, hb.gauc ? 1 : 0, hb.zapis ? 1 : 0, k >= "2026-11-10" ? (hb.budik ? 1 : 0) : "",
+        Object.keys(d.lifts || {}).filter(id => d.lifts[id] && d.lifts[id].w != null).map(id => LIFTS[id] + " " + fmtLift(d.lifts[id])).join(" | "), (d.run || "").replace(/[;\n]/g, " | "), mealsOf(d).map(m => `${m.t} ${m.name} ${m.kcal}kcal/${m.protein}gB`).join(" | ").replace(/;/g, ","), (d.note || "").replace(/[;\n]/g, " ")].join(";");
     });
     $("exText").value = head.concat(rows).join("\n");
   }
@@ -531,11 +769,13 @@
     $("saveSettings").onclick = () => {
       const s = { startWeight: num($("s-startW").value), startDate: $("s-startD").value || null, targetWeight: num($("s-targetW").value) ?? 95,
         kcalTarget: num($("s-kcal").value) ?? 4000, sleepTarget: num($("s-sleep").value) ?? 7, hmDate: $("s-hm").value || DEFAULT_SETTINGS.hmDate, proteinPerKg: num($("s-protkg").value) ?? 2 };
-      state.settings = s;
-      store.saveSettings(s).then(() => { $("setSaved").textContent = "Uloženo ✓"; setTimeout(() => $("setSaved").textContent = "", 1800); })
+      state.settings = { ...state.settings, ...s }; const sAll = state.settings;
+      trackSave(store.saveSettings(sAll)).then(() => { $("setSaved").textContent = "Uloženo ✓"; setTimeout(() => $("setSaved").textContent = "", 1800); })
         .catch(e => { $("setSaved").textContent = "Chyba: " + (e.code || e.message); });
     };
     $("exRange").onchange = renderExport;
+    $("pdfBtn").onclick = makePdf;
+    $("pdfShare").onclick = () => sharePdf();
     $("copyEx").onclick = () => {
       const t = $("exText");
       const ok = () => { $("copyMsg").textContent = "Zkopírováno ✓ Vlož to do chatu."; };
@@ -548,6 +788,74 @@
     let th = "dark"; try { th = localStorage.getItem("tvt-theme") === "light" ? "light" : "dark"; } catch (e) {}
     applyTheme(th);
     $("themeBtn").onclick = () => { th = th === "dark" ? "light" : "dark"; try { localStorage.setItem("tvt-theme", th); } catch (e) {} applyTheme(th); };
+  }
+
+  // ---------- PDF report ----------
+  let lastPdf = null;
+  function loadScript(src) {
+    return new Promise((res, rej) => { if ([...document.scripts].some(s => s.src.endsWith(src))) return res(); const s = document.createElement("script"); s.src = src; s.onload = res; s.onerror = () => rej(new Error("Nepodařilo se načíst " + src)); document.head.appendChild(s); });
+  }
+  function reportData() {
+    const n = Number($("exRange").value), tk = todayKey();
+    let keys = Object.keys(state.days).filter(k => k <= tk).sort();
+    if (n) keys = keys.filter(k => k > addDays(tk, -n));
+    const from = keys[0] || tk, to = keys[keys.length - 1] || tk;
+    const all = []; for (let k = from; k <= to; k = addDays(k, 1)) all.push(k);
+    const s = state.settings, pt = proteinTarget();
+    const days = all.map(k => {
+      const d = state.days[k] || {}, p = PLAN[parseKey(k).getDay()], hs = habitsFor(k);
+      return { k, today: k === tk, short: fmtShort(k), dow: DAYS_SHORT[parseKey(k).getDay()], weight: d.weight ?? null, avg7: avg7(k), kcal: d.kcal ?? null, protein: d.protein ?? null,
+        sleep: sleepHours(d.bed, d.wake), energy: d.energy ?? null, plan: p.label, optional: !!p.optional, training: !!d.training,
+        habits: hs.filter(h => (d.habits || {})[h.k]).length, habitsOf: hs.length, note: d.note || "", run: d.run || "",
+        meals: mealsOf(d).map(m => ({ t: m.t, name: m.name, kcal: m.kcal, protein: m.protein })),
+        lifts: Object.keys(d.lifts || {}).filter(id => d.lifts[id] && d.lifts[id].w != null).map(id => LIFTS[id] + " " + fmtLift(d.lifts[id])) };
+    });
+    const v = f => days.map(f).filter(x => x != null);
+    const w = v(d => d.weight);
+    const liftRows = Object.keys(LIFTS).map(id => {
+      const recs = all.map(k => ({ k, l: ((state.days[k] || {}).lifts || {})[id] })).filter(x => x.l && x.l.w != null);
+      if (!recs.length) return null;
+      const e = x => x.w * (1 + (x.r || 1) / 30);
+      const best = recs.slice().sort((a, b) => e(b.l) - e(a.l))[0];
+      return { name: LIFTS[id], first: fmtLift(recs[0].l) + " (" + fmtShort(recs[0].k) + ")", last: fmtLift(recs[recs.length - 1].l) + " (" + fmtShort(recs[recs.length - 1].k) + ")", best: fmtLift(best.l) };
+    }).filter(Boolean);
+    const planned = days.filter(d => !d.optional).length, trained = days.filter(d => !d.optional && d.training).length;
+    const hTot = days.reduce((a, d) => a + d.habitsOf, 0), hDone = days.reduce((a, d) => a + d.habits, 0);
+    const sk = streaks();
+    return {
+      from, to, fromTxt: parseKey(from).toLocaleDateString("cs-CZ"), toTxt: parseKey(to).toLocaleDateString("cs-CZ"), generated: new Date().toLocaleString("cs-CZ"),
+      settings: { ...s }, proteinTarget: pt, days, liftRows,
+      summary: {
+        wStart: w.length ? w[0] : null, wEnd: w.length ? w[w.length - 1] : null, wAvgEnd: avg7(to),
+        kcal: avg(v(d => d.kcal)), protein: avg(v(d => d.protein)), sleep: avg(v(d => d.sleep)), energy: avg(v(d => d.energy)),
+        trained, planned, chill: days.filter(d => d.optional && d.training).length, habPct: hTot ? Math.round(hDone / hTot * 100) : null,
+        streak: sk.cur, best: sk.best, kcalHit: v(d => d.kcal).filter(x => x >= s.kcalTarget).length, kcalN: v(d => d.kcal).length
+      }
+    };
+  }
+  async function makePdf() {
+    const btn = $("pdfBtn"), msg = $("pdfMsg");
+    btn.disabled = true; msg.textContent = "Připravuji PDF…"; $("pdfShare").hidden = true;
+    try {
+      await loadScript("vendor/jspdf.umd.min.js");
+      await loadScript("pdf.js");
+      const data = reportData();
+      if (!data.days.length) throw new Error("Za zvolené období nejsou žádná data.");
+      const blob = await window.TVT_PDF.build(data);
+      const name = "ty-vs-ty-report-" + data.from + "_" + data.to + ".pdf";
+      lastPdf = new File([blob], name, { type: "application/pdf" });
+      const url = URL.createObjectURL(blob), a = document.createElement("a");
+      a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 30000);
+      msg.textContent = "PDF staženo ✓ (" + data.days.length + " dní)";
+      if (navigator.canShare && navigator.canShare({ files: [lastPdf] })) $("pdfShare").hidden = false;
+    } catch (e) {
+      msg.textContent = /načíst/.test(e.message) && !navigator.onLine ? "PDF se poprvé musí načíst s internetem." : "PDF se nepovedlo: " + e.message;
+    } finally { btn.disabled = false; }
+  }
+  async function sharePdf() {
+    if (!lastPdf) return;
+    try { await navigator.share({ files: [lastPdf], title: "Ty vs. Ty – report" }); } catch (e) { /* zrušeno */ }
   }
 
   // ---------- views ----------
@@ -583,8 +891,11 @@
   function boot() {
     try { store = DEMO ? makeDemoStore() : makeFirebaseStore(); }
     catch (e) { store = makeDemoStore(); }
-    $("mode").textContent = store.label;
-    bindToday(); bindFood(); bindSettings(); bindAuth();
+    renderSync();
+    window.addEventListener("online", renderSync); window.addEventListener("offline", renderSync);
+    bindToday(); bindLifts(); bindWeekBox(); bindFood(); bindSettings(); bindAuth();
+    $("sumPrev").onclick = () => { state.sumWeek = addDays(state.sumWeek || weekOf(todayKey()), -7); renderSummary(); };
+    $("sumNext").onclick = () => { const n = addDays(state.sumWeek || weekOf(todayKey()), 7); if (n <= weekOf(todayKey())) { state.sumWeek = n; renderSummary(); } };
     $("tabs").addEventListener("click", e => { const b = e.target.closest("button[data-view]"); if (b) show(b.dataset.view); });
     $("histList").addEventListener("click", e => { const b = e.target.closest(".hrow"); if (b) { state.key = b.dataset.k; state.formKey = null; show("today"); } });
 
@@ -600,6 +911,7 @@
         if (pendingKey) days[pendingKey] = state.days[pendingKey];
         state.days = days;
         if (!editing && !pendingKey) state.formKey = null;
+
         renderCurrent();
       });
       show(state.view);

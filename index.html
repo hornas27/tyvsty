@@ -107,6 +107,33 @@ h2{font-family:var(--f-display);font-weight:400;font-size:22px;margin:0;text-wra
 .exl li span{min-width:0}
 .exl li b{font-weight:600;font-size:13px;color:var(--sage);font-variant-numeric:tabular-nums;white-space:nowrap}
 
+/* food */
+.macros{display:flex;flex-direction:column;gap:12px}
+.mrow{display:flex;justify-content:space-between;align-items:baseline;font-size:13px;color:var(--soft)}
+.mrow b{font-family:var(--f-display);font-weight:400;font-size:22px;color:var(--ink);font-variant-numeric:tabular-nums}
+.mrow small{font-size:12px;color:var(--soft)}
+.bar-fill.sage{background:var(--sage)}
+.foodbtns{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:8px;margin-top:14px}
+.foodbtns .btn{text-align:center;padding:12px 8px;font-size:14px;cursor:pointer}
+.panel{margin-top:12px;padding:14px;border:1px solid var(--line);border-radius:14px;background:var(--bg)}
+#aiImg{width:100%;max-height:220px;object-fit:cover;border-radius:10px;margin-bottom:10px;display:block}
+.aistatus{font-size:13px;color:var(--clay);min-height:18px;margin-bottom:8px}
+.aiitems{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.aiitems span{font-size:12px;padding:3px 9px;border-radius:99px;background:var(--card);border:1px solid var(--line);color:var(--soft)}
+.spin{display:inline-block;width:12px;height:12px;border:2px solid var(--clay);border-right-color:transparent;border-radius:50%;animation:sp 0.8s linear infinite;vertical-align:-2px;margin-right:4px}
+@keyframes sp{to{transform:rotate(360deg)}}
+.meals{list-style:none;margin:14px 0 0;padding:0;display:flex;flex-direction:column;gap:8px}
+.meals .empty{font-size:13px}
+.meal{display:flex;gap:8px;align-items:stretch}
+.meal-main{flex:1;min-width:0;display:grid;grid-template-columns:44px 1fr;grid-template-rows:auto auto;column-gap:8px;text-align:left;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:10px 12px;cursor:pointer}
+.meal-t{grid-row:1/3;font-size:12px;color:var(--soft);font-variant-numeric:tabular-nums;align-self:center}
+.meal-n{font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.meal-v{font-size:12px;color:var(--soft)}
+.meal-v b{color:var(--ink);font-weight:600}
+.meal-del{flex:none;min-width:44px;border:1px solid var(--line);background:var(--bg);color:var(--soft);border-radius:12px;font-size:18px;cursor:pointer;padding:0 10px}
+.meal-del.armed{background:var(--bad);border-color:var(--bad);color:#fff;font-size:12px;font-weight:600}
+.grecaptcha-badge{visibility:hidden}
+
 /* overview */
 .ov{display:grid;grid-template-columns:1fr;gap:14px}
 @media (min-width:860px){.ov{grid-template-columns:1fr 1fr}.ov .span2{grid-column:1/-1}}
@@ -229,11 +256,52 @@ textarea.export{width:100%;min-height:180px;border:1px solid var(--line);border-
       </div>
 
       <div class="card">
-        <p class="sec-t">Večer</p>
-        <div class="fields">
-          <div class="field full"><label for="f-kcal">Kalorie za den (finální číslo)</label><div class="unit"><input id="f-kcal" type="number" inputmode="numeric" step="10" min="0" max="10000" placeholder="—"><span>kcal</span></div></div>
+        <p class="sec-t">Jídlo</p>
+        <div class="macros">
+          <div class="macro"><div class="mrow"><span>Kalorie</span><span><b id="mKcal">0</b> <small id="mKcalT"></small></span></div><div class="bar-track"><div class="bar-fill" id="mKcalBar" style="width:0%"></div></div></div>
+          <div class="macro"><div class="mrow"><span>Bílkoviny</span><span><b id="mProt">0</b> <small id="mProtT"></small></span></div><div class="bar-track"><div class="bar-fill sage" id="mProtBar" style="width:0%"></div></div></div>
         </div>
         <div class="hint" id="kcalHint"></div>
+
+        <div class="foodbtns">
+          <label class="btn" for="f-photo" role="button">📷 Vyfotit jídlo</label>
+          <input id="f-photo" type="file" accept="image/*" capture="environment" hidden>
+          <button type="button" class="btn ghost" id="btnText">✍️ Popsat</button>
+          <button type="button" class="btn ghost" id="btnManual">+ Ručně</button>
+        </div>
+
+        <div id="textBox" class="panel" hidden>
+          <div class="field"><label for="f-foodText">Co jsi jedl? (čím přesněji, tím lepší odhad)</label><textarea id="f-foodText" placeholder="Např. 200 g rýže, 150 g kuřecích prsou, lžíce olivového oleje"></textarea></div>
+          <div class="row" style="margin-top:10px"><button type="button" class="btn" id="btnTextGo">Odhadnout</button></div>
+        </div>
+
+        <div id="aiBox" class="panel" hidden>
+          <img id="aiImg" alt="Fotka jídla" hidden>
+          <div class="aistatus" id="aiStatus" aria-live="polite"></div>
+          <div class="fields">
+            <div class="field full"><label for="p-name">Jídlo</label><input id="p-name" type="text" placeholder="Název"></div>
+            <div class="field"><label for="p-kcal">Kalorie</label><div class="unit"><input id="p-kcal" type="number" inputmode="numeric" min="0"><span>kcal</span></div></div>
+            <div class="field"><label for="p-prot">Bílkoviny</label><div class="unit"><input id="p-prot" type="number" inputmode="numeric" min="0"><span>g</span></div></div>
+            <div class="field"><label for="p-carbs">Sacharidy</label><div class="unit"><input id="p-carbs" type="number" inputmode="numeric" min="0"><span>g</span></div></div>
+            <div class="field"><label for="p-fat">Tuky</label><div class="unit"><input id="p-fat" type="number" inputmode="numeric" min="0"><span>g</span></div></div>
+          </div>
+          <div class="aiitems" id="aiItems"></div>
+          <div class="hint" id="aiNote"></div>
+          <div class="field" id="aiHintRow" style="margin-top:12px"><label for="ai-hint">Upřesnění pro AI (volitelné)</label><input id="ai-hint" type="text" placeholder="Např. dvojitá porce, smažené na másle, bez omáčky"></div>
+          <div class="row" style="margin-top:12px">
+            <button type="button" class="btn" id="aiAdd">Přidat jídlo</button>
+            <button type="button" class="btn ghost" id="aiRedo">Přepočítat</button>
+            <button type="button" class="btn ghost" id="aiCancel">Zrušit</button>
+          </div>
+        </div>
+
+        <ul class="meals" id="mealList"></ul>
+
+        <div class="fields" style="margin-top:14px">
+          <div class="field"><label for="f-kcal">Kalorie za den</label><div class="unit"><input id="f-kcal" type="number" inputmode="numeric" step="10" min="0" max="10000" placeholder="—"><span>kcal</span></div></div>
+          <div class="field"><label for="f-prot">Bílkoviny za den</label><div class="unit"><input id="f-prot" type="number" inputmode="numeric" min="0" max="600" placeholder="—"><span>g</span></div></div>
+        </div>
+        <div class="hint">Součet se počítá sám z jídel. Číslo můžeš i přepsat ručně.</div>
       </div>
 
       <div class="card">
@@ -282,8 +350,14 @@ textarea.export{width:100%;min-height:180px;border:1px solid var(--line);border-
         <div class="card">
           <p class="sec-t">Kalorie · 14 dní</p>
           <div id="kChart"></div>
+          <div class="hint" id="kAvg"></div>
         </div>
         <div class="card">
+          <p class="sec-t">Bílkoviny · 14 dní</p>
+          <div id="pChart"></div>
+          <div class="hint" id="pAvg"></div>
+        </div>
+        <div class="card span2">
           <p class="sec-t">Spánek · 14 dní</p>
           <div id="sChart"></div>
         </div>
@@ -311,6 +385,7 @@ textarea.export{width:100%;min-height:180px;border:1px solid var(--line);border-
           <div class="field"><label for="s-kcal">Cíl kalorií</label><div class="unit"><input id="s-kcal" type="number" inputmode="numeric" step="50"><span>kcal</span></div></div>
           <div class="field"><label for="s-sleep">Cíl spánku</label><div class="unit"><input id="s-sleep" type="number" inputmode="decimal" step="0.5"><span>h</span></div></div>
           <div class="field"><label for="s-hm">Půlmaraton (datum)</label><input id="s-hm" type="date"></div>
+          <div class="field"><label for="s-protkg">Bílkoviny na kg váhy</label><div class="unit"><input id="s-protkg" type="number" inputmode="decimal" step="0.1" min="0.5" max="4"><span>g/kg</span></div></div>
         </div>
         <div class="row" style="margin-top:14px"><button class="btn" id="saveSettings">Uložit</button><span class="hint" id="setSaved"></span></div>
       </div>
@@ -328,6 +403,7 @@ textarea.export{width:100%;min-height:180px;border:1px solid var(--line);border-
 
       <div class="card">
         <p class="sec-t">Účet</p>
+        <div class="hint" style="margin:0 0 10px">Odhad jídla dělá Gemini (Google). Chráněno reCAPTCHA – platí <a href="https://policies.google.com/privacy" target="_blank" rel="noopener" style="color:var(--clay)">Zásady ochrany soukromí</a> a <a href="https://policies.google.com/terms" target="_blank" rel="noopener" style="color:var(--clay)">Smluvní podmínky</a> Google.</div>
         <div class="hint" id="acctTxt" style="margin-top:0"></div>
         <div class="row" style="margin-top:12px">
           <button class="btn ghost" id="themeBtn">Motiv: tmavý</button>
@@ -343,5 +419,6 @@ textarea.export{width:100%;min-height:180px;border:1px solid var(--line);border-
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="app.js"></script>
+<script type="module" src="ai.js"></script>
 </body>
 </html>

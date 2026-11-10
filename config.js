@@ -8,3 +8,6 @@ window.FIREBASE_CONFIG = {
   messagingSenderId: "1006050490144",
   appId: "1:1006050490144:web:88671c224ec3be8ab70945"
 };
+
+// reCAPTCHA (Fraud Defense) site key pro App Check – chrání Gemini proti zneužití.
+window.RECAPTCHA_SITE_KEY = "6LclWRkuAAAAADuf4ax5nIaEoClE4glYoqNz2UZT";

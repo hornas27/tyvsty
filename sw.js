@@ -1,6 +1,6 @@
 // Ty vs. Ty – service worker: appka se otevře i bez internetu (data dosynchronizuje Firebase).
-const CACHE = "tvt-v4";
-const SHELL = ["./", "index.html", "app.js", "config.js", "manifest.json", "icons/icon-192.png", "icons/icon-512.png"];
+const CACHE = "tvt-v5";
+const SHELL = ["./", "index.html", "app.js", "ai.js", "config.js", "manifest.json", "icons/icon-192.png", "icons/icon-512.png"];
 
 self.addEventListener("install", e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));

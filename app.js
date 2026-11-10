@@ -9,7 +9,7 @@
     2: { type: "gym", label: "Nohy", ex: [
       ["Bulharské dřepy (smith)", "2 do selhání", "bulgar"], ["Rumunský mrtvý tah", S2, "rdl"], ["Leg press", S2],
       ["Zákopy", S2], ["Předkopy", S2], ["Třísla", S2], ["Lýtka", S2]] },
-    3: { type: "gym", label: "Hrudník + biceps", ex: [
+    3: { type: "gym", label: "Hrudník + biceps + břicho", ex: [
       ["Smith bench", S2, "bench"], ["Šikmý tlak s jednoručkami", S2], ["Rozpažky na stroji", S2],
       ["Upažování na kladce", S2], ["Bayesian curl", S2], ["Zdvih s lanem na kladce", S2], ["Kladkový crunch v kleku", S2]] },
     4: { type: "run", label: "Chill run", optional: true },
@@ -754,7 +754,7 @@
     const head = [
       "Ty vs. Ty – export dat (Marek). Rozeber mi trend váhy, kalorie, spánek, tréninky a návyky.",
       `Cíle: váha ${s.targetWeight} kg (start ${s.startWeight ?? "?"} kg), ${s.kcalTarget} kcal/den, bílkoviny ${s.proteinPerKg || 2} g/kg, spánek ${s.sleepTarget} h, půlmaraton pod 1:40 (${s.hmDate}). Objem: ideálně +0,25–0,5 kg/týden.`,
-      "Plán: Po tempo/intervaly, Út nohy, St hrudník+biceps, Čt chill run (volitelně), Pá záda+ramena+triceps, So long run, Ne celý hořejšek.",
+      "Plán: Po tempo/intervaly, Út nohy, St hrudník+biceps+břicho, Čt chill run (volitelně), Pá záda+ramena+triceps, So long run, Ne celý hořejšek.",
       "",
       "datum;den;vaha_kg;kcal;bilkoviny_g;sacharidy_g;tuky_g;spat;vstal;spanek_h;energie_1_5;trenink;splneno;mobil;hygiena;bez_gauce;zapis;budik;hlavni_cviky;trenink_detail;jidla;poznamka"
     ];

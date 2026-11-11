@@ -186,6 +186,7 @@
     $("habitBox").innerHTML = habitsFor(k).map(h => chkHtml("h-" + h.k, h.t, "", !!(d.habits || {})[h.k])).join("");
     renderEnergy(d);
     renderBanners();
+    renderHeroGoal();
     if (food.dayKey !== k) closePending();
     renderMeals();
     renderTodayDerived();
@@ -261,6 +262,16 @@
       cur[inp.dataset.f] = num(inp.value);
       patchDay({ lifts: { [id]: cur } });
     });
+  }
+
+  // ---------- hero: cesta na cílovou váhu ----------
+  function renderHeroGoal() {
+    const s = state.settings, now = avg7(state.key) ?? lastWeight(), start = s.startWeight ?? firstWeight();
+    $("hgTgt").textContent = "cesta na " + nf0.format(s.targetWeight) + " kg";
+    if (now == null) { $("hgNow").textContent = "zatím bez vážení"; $("hgBar").style.width = "0%"; return; }
+    $("hgNow").textContent = nf1.format(now) + " kg";
+    const pct = start != null && s.targetWeight > start ? Math.max(0, Math.min(1, (now - start) / (s.targetWeight - start))) : 0;
+    $("hgBar").style.width = Math.max(pct * 100, 2).toFixed(1) + "%";
   }
 
   // ---------- energie 1–5 ----------
@@ -785,10 +796,15 @@
     };
     $("logoutBtn").onclick = () => store.signOut();
     const names = { dark: "tmavý", light: "světlý" };
-    const applyTheme = t => { if (t === "light") document.documentElement.setAttribute("data-theme", "light"); else document.documentElement.removeAttribute("data-theme"); $("themeBtn").textContent = "Motiv: " + names[t]; };
-    let th = "dark"; try { th = localStorage.getItem("tvt-theme") === "light" ? "light" : "dark"; } catch (e) {}
+    // vzhled barevné bloky: výchozí tmavý, světlý na přepnutí v Nastavení
+    const applyTheme = t => {
+      if (t === "dark") document.documentElement.setAttribute("data-theme", "dark"); else document.documentElement.removeAttribute("data-theme");
+      $("themeBtn").textContent = "Motiv: " + names[t];
+      const m = document.querySelector('meta[name="theme-color"]'); if (m) m.setAttribute("content", t === "dark" ? "#2A45FF" : "#1F3BFF");
+    };
+    let th = "dark"; try { th = localStorage.getItem("tvt-theme2") === "light" ? "light" : "dark"; } catch (e) {}
     applyTheme(th);
-    $("themeBtn").onclick = () => { th = th === "dark" ? "light" : "dark"; try { localStorage.setItem("tvt-theme", th); } catch (e) {} applyTheme(th); };
+    $("themeBtn").onclick = () => { th = th === "dark" ? "light" : "dark"; try { localStorage.setItem("tvt-theme2", th); } catch (e) {} applyTheme(th); };
   }
 
   // ---------- PDF report ----------

@@ -1,30 +1,39 @@
 <!doctype html>
-<html lang="cs">
+<html lang="cs" data-theme="dark">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Ty vs. Ty</title>
-<meta name="theme-color" content="#141311">
+<meta name="theme-color" content="#2A45FF">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;1,9..144,400&family=Inter:wght@400;500;600&display=swap">
 <style>
 /* Layout: one column (max 560px) on phone, two-column overview on desktop; bottom tab bar on phone, top nav on desktop */
-/* Výchozí = tmavý motiv (šetří oči ráno i večer). Světlý jen na přepnutí v Nastavení. */
+/* Vzhled „Barevné bloky“ (návrh 5): světlý podklad, kobaltová + korálová, výrazné bloky. Výchozí tmavý (data-theme="dark"), světlý na přepnutí v Nastavení. */
+@font-face{font-family:"Big Shoulders Display";font-style:normal;font-weight:800;font-display:swap;src:url(fonts/big-shoulders-display-latin-800-normal.woff2) format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:"Big Shoulders Display";font-style:normal;font-weight:800;font-display:swap;src:url(fonts/big-shoulders-display-latin-ext-800-normal.woff2) format("woff2");unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}
+@font-face{font-family:"Big Shoulders Display";font-style:normal;font-weight:900;font-display:swap;src:url(fonts/big-shoulders-display-latin-900-normal.woff2) format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:"Big Shoulders Display";font-style:normal;font-weight:900;font-display:swap;src:url(fonts/big-shoulders-display-latin-ext-900-normal.woff2) format("woff2");unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}
+@font-face{font-family:"DM Sans";font-style:normal;font-weight:400;font-display:swap;src:url(fonts/dm-sans-latin-400-normal.woff2) format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:"DM Sans";font-style:normal;font-weight:400;font-display:swap;src:url(fonts/dm-sans-latin-ext-400-normal.woff2) format("woff2");unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}
+@font-face{font-family:"DM Sans";font-style:normal;font-weight:500;font-display:swap;src:url(fonts/dm-sans-latin-500-normal.woff2) format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:"DM Sans";font-style:normal;font-weight:500;font-display:swap;src:url(fonts/dm-sans-latin-ext-500-normal.woff2) format("woff2");unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}
+@font-face{font-family:"DM Sans";font-style:normal;font-weight:700;font-display:swap;src:url(fonts/dm-sans-latin-700-normal.woff2) format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:"DM Sans";font-style:normal;font-weight:700;font-display:swap;src:url(fonts/dm-sans-latin-ext-700-normal.woff2) format("woff2");unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}
 :root{
-  --bg:#141311; --card:#1E1C19; --ink:#E2DACD; --soft:#958C80; --line:#302C27;
-  --sage:#93A887; --sage-l:#252B21; --clay:#C9946F; --clay-l:#33281F;
-  --good:#86B080; --warn:#CFA45B; --bad:#CF7B6B;
-  --f-display:"Fraunces",Georgia,serif; --f-body:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
-  color-scheme:dark;
+  --bg:#EEF1F6; --card:#FFFFFF; --ink:#141A2E; --soft:#566079; --line:#DCE1EB;
+  --sage:#1F3BFF; --sage-l:#E4E9FF; --clay:#C93A1C; --clay-l:#FFE7E0;
+  --cobalt:#1F3BFF; --coral:#FF6B4A; --night:#141A2E; --night-2:#262E48; --on-cobalt:#FFFFFF;
+  --good:#11804A; --warn:#A86A00; --bad:#C2341A;
+  --f-display:"Big Shoulders Display","Arial Narrow",sans-serif; --f-body:"DM Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  color-scheme:light;
 }
-:root[data-theme="light"]{
-  --bg:#F6F2EA; --card:#FFFDF8; --ink:#2C2823; --soft:#7B7268; --line:#E7DFD3;
-  --sage:#7F9473; --sage-l:#E5EBDF; --clay:#B9825F; --clay-l:#F2E4D9;
-  --good:#5E8B5A; --warn:#B98A3A; --bad:#B4594A; color-scheme:light}
+:root[data-theme="dark"]{
+  --bg:#0C1020; --card:#161C30; --ink:#EEF1F8; --soft:#9AA3BA; --line:#283049;
+  --sage:#7D92FF; --sage-l:#1D2550; --clay:#FF8A6E; --clay-l:#3A1F18;
+  --cobalt:#2A45FF; --coral:#FF6B4A; --night:#070A14; --night-2:#1E2640;
+  --good:#5BD08F; --warn:#E3B04B; --bad:#FF7A62; color-scheme:dark}
 
 *{box-sizing:border-box}
 html,body{margin:0;background:var(--bg);color:var(--ink)}
@@ -230,6 +239,112 @@ textarea.export{width:100%;min-height:180px;border:1px solid var(--line);border-
 .ins li{padding-left:16px;position:relative} .ins li::before{content:"";position:absolute;left:2px;top:8px;width:6px;height:6px;border-radius:50%;background:var(--clay)}
 .lifts li.empty,.ins li.empty{display:block;color:var(--soft);padding-left:0} .ins li.empty::before{display:none}
 .hen{font-style:normal;font-size:11px;color:var(--soft);margin-left:4px}
+
+/* ===== návrh 5 · Barevné bloky ===== */
+html,body{overflow-x:clip}
+.wrap{padding-top:0}
+.top{background:var(--cobalt);color:var(--on-cobalt);margin:0 calc(50% - 50vw);padding:calc(14px + env(safe-area-inset-top,0px)) max(18px,calc(50vw - 472px)) 12px;margin-top:calc(-1 * env(safe-area-inset-top,0px))}
+.brand{font-family:var(--f-display);font-weight:900;font-size:26px;letter-spacing:.01em;text-transform:uppercase;line-height:1}
+.brand em{font-style:normal;color:var(--on-cobalt);opacity:.75}
+.top .mode{color:rgba(255,255,255,.85);letter-spacing:.04em;text-transform:none;font-size:12px;margin-top:4px}
+.top .mode.ok::before{background:#7CF0B0}.top .mode.busy::before{background:#FFD25E}.top .mode.off{color:#FFD9CF}.top .mode.off::before{background:#FF9C86}.top .mode.demo::before{background:#C9D2FF}
+.top .save{color:rgba(255,255,255,.85)}
+h2{font-family:var(--f-display);font-weight:800;font-size:28px;line-height:1;letter-spacing:.005em}
+.sec-t{font-family:var(--f-display);font-weight:800;font-size:26px;letter-spacing:.005em;text-transform:none;color:var(--ink);margin:0 0 12px;line-height:1}
+.card{border:0;border-radius:22px;padding:18px}
+.stack{gap:12px}
+#v-overview,#v-history,#v-settings{padding-top:16px}
+.btn,.btn.ghost{border-radius:999px;min-height:46px}
+.btn{background:var(--cobalt);color:#fff}
+.btn.ghost{background:var(--bg);border:0;color:var(--ink)}
+.foodbtns .btn{min-height:50px}
+.foodbtns .btn:not(.ghost){background:var(--cobalt)}
+.field input,.field textarea,.field select{border-radius:14px;border:1.5px solid transparent;background:var(--bg)}
+.field input:focus,.field textarea:focus{border-color:var(--cobalt)}
+.kpi{border-radius:18px}
+.kpi .v,.mrow b,.goalrow b,.wg,.exl li i{font-family:var(--f-display)}
+.kpi .v{font-weight:900;font-size:34px;line-height:1}
+.kpi .v small{font-family:var(--f-body)}
+.mrow b{font-weight:900;font-size:32px}
+.goalrow b{font-weight:800;font-size:22px}
+.bar-track{height:12px;border-radius:999px}
+.bar-fill{background:var(--coral);border-radius:999px}
+.bar-fill.sage{background:var(--cobalt)}
+.chk{border:0;border-radius:16px;min-height:52px}
+.chk .box{border-radius:50%;border:2px solid var(--line)}
+.pill{border-radius:999px}
+.panel{border:0;border-radius:18px}
+.meal-main,.meal-del{border:0;border-radius:14px}
+.hrow{border:0;border-radius:18px}
+.dots i.on{background:var(--cobalt)} .dots i.tr.on{background:var(--coral)}
+.wg i{border-radius:10px;border:0}
+.wg i.full{background:var(--cobalt)} .wg i.part{background:var(--sage-l);outline:1.5px solid var(--cobalt);outline-offset:-1.5px}
+.wg i.today{outline:2px solid var(--coral);outline-offset:1px}
+.status{border-radius:999px}
+.energy .en{border:0;border-radius:999px;font-family:var(--f-display);font-weight:900;font-size:20px}
+.energy .en.on{background:var(--cobalt);color:#fff}
+.banner{border:0;border-radius:18px;background:var(--clay-l)}
+.banner.run{background:var(--sage-l)}
+.suggest{border:0;border-radius:18px;background:var(--clay-l)}
+.lift input{border:0;border-radius:12px}
+
+.sumhead .sec-t{font-family:var(--f-body);font-size:13px;font-weight:700;color:var(--soft);margin:0 0 4px}
+.sumhead h2{font-size:30px}
+/* hero: modrý blok s dnem a cestou na cílovou váhu */
+.hero{background:var(--cobalt);color:var(--on-cobalt);border-radius:0 0 26px 26px;margin:0 -16px;padding:6px 18px 20px}
+.hero .dayhead .d{text-align:left}
+.hero h2{font-family:var(--f-display);font-weight:900;font-size:76px;line-height:.86;text-transform:uppercase;letter-spacing:0}
+.hero .dayhead .d small{color:rgba(255,255,255,.9);font-size:15px;font-weight:700;margin-top:6px}
+.hero .dayhead{align-items:flex-end}
+.hero .iconbtn{background:rgba(255,255,255,.18);border:0;width:46px;height:46px}
+.hero .iconbtn svg{stroke:#fff}
+.hero .todaylink{color:#fff;margin:10px 0 0}
+.herogoal{margin-top:16px}
+.hg-row{display:flex;justify-content:space-between;font-size:13px;font-weight:700}
+.hg-track{height:10px;border-radius:999px;background:rgba(255,255,255,.25);margin-top:6px;overflow:hidden}
+.hg-track i{display:block;height:100%;width:0;border-radius:999px;background:#fff;transition:width .4s}
+
+/* korálový blok tréninku */
+.blk-train{background:var(--coral);color:#141A2E}
+.blk-train .sec-t{color:#141A2E}
+.blk-train .chk{background:rgba(255,255,255,.4)}
+.blk-train .chk .tx small,.blk-train .pill.opt{color:#3B2620}
+.blk-train .chk .box{border-color:rgba(20,26,46,.45)}
+.blk-train .chk.train[aria-checked="true"]{background:#141A2E;color:#fff}
+.blk-train .chk.train[aria-checked="true"] .tx small{color:#C9D0E4}
+.blk-train .chk.train[aria-checked="true"] .box{background:var(--coral);border-color:var(--coral)}
+.blk-train .pill.gym,.blk-train .pill.run{background:#141A2E;color:#fff}
+.blk-train .pill.opt{border-color:rgba(20,26,46,.4)}
+.blk-train .exl li{border-bottom:1px solid rgba(20,26,46,.18);font-size:15px}
+.blk-train .exl li i{color:#141A2E;font-style:normal;font-weight:900;font-size:17px}
+.blk-train .exl li b{color:#141A2E;opacity:.85}
+.blk-train .exl li.exnote{color:#141A2E;opacity:.85;font-weight:500}
+.blk-train .lift input{background:#fff;color:#141A2E}
+.blk-train .lift small,.blk-train .lift .x,.blk-train .lift .unit span{color:#3B2620}
+.blk-train .field label{color:#3B2620}
+.blk-train .field textarea{background:rgba(255,255,255,.7);color:#141A2E}
+.blk-train .todaylink{color:#141A2E}
+
+/* tmavý blok návyků */
+.blk-dark{background:var(--night);color:#fff}
+.blk-dark .sec-t{color:#fff}
+.blk-dark .chk{background:var(--night-2);color:#DDE2F0}
+.blk-dark .chk .box{border-color:#5A6488}
+.blk-dark .chk[aria-checked="true"]{background:var(--cobalt);color:#fff}
+.blk-dark .chk[aria-checked="true"] .box{background:#fff;border-color:#fff}
+.blk-dark .chk[aria-checked="true"] .box svg{stroke:var(--cobalt)}
+
+/* plovoucí spodní menu */
+nav.tabs{left:12px;right:12px;bottom:calc(10px + env(safe-area-inset-bottom,0px));border:0;border-radius:999px;padding:5px;background:var(--card);box-shadow:0 8px 24px rgba(20,26,46,.22)}
+nav.tabs button{border-radius:999px;font-weight:700;padding:6px 4px}
+nav.tabs button[aria-current="true"]{background:var(--cobalt);color:#fff}
+@media (min-width:600px){
+  .hero{margin:0;border-radius:26px;margin-top:16px}
+}
+@media (min-width:860px){
+  nav.tabs{margin:16px auto 4px;box-shadow:none}
+  .hero{margin-top:0}
+}
 </style>
 </head>
 <body>
@@ -267,12 +382,15 @@ textarea.export{width:100%;min-height:180px;border:1px solid var(--line);border-
 
     <!-- TODAY -->
     <section id="v-today" class="narrow stack">
+      <div class="hero">
       <div class="dayhead">
         <button class="iconbtn" id="prevDay" aria-label="Předchozí den"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button>
         <div class="d"><h2 id="dayTitle">Dnes</h2><small id="daySub"></small></div>
         <button class="iconbtn" id="nextDay" aria-label="Další den"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>
       </div>
       <button class="todaylink" id="goToday" hidden>Zpět na dnešek</button>
+      <div class="herogoal" id="heroGoal"><div class="hg-row"><span id="hgNow">—</span><span id="hgTgt">cesta na 95 kg</span></div><div class="hg-track"><i id="hgBar"></i></div></div>
+      </div>
 
       <div class="banner" id="sumBanner" hidden><span>Neděle večer – mrkni na týdenní souhrn.</span><button type="button" class="btn sm" id="sumBannerBtn">Souhrn týdne</button></div>
       <div class="banner run" id="runBanner" hidden><span id="runBannerTxt">Vlož běhy na tento týden</span><button type="button" class="btn sm" id="runBannerBtn">Vložit týden</button></div>
@@ -305,7 +423,7 @@ textarea.export{width:100%;min-height:180px;border:1px solid var(--line);border-
         <div class="enrow"><span class="enl">Energie <small id="energyTxt">Jak se dnes cítíš?</small></span><div class="energy" id="energyBox"></div></div>
       </div>
 
-      <div class="card">
+      <div class="card blk-train">
         <p class="sec-t">Trénink</p>
         <div class="checks" id="trainBox"></div>
         <ol class="exl" id="exList" hidden></ol>
@@ -364,7 +482,7 @@ textarea.export{width:100%;min-height:180px;border:1px solid var(--line);border-
         <div class="hint">Součet se počítá sám z jídel. Číslo můžeš i přepsat ručně.</div>
       </div>
 
-      <div class="card">
+      <div class="card blk-dark">
         <p class="sec-t">Návyky</p>
         <div class="checks" id="habitBox"></div>
       </div>

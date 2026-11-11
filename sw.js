@@ -1,5 +1,5 @@
 // Ty vs. Ty – service worker: appka se otevře i bez internetu (data dosynchronizuje Firebase).
-const CACHE = "tvt-v10";
+const CACHE = "tvt-v12";
 const SHELL = ["./", "index.html", "app.js", "ai.js", "config.js", "manifest.json", "icons/icon-192.png", "icons/icon-512.png", "pdf.js", "vendor/jspdf.umd.min.js", "fonts/DejaVuSans.ttf", "fonts/DejaVuSans-Bold.ttf", "fonts/big-shoulders-display-latin-800-normal.woff2", "fonts/big-shoulders-display-latin-900-normal.woff2", "fonts/big-shoulders-display-latin-ext-800-normal.woff2", "fonts/big-shoulders-display-latin-ext-900-normal.woff2", "fonts/dm-sans-latin-400-normal.woff2", "fonts/dm-sans-latin-500-normal.woff2", "fonts/dm-sans-latin-700-normal.woff2", "fonts/dm-sans-latin-ext-400-normal.woff2", "fonts/dm-sans-latin-ext-500-normal.woff2", "fonts/dm-sans-latin-ext-700-normal.woff2"];
 
 self.addEventListener("install", e => {
@@ -14,6 +14,6 @@ self.addEventListener("fetch", e => {
   if (e.request.method !== "GET" || url.origin !== location.origin) return;
   e.respondWith(
     fetch(e.request).then(res => { const copy = res.clone(); caches.open(CACHE).then(c => c.put(e.request, copy)); return res; })
-      .catch(() => caches.match(e.request).then(r => r || caches.match("index.html")))
+      .catch(() => caches.match(e.request, { ignoreSearch: true }).then(r => r || caches.match("index.html")))
   );
 });

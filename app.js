@@ -854,8 +854,8 @@
     const btn = $("pdfBtn"), msg = $("pdfMsg");
     btn.disabled = true; msg.textContent = "Připravuji PDF…"; $("pdfShare").hidden = true;
     try {
-      await loadScript("vendor/jspdf.umd.min.js");
-      await loadScript("pdf.js");
+      await loadScript("vendor/jspdf.umd.min.js?v=2.5.1");
+      await loadScript("pdf.js?v=12");
       const data = reportData();
       if (!data.days.length) throw new Error("Za zvolené období nejsou žádná data.");
       const blob = await window.TVT_PDF.build(data);

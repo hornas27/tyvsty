@@ -1,5 +1,5 @@
 // Ty vs. Ty – service worker: appka se otevře i bez internetu (data dosynchronizuje Firebase).
-const CACHE = "tvt-v12";
+const CACHE = "tvt-v13";
 const SHELL = ["./", "index.html", "app.js", "ai.js", "config.js", "manifest.json", "icons/icon-192.png", "icons/icon-512.png", "pdf.js", "vendor/jspdf.umd.min.js", "fonts/DejaVuSans.ttf", "fonts/DejaVuSans-Bold.ttf", "fonts/big-shoulders-display-latin-800-normal.woff2", "fonts/big-shoulders-display-latin-900-normal.woff2", "fonts/big-shoulders-display-latin-ext-800-normal.woff2", "fonts/big-shoulders-display-latin-ext-900-normal.woff2", "fonts/dm-sans-latin-400-normal.woff2", "fonts/dm-sans-latin-500-normal.woff2", "fonts/dm-sans-latin-700-normal.woff2", "fonts/dm-sans-latin-ext-400-normal.woff2", "fonts/dm-sans-latin-ext-500-normal.woff2", "fonts/dm-sans-latin-ext-700-normal.woff2"];
 
 self.addEventListener("install", e => {

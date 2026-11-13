@@ -32,7 +32,8 @@
     { k: "hygiena", t: "Hygiena a pleť" },
     { k: "gauc", t: "Nespal jsem na gauči" },
     { k: "zapis", t: "Zápis do sešitu" },
-    { k: "budik", t: "Vstal jsem na 1 budík", since: "2026-11-10" }
+    { k: "budik", t: "Vstal jsem na 1 budík", since: "2026-11-10" },
+    { k: "kreatin", t: "Kreatin 10–15 g", since: "2026-11-13" }
   ];
   const habitsFor = k => HABITS.filter(h => !h.since || k >= h.since);
   const DEFAULT_SETTINGS = { startWeight: null, startDate: null, targetWeight: 95, kcalTarget: 4000, sleepTarget: 7, hmDate: "2027-06-30", proteinPerKg: 2 };
@@ -767,12 +768,12 @@
       `Cíle: váha ${s.targetWeight} kg (start ${s.startWeight ?? "?"} kg), ${s.kcalTarget} kcal/den, bílkoviny ${s.proteinPerKg || 2} g/kg, spánek ${s.sleepTarget} h, půlmaraton pod 1:40 (${s.hmDate}). Objem: ideálně +0,25–0,5 kg/týden.`,
       "Plán: Po tempo/intervaly, Út nohy, St hrudník+biceps+břicho, Čt chill run (volitelně), Pá záda+ramena+triceps, So long run, Ne celý hořejšek.",
       "",
-      "datum;den;vaha_kg;kcal;bilkoviny_g;sacharidy_g;tuky_g;spat;vstal;spanek_h;energie_1_5;trenink;splneno;mobil;hygiena;bez_gauce;zapis;budik;hlavni_cviky;trenink_detail;jidla;poznamka"
+      "datum;den;vaha_kg;kcal;bilkoviny_g;sacharidy_g;tuky_g;spat;vstal;spanek_h;energie_1_5;trenink;splneno;mobil;hygiena;bez_gauce;zapis;budik;kreatin;hlavni_cviky;trenink_detail;jidla;poznamka"
     ];
     const rows = keys.map(k => {
       const d = state.days[k], p = PLAN[parseKey(k).getDay()], h = sleepHours(d.bed, d.wake), hb = d.habits || {};
       return [k, DAYS_SHORT[parseKey(k).getDay()], d.weight ?? "", d.kcal ?? "", d.protein ?? "", d.carbs ?? "", d.fat ?? "", d.bed ?? "", d.wake ?? "", h != null ? h.toFixed(1) : "", d.energy ?? "", p.label, d.training ? 1 : 0,
-        hb.mobil ? 1 : 0, hb.hygiena ? 1 : 0, hb.gauc ? 1 : 0, hb.zapis ? 1 : 0, k >= "2026-11-10" ? (hb.budik ? 1 : 0) : "",
+        hb.mobil ? 1 : 0, hb.hygiena ? 1 : 0, hb.gauc ? 1 : 0, hb.zapis ? 1 : 0, k >= "2026-11-10" ? (hb.budik ? 1 : 0) : "", k >= "2026-11-13" ? (hb.kreatin ? 1 : 0) : "",
         Object.keys(d.lifts || {}).filter(id => d.lifts[id] && d.lifts[id].w != null).map(id => LIFTS[id] + " " + fmtLift(d.lifts[id])).join(" | "), (d.run || "").replace(/[;\n]/g, " | "), mealsOf(d).map(m => `${m.t} ${m.name} ${m.kcal}kcal/${m.protein}gB`).join(" | ").replace(/;/g, ","), (d.note || "").replace(/[;\n]/g, " ")].join(";");
     });
     $("exText").value = head.concat(rows).join("\n");
@@ -855,7 +856,7 @@
     btn.disabled = true; msg.textContent = "Připravuji PDF…"; $("pdfShare").hidden = true;
     try {
       await loadScript("vendor/jspdf.umd.min.js?v=2.5.1");
-      await loadScript("pdf.js?v=12");
+      await loadScript("pdf.js?v=13");
       const data = reportData();
       if (!data.days.length) throw new Error("Za zvolené období nejsou žádná data.");
       const blob = await window.TVT_PDF.build(data);

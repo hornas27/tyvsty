@@ -108,13 +108,14 @@
       watchSettings(cb) {
         unsubs.push(userRef().collection("meta").doc("settings").onSnapshot(d => cb(d.exists ? d.data() : {}), () => {}));
       },
-      saveDay: (k, data) => userRef().collection("days").doc(k).set(data),
+      saveDay: (k, data) => userRef().collection("days").doc(k).set(data, { merge: true }),
       saveSettings: s => userRef().collection("meta").doc("settings").set(s)
     };
   }
 
   // ---------- save handling ----------
-  let saveTimer = null, saveMsgTimer = null;
+  let saveTimer = null, saveMsgTimer = null, pendingRun = null;
+  function flushSave() { if (saveTimer && pendingRun) { clearTimeout(saveTimer); const r = pendingRun; pendingRun = null; r(); } }
   const sync = { pending: 0 };
   function renderSync() {
     const el = $("mode"); if (!el) return;
@@ -145,8 +146,8 @@
       if (!navigator.onLine && !DEMO) showSave("Offline · uloží se po připojení");
       trackSave(store.saveDay(k, state.days[k])).then(() => showSave("Uloženo ✓")).catch(e => showSave("Neuloženo: " + (e.code || e.message)));
     };
-    if (isCur) clearTimeout(saveTimer);
-    if (immediate || !isCur) run(); else saveTimer = setTimeout(run, 600);
+    if (isCur) { clearTimeout(saveTimer); pendingRun = null; }
+    if (immediate || !isCur) run(); else { pendingRun = run; saveTimer = setTimeout(() => { pendingRun = null; run(); }, 600); }
     if (isCur) renderTodayDerived();
   }
 
@@ -206,9 +207,9 @@
   }
 
   function bindToday() {
-    $("prevDay").onclick = () => { state.key = addDays(state.key, -1); renderToday(); };
-    $("nextDay").onclick = () => { if (state.key < addDays(todayKey(), PLAN_AHEAD_DAYS)) { state.key = addDays(state.key, 1); renderToday(); } };
-    $("goToday").onclick = () => { state.key = todayKey(); renderToday(); };
+    $("prevDay").onclick = () => { flushSave(); state.key = addDays(state.key, -1); renderToday(); };
+    $("nextDay").onclick = () => { flushSave(); if (state.key < addDays(todayKey(), PLAN_AHEAD_DAYS)) { state.key = addDays(state.key, 1); renderToday(); } };
+    $("goToday").onclick = () => { flushSave(); state.key = todayKey(); renderToday(); };
     const numField = (id, key) => $(id).addEventListener("input", e => patchDay({ [key]: num(e.target.value) }));
     numField("f-weight", "weight"); numField("f-kcal", "kcal"); numField("f-prot", "protein");
     $("f-bed").addEventListener("change", e => patchDay({ bed: e.target.value || null }));
@@ -856,7 +857,7 @@
     btn.disabled = true; msg.textContent = "Připravuji PDF…"; $("pdfShare").hidden = true;
     try {
       await loadScript("vendor/jspdf.umd.min.js?v=2.5.1");
-      await loadScript("pdf.js?v=13");
+      await loadScript("pdf.js?v=14");
       const data = reportData();
       if (!data.days.length) throw new Error("Za zvolené období nejsou žádná data.");
       const blob = await window.TVT_PDF.build(data);
@@ -915,7 +916,7 @@
     $("sumPrev").onclick = () => { state.sumWeek = addDays(state.sumWeek || weekOf(todayKey()), -7); renderSummary(); };
     $("sumNext").onclick = () => { const n = addDays(state.sumWeek || weekOf(todayKey()), 7); if (n <= weekOf(todayKey())) { state.sumWeek = n; renderSummary(); } };
     $("tabs").addEventListener("click", e => { const b = e.target.closest("button[data-view]"); if (b) show(b.dataset.view); });
-    $("histList").addEventListener("click", e => { const b = e.target.closest(".hrow"); if (b) { state.key = b.dataset.k; state.formKey = null; show("today"); } });
+    $("histList").addEventListener("click", e => { const b = e.target.closest(".hrow"); if (b) { flushSave(); state.key = b.dataset.k; state.formKey = null; show("today"); } });
 
     store.onAuth(user => {
       $("authView").hidden = !!user; $("app").hidden = !user;
@@ -938,8 +939,10 @@
     // přepnutí dne o půlnoci / návrat do appky
     let rz; window.addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(() => { if (state.view === "overview") renderOverview(); }, 200); });
     let lastToday = todayKey();
+    window.addEventListener("pagehide", flushSave);
     document.addEventListener("visibilitychange", () => {
-      if (document.hidden || todayKey() === lastToday) return;
+      if (document.hidden) { flushSave(); return; }
+      if (todayKey() === lastToday) return;
       if (state.key === lastToday) { state.key = todayKey(); state.formKey = null; }
       lastToday = todayKey(); renderCurrent();
     });

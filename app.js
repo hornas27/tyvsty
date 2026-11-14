@@ -69,7 +69,8 @@
 
   // ---------- store (Firebase nebo demo) ----------
   const cfg = window.FIREBASE_CONFIG || {};
-  const DEMO = !cfg.apiKey || String(cfg.apiKey).startsWith("VLOZ") || typeof firebase === "undefined";
+  // demo jen když chybí config – NIKDY ne kvůli výpadku sítě (jinak by se zápisy neuložily do účtu)
+  const DEMO = !cfg.apiKey || String(cfg.apiKey).startsWith("VLOZ");
   let store;
 
   function makeDemoStore() {
@@ -994,7 +995,7 @@
     btn.disabled = true; msg.textContent = "Připravuji PDF…"; $("pdfShare").hidden = true;
     try {
       await loadScript("vendor/jspdf.umd.min.js?v=2.5.1");
-      await loadScript("pdf.js?v=16");
+      await loadScript("pdf.js?v=17");
       const data = reportData();
       if (!data.days.length) throw new Error("Za zvolené období nejsou žádná data.");
       const blob = await window.TVT_PDF.build(data);
@@ -1044,9 +1045,18 @@
   }
 
   // ---------- boot ----------
+  function showFatal(msg) {
+    $("app").hidden = true; $("authView").hidden = true;
+    const box = document.createElement("section"); box.className = "auth"; box.setAttribute("role", "alert");
+    box.innerHTML = `<h1>Ty <em>vs.</em> Ty</h1><p>${esc(msg)}</p><button type="button" class="btn" id="retryBtn">Zkusit znovu</button><p class="hint">Tvoje data jsou v bezpečí v účtu – nic se neztratilo.</p>`;
+    $("authView").after(box); $("retryBtn").onclick = () => location.reload();
+    window.addEventListener("online", () => location.reload(), { once: true });
+    const m = $("mode"); if (m) { m.textContent = "Nepřipojeno"; m.className = "mode off"; }
+  }
   function boot() {
+    if (!DEMO && typeof firebase === "undefined") return showFatal("Nepodařilo se načíst připojení k tvému účtu (bez internetu se appka napoprvé neotevře). Zkontroluj připojení a zkus to znovu.");
     try { store = DEMO ? makeDemoStore() : makeFirebaseStore(); }
-    catch (e) { store = makeDemoStore(); }
+    catch (e) { return showFatal("Připojení k účtu se nepodařilo spustit: " + (e.code || e.message)); }
     renderSync();
     window.addEventListener("online", renderSync); window.addEventListener("offline", renderSync);
     bindToday(); bindLifts(); bindWeekBox(); bindFood(); bindSettings(); bindAuth();

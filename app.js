@@ -239,6 +239,7 @@
     const k = ks[ks.length - 1]; return { k, ...state.days[k].lifts[id] };
   }
   const fmtLift = l => l ? nf1.format(l.w).replace(/,0$/, "") + " kg" + (l.r ? " × " + l.r : "") : "";
+  const dni = n => n === 1 ? "den" : n >= 2 && n <= 4 ? "dny" : "dní";
   const fmtKg = w => nf1.format(w).replace(/,0$/, "");
   const e1rm = l => l && l.w != null ? l.w * (1 + (l.r || 1) / 30) : 0; // odhad maxima na 1 opakování (Epley)
   const LIFT_STEP = { bulgar: 2.5, rdl: 5, bench: 2.5, pull: 2.5, ohp: 2.5, incline: 2.5 };
@@ -660,7 +661,7 @@
     $("k-hab").innerHTML = hTotal ? Math.round(hDone / hTotal * 100) + "<small>%</small>" : "—";
     $("weekGrid").innerHTML = grid;
     const sk = streaks();
-    $("k-streak").innerHTML = sk.cur + "<small>dní</small>";
+    $("k-streak").innerHTML = sk.cur + "<small>" + dni(sk.cur) + "</small>";
     $("k-streakS").textContent = "rekord " + sk.best + " · cíl 30";
     const sl = []; for (let i = 0; i < 7; i++) { const d = state.days[addDays(tk, -i)] || {}; const h = sleepHours(d.bed, d.wake); if (h != null) sl.push(h); }
     const sa = avg(sl);
@@ -767,7 +768,7 @@
     Object.keys(LIFTS).forEach(id => { const h = liftHistory(id); if (!h.length) return; const b = h.reduce((a, x) => x.e > a.e ? x : a, h[0]); tile(esc(LIFTS[id]), fmtLift(b), b.k); });
     const maxBy = f => keys.reduce((a, k) => { const v = f(state.days[k]); return v != null && (a == null || v > a.v) ? { k, v } : a; }, null);
     const wm = maxBy(d => d.weight); if (wm) tile("Nejvyšší váha", nf1.format(wm.v) + " kg", wm.k);
-    const sk = streaks(); if (sk.best) tile("Nejdelší série návyků", sk.best + " dní", null, sk.cur === sk.best && sk.cur ? "právě běží" : "aktuálně " + sk.cur);
+    const sk = streaks(); if (sk.best) tile("Nejdelší série návyků", sk.best + " " + dni(sk.best), null, sk.cur === sk.best && sk.cur ? "právě běží" : "aktuálně " + sk.cur);
     if (keys.length) {
       let best = null;
       for (let mon = mondayOf(keys[0]); mon <= mondayOf(tk); mon = addDays(mon, 7)) {
@@ -863,9 +864,9 @@
       kpi("Bílkoviny Ø", st.pr != null ? nf0.format(st.pr) + "<small>g</small>" : dash, st.pt ? "cíl " + st.pt + " g" : "") +
       kpi("Spánek Ø", st.sl != null ? nf1.format(st.sl) + "<small>h</small>" : dash, st.slN ? "pod cílem " + st.slLow + "×" : "") +
       kpi("Tréninky", st.done + "<small>/ " + REQUIRED_PER_WEEK + "</small>", st.bonus ? "+ chill run" : "4 gym + 2 běhy") +
-      kpi("Návyky", st.habPct != null ? st.habPct + "<small>%</small>" : dash, "série " + st.streak.cur + " dní") +
+      kpi("Návyky", st.habPct != null ? st.habPct + "<small>%</small>" : dash, "série " + st.streak.cur + " " + dni(st.streak.cur)) +
       kpi("Energie Ø", st.en != null ? nf1.format(st.en) + "<small>/ 5</small>" : dash, "") +
-      kpi("Rekord série", st.streak.best + "<small>dní</small>", "cíl 30");
+      kpi("Rekord série", st.streak.best + "<small>" + dni(st.streak.best) + "</small>", "cíl 30");
     $("sumLifts").innerHTML = st.lifts.length ? st.lifts.map(l => {
       const e = x => x.w * (1 + (x.r || 1) / 30), diff = l.prev ? e(l.best) - e(l.prev) : null;
       const tag = diff == null ? "" : diff > 0.5 ? `<span class="up">▲ silnější</span>` : diff < -0.5 ? `<span class="down">▼ slabší</span>` : `<span class="eq">= stejně</span>`;
@@ -993,7 +994,7 @@
     btn.disabled = true; msg.textContent = "Připravuji PDF…"; $("pdfShare").hidden = true;
     try {
       await loadScript("vendor/jspdf.umd.min.js?v=2.5.1");
-      await loadScript("pdf.js?v=15");
+      await loadScript("pdf.js?v=16");
       const data = reportData();
       if (!data.days.length) throw new Error("Za zvolené období nejsou žádná data.");
       const blob = await window.TVT_PDF.build(data);
@@ -1002,7 +1003,7 @@
       const url = URL.createObjectURL(blob), a = document.createElement("a");
       a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
       setTimeout(() => URL.revokeObjectURL(url), 30000);
-      msg.textContent = "PDF staženo ✓ (" + data.days.length + " dní)";
+      msg.textContent = "PDF staženo ✓ (" + data.days.length + " " + dni(data.days.length) + ")";
       if (navigator.canShare && navigator.canShare({ files: [lastPdf] })) $("pdfShare").hidden = false;
     } catch (e) {
       msg.textContent = /načíst/.test(e.message) && !navigator.onLine ? "PDF se poprvé musí načíst s internetem." : "PDF se nepovedlo: " + e.message;

@@ -187,6 +187,7 @@
     if (p.type === "gym") renderExList(k, p);
     $("habitBox").innerHTML = habitsFor(k).map(h => chkHtml("h-" + h.k, h.t, "", !!(d.habits || {})[h.k])).join("");
     renderEnergy(d);
+    renderFavs();
     renderBanners();
     renderHeroGoal();
     if (food.dayKey !== k) closePending();
@@ -238,6 +239,31 @@
     const k = ks[ks.length - 1]; return { k, ...state.days[k].lifts[id] };
   }
   const fmtLift = l => l ? nf1.format(l.w).replace(/,0$/, "") + " kg" + (l.r ? " × " + l.r : "") : "";
+  const fmtKg = w => nf1.format(w).replace(/,0$/, "");
+  const e1rm = l => l && l.w != null ? l.w * (1 + (l.r || 1) / 30) : 0; // odhad maxima na 1 opakování (Epley)
+  const LIFT_STEP = { bulgar: 2.5, rdl: 5, bench: 2.5, pull: 2.5, ohp: 2.5, incline: 2.5 };
+  function liftHistory(id, beforeK) {
+    return Object.keys(state.days).filter(k => (!beforeK || k < beforeK) && ((state.days[k].lifts || {})[id] || {}).w != null).sort()
+      .map(k => { const l = state.days[k].lifts[id]; return { k, w: l.w, r: l.r ?? null, e: e1rm(l) }; });
+  }
+  // návrh na dnešek: do selhání v rozsahu 6–8 → při 8+ přidej váhu, při 6–7 přidej opakování, pod 6 drž (2× po sobě pod 6 → uber)
+  function liftSuggestion(id, k) {
+    const h = liftHistory(id, k); if (!h.length) return null;
+    const last = h[h.length - 1], step = LIFT_STEP[id] || 2.5;
+    if (last.r == null) return { w: last.w, r: "6–8", why: "minule bez opakování" };
+    if (last.r >= 8) return { w: last.w + step, r: "6+", why: "minule " + last.r + " opakování → přidej váhu" };
+    if (last.r >= 6) return { w: last.w, r: (last.r + 1) + "+", why: "stejná váha, o 1 opakování víc" };
+    const prev = h[h.length - 2];
+    if (prev && prev.w === last.w && prev.r != null && prev.r < 6 && last.w - step > 0) return { w: last.w - step, r: "6–8", why: "2× pod 6 opakování → uber a zpevni techniku" };
+    return { w: last.w, r: "6", why: "stejná váha, cíl aspoň 6" };
+  }
+  function liftHint(id, k, cur) {
+    const h = liftHistory(id, k), best = h.reduce((m, x) => x.e > m ? x.e : m, 0), sg = liftSuggestion(id, k);
+    if (cur && cur.w != null && cur.r && h.length && e1rm(cur) > best + 0.01) return `<span class="pr">Nový osobní rekord</span> · předchozí max ${fmtLift(h.reduce((a, x) => x.e > a.e ? x : a, h[0]))}`;
+    if (!sg) return "první zápis: nejlepší série dne";
+    const last = h[h.length - 1];
+    return `<b>Dnes zkus ${fmtKg(sg.w)} kg × ${sg.r}</b> · minule ${fmtLift(last)}`;
+  }
   function renderExList(k, p) {
     const box = $("exList");
     if (state.exKey === k && box.contains(document.activeElement)) return; // nepřepisuj během psaní
@@ -247,12 +273,12 @@
       const id = e[2];
       let lift = "";
       if (id) {
-        const cur = lifts[id] || {}, prev = lastLift(id, k);
+        const cur = lifts[id] || {};
         lift = `<div class="lift" data-lift="${id}">
           <div class="unit"><input type="number" inputmode="decimal" step="0.5" min="0" placeholder="0" value="${cur.w ?? ""}" data-f="w" aria-label="Váha ${esc(e[0])}"><span>kg</span></div>
           <span class="x">×</span>
           <div class="unit"><input type="number" inputmode="numeric" step="1" min="0" placeholder="opak." value="${cur.r ?? ""}" data-f="r" aria-label="Opakování ${esc(e[0])}"></div>
-          <small>${prev ? "minule " + fmtLift(prev) : "nejlepší série"}</small></div>`;
+          <small data-hint="${id}">${liftHint(id, k, cur)}</small></div>`;
       }
       return `<li class="${id ? "haslift" : ""}"><i>${i + 1}</i><span>${esc(e[0])}</span><b>${esc(e[1])}</b>${lift}</li>`;
     }).join("");
@@ -263,6 +289,7 @@
       const id = inp.closest(".lift").dataset.lift, cur = { ...(((currentDay().lifts) || {})[id] || {}) };
       cur[inp.dataset.f] = num(inp.value);
       patchDay({ lifts: { [id]: cur } });
+      const hint = $("exList").querySelector(`[data-hint="${id}"]`); if (hint) hint.innerHTML = liftHint(id, state.key, cur);
     });
   }
 
@@ -376,6 +403,12 @@
         <button type="button" class="meal-del${food.delArm === m.id ? " armed" : ""}" data-act="del" aria-label="Smazat jídlo">${food.delArm === m.id ? "Smazat?" : "×"}</button>
       </li>`).join("") : `<li class="empty">Zatím žádné jídlo. Vyfoť talíř nebo ho popiš.</li>`;
   }
+  function renderFavs() {
+    const favs = state.settings.favorites || [], box = $("favBox");
+    box.hidden = !favs.length;
+    $("favChips").innerHTML = favs.map(f => `<span class="fav" data-id="${f.id}"><button type="button" class="fav-add" data-act="add" aria-label="Přidat ${esc(f.name)}"><b>${esc(f.name)}</b> ${nf0.format(f.kcal)} kcal</button>${food.favEdit ? `<button type="button" class="fav-del${food.favArm === f.id ? " armed" : ""}" data-act="del" aria-label="Odebrat z oblíbených">${food.favArm === f.id ? "Odebrat?" : "×"}</button>` : ""}</span>`).join("");
+    $("favEdit").textContent = food.favEdit ? "Hotovo" : "Upravit";
+  }
   function setMeals(ms) {
     const t = sumMeals(ms), d = currentDay();
     const kcal = ms.length ? Math.round(t.kcal) : null, protein = ms.length ? Math.round(t.protein) : null;
@@ -472,6 +505,24 @@
       else ms.push(meal);
       closePending(); setMeals(ms); showSave("Jídlo uloženo ✓");
     };
+    $("aiFav").onclick = () => {
+      const name = $("p-name").value.trim(), kcal = num($("p-kcal").value);
+      if (!name || kcal == null) { $("aiStatus").textContent = "Pro oblíbené doplň název a kalorie."; return; }
+      const fav = { id: "f" + Date.now().toString(36), name: name.slice(0, 40), kcal: Math.round(kcal), protein: Math.round(num($("p-prot").value) || 0), carbs: Math.round(num($("p-carbs").value) || 0), fat: Math.round(num($("p-fat").value) || 0) };
+      const favs = (state.settings.favorites || []).filter(f => f.name.toLowerCase() !== fav.name.toLowerCase()).concat(fav).slice(-12);
+      saveSettingsPatch({ favorites: favs }, "„" + fav.name + "“ uloženo do oblíbených ✓"); renderFavs();
+      $("aiStatus").textContent = "Uloženo do oblíbených – příště ho přidáš jedním klikem nahoře.";
+    };
+    $("favEdit").onclick = () => { food.favEdit = !food.favEdit; food.favArm = null; renderFavs(); };
+    $("favChips").addEventListener("click", e => {
+      const b = e.target.closest("button[data-act]"); if (!b) return;
+      const id = b.closest(".fav").dataset.id, f = (state.settings.favorites || []).find(x => x.id === id); if (!f) return;
+      if (b.dataset.act === "add") {
+        const ms = mealsOf(currentDay()).concat({ id: Date.now().toString(36), t: nowHM(), name: f.name, kcal: f.kcal, protein: f.protein, carbs: f.carbs, fat: f.fat, src: "oblíbené" });
+        setMeals(ms); showSave(f.name + " přidán ✓");
+      } else if (food.favArm === id) { food.favArm = null; saveSettingsPatch({ favorites: (state.settings.favorites || []).filter(x => x.id !== id) }); renderFavs(); }
+      else { food.favArm = id; renderFavs(); setTimeout(() => { if (food.favArm === id) { food.favArm = null; renderFavs(); } }, 3000); }
+    });
     $("mealList").addEventListener("click", e => {
       const btn = e.target.closest("button[data-act]"); if (!btn) return;
       const id = btn.closest(".meal").dataset.id, ms = mealsOf(currentDay());
@@ -576,6 +627,9 @@
     $("rateStatus").innerHTML = st;
     renderKcalSuggest();
     renderSummary();
+    renderYearMap();
+    renderStrength();
+    renderRecords();
 
     const start = s.startWeight ?? firstWeight(), now = cur ?? lastWeight();
     if (start != null && now != null && s.targetWeight > start) {
@@ -643,6 +697,88 @@
       <div><div class="goalrow"><b>Návyky 30 dní v řadě</b><span>${Math.min(sk.cur, 30)} / 30</span></div>${bar(sk.cur, 30)}</div>
       <div><div class="goalrow"><b>Návyky 90 dní v řadě</b><span>${Math.min(sk.cur, 90)} / 90</span></div>${bar(sk.cur, 90)}</div>
       <div><div class="goalrow"><b>Půlmaraton pod 1:40</b><span>${hm ? "za " + wksToHm + " týdnů · " + hm.toLocaleDateString("cs-CZ", { month: "long", year: "numeric" }) : "—"}</span></div><div class="hint">Tempo 4:44 / km</div></div>`;
+  }
+
+  // ---------- skóre dne (návyky + trénink) ----------
+  function dayScore(k) {
+    const d = state.days[k] || {}, p = PLAN[parseKey(k).getDay()], hs = habitsFor(k);
+    const parts = hs.filter(h => (d.habits || {})[h.k]).length + (p.optional ? 0 : (d.training ? 1 : 0));
+    return { parts, max: hs.length + (p.optional ? 0 : 1) };
+  }
+
+  // ---------- mapa roku ----------
+  function renderYearMap() {
+    const tk = todayKey(), y = state.mapYear || Number(tk.slice(0, 4));
+    const first = Object.keys(state.days).sort()[0] || tk, firstY = Number(first.slice(0, 4)), curY = Number(tk.slice(0, 4));
+    $("mapTitle").textContent = "Mapa roku " + y; $("mapPrev").disabled = y <= firstY; $("mapNext").disabled = y >= curY;
+    const start = mondayOf(y + "-01-01"), end = addDays(mondayOf(y + "-12-31"), 6);
+    let cells = "", months = "", col = 0, lastM = -1, full = 0, partial = 0, run = 0, bestRun = 0;
+    const MN = ["led", "úno", "bře", "dub", "kvě", "čvn", "čvc", "srp", "zář", "říj", "lis", "pro"];
+    for (let k = start; k <= end; k = addDays(k, 1)) {
+      const inYear = k.slice(0, 4) === String(y), dow = (parseKey(k).getDay() + 6) % 7;
+      if (dow === 0) {
+        for (let j = 0; j < 7; j++) { const dk = addDays(k, j); if (dk.slice(0, 4) === String(y) && dk.slice(8) === "01") { const m = Number(dk.slice(5, 7)) - 1; if (m !== lastM) { months += `<span style="grid-column:${col + 1}">${MN[m]}</span>`; lastM = m; } } }
+        col++;
+      }
+      if (!inYear) { cells += `<i class="out"></i>`; continue; }
+      let lv = "f", tip = fmtShort(k);
+      if (k <= tk && k >= first) {
+        const sc = dayScore(k), r = sc.max ? sc.parts / sc.max : 0;
+        lv = sc.parts >= sc.max ? 3 : r >= 0.5 ? 2 : r > 0 ? 1 : 0; tip += ": " + sc.parts + "/" + sc.max;
+        if (lv === 3) { full++; run++; bestRun = Math.max(bestRun, run); } else { run = 0; if (lv > 0) partial++; }
+      } else if (k <= tk) lv = "x";
+      cells += `<i class="l${lv}${k === tk ? " today" : ""}" title="${tip}"></i>`;
+    }
+    $("mapMonths").innerHTML = months; $("mapMonths").style.gridTemplateColumns = `repeat(${col}, var(--cell))`;
+    $("mapGrid").innerHTML = cells; $("mapGrid").style.gridTemplateColumns = `repeat(${col}, var(--cell))`;
+    $("mapStats").textContent = "Celý den splněný: " + full + "× · částečně: " + partial + "× · nejdelší řada plných dní: " + bestRun;
+    const sc = $("mapScroll"); requestAnimationFrame(() => { const t = sc.querySelector(".today"); if (t) sc.scrollLeft = Math.max(0, t.offsetLeft - sc.clientWidth + 60); });
+  }
+
+  // ---------- síla: historie hlavních cviků ----------
+  function sparkline(h, w) {
+    const W = Math.max(220, Math.min(w || 300, 520)), H = 64, P = 6;
+    if (h.length < 2) return `<div class="hint">Graf se ukáže od druhého zápisu.</div>`;
+    const es = h.map(x => x.e), lo = Math.min(...es), hi = Math.max(...es), rg = hi - lo || 1;
+    const pts = h.map((x, i) => [P + (W - 2 * P) * i / (h.length - 1), H - P - (H - 2 * P) * (x.e - lo) / rg]);
+    return `<svg class="spark" viewBox="0 0 ${W} ${H}" role="img" aria-label="Vývoj síly"><polyline points="${pts.map(p => p.map(v => v.toFixed(1)).join(",")).join(" ")}" fill="none" stroke="var(--cobalt)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>${pts.map((p, i) => `<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="${i === pts.length - 1 ? 4 : 2.5}" fill="${i === pts.length - 1 ? "var(--coral)" : "var(--cobalt)"}"/>`).join("")}</svg>`;
+  }
+  function renderStrength() {
+    const box = $("strengthBox"), w = box.clientWidth;
+    const rows = Object.keys(LIFTS).map(id => {
+      const h = liftHistory(id); if (!h.length) return "";
+      const last = h[h.length - 1], best = h.reduce((a, x) => x.e > a.e ? x : a, h[0]), firstE = h[0].e;
+      const ch = firstE ? (last.e - firstE) / firstE * 100 : 0;
+      const sg = liftSuggestion(id, addDays(todayKey(), 1));
+      return `<details class="lift-card"><summary><span class="ln">${esc(LIFTS[id])}</span><span class="lv">${fmtLift(last)}</span>
+        <span class="lc ${ch > 0.5 ? "up" : ch < -0.5 ? "down" : ""}">${h.length > 1 ? (ch >= 0 ? "+" : "") + nf0.format(ch) + " %" : "nový"}</span></summary>
+        ${sparkline(h, w - 20)}
+        <div class="lift-meta">Rekord ${fmtLift(best)} (${fmtShort(best.k)}) · ${h.length}× zapsáno${sg ? " · příště " + fmtKg(sg.w) + " kg × " + sg.r : ""}</div>
+        <ol class="lift-hist">${h.slice().reverse().map(x => `<li><span>${fmtShort(x.k)}</span><b>${fmtLift(x)}</b><small>≈ ${nf0.format(x.e)} kg max</small></li>`).join("")}</ol></details>`;
+    }).join("");
+    box.innerHTML = rows || `<p class="empty">Zatím žádné zapsané váhy. Zapisuj u hlavních cviků váhu × opakování nejlepší série a tady uvidíš, jak síla roste.</p>`;
+  }
+
+  // ---------- zeď rekordů ----------
+  function renderRecords() {
+    const tk = todayKey(), keys = Object.keys(state.days).filter(k => k <= tk).sort(), recent = addDays(tk, -6);
+    const tiles = [];
+    const tile = (label, val, k, sub) => tiles.push(`<div class="rec${k && k >= recent ? " fresh" : ""}"><div class="rl">${label}${k && k >= recent ? ' <span class="pr">nový</span>' : ""}</div><div class="rv">${val}</div><div class="rs">${sub || (k ? fmtShort(k) : "")}</div></div>`);
+    Object.keys(LIFTS).forEach(id => { const h = liftHistory(id); if (!h.length) return; const b = h.reduce((a, x) => x.e > a.e ? x : a, h[0]); tile(esc(LIFTS[id]), fmtLift(b), b.k); });
+    const maxBy = f => keys.reduce((a, k) => { const v = f(state.days[k]); return v != null && (a == null || v > a.v) ? { k, v } : a; }, null);
+    const wm = maxBy(d => d.weight); if (wm) tile("Nejvyšší váha", nf1.format(wm.v) + " kg", wm.k);
+    const sk = streaks(); if (sk.best) tile("Nejdelší série návyků", sk.best + " dní", null, sk.cur === sk.best && sk.cur ? "právě běží" : "aktuálně " + sk.cur);
+    if (keys.length) {
+      let best = null;
+      for (let mon = mondayOf(keys[0]); mon <= mondayOf(tk); mon = addDays(mon, 7)) {
+        let sum = 0, n = 0; for (let i = 0; i < 7; i++) { const k = addDays(mon, i); if (k > tk) break; const sc = dayScore(k); sum += sc.parts; n += sc.max; }
+        if (n && (!best || sum / n >= best.r)) best = { mon, r: sum / n };
+      }
+      if (best && best.r > 0) tile("Nejlepší týden", Math.round(best.r * 100) + " %", null, fmtShort(best.mon) + " – " + fmtShort(addDays(best.mon, 6)));
+    }
+    const km = maxBy(d => d.kcal); if (km) tile("Nejvíc kalorií za den", nf0.format(km.v) + " kcal", km.k);
+    const pm = maxBy(d => d.protein); if (pm) tile("Nejvíc bílkovin za den", nf0.format(pm.v) + " g", pm.k);
+    $("recordsBox").innerHTML = tiles.length ? tiles.join("") : `<p class="empty">Rekordy se objeví, jak budeš zapisovat.</p>`;
   }
 
   // ---------- automatická úprava kalorického cíle ----------
@@ -857,7 +993,7 @@
     btn.disabled = true; msg.textContent = "Připravuji PDF…"; $("pdfShare").hidden = true;
     try {
       await loadScript("vendor/jspdf.umd.min.js?v=2.5.1");
-      await loadScript("pdf.js?v=14");
+      await loadScript("pdf.js?v=15");
       const data = reportData();
       if (!data.days.length) throw new Error("Za zvolené období nejsou žádná data.");
       const blob = await window.TVT_PDF.build(data);
@@ -913,6 +1049,8 @@
     renderSync();
     window.addEventListener("online", renderSync); window.addEventListener("offline", renderSync);
     bindToday(); bindLifts(); bindWeekBox(); bindFood(); bindSettings(); bindAuth();
+    $("mapPrev").onclick = () => { state.mapYear = (state.mapYear || Number(todayKey().slice(0, 4))) - 1; renderYearMap(); };
+    $("mapNext").onclick = () => { state.mapYear = (state.mapYear || Number(todayKey().slice(0, 4))) + 1; renderYearMap(); };
     $("sumPrev").onclick = () => { state.sumWeek = addDays(state.sumWeek || weekOf(todayKey()), -7); renderSummary(); };
     $("sumNext").onclick = () => { const n = addDays(state.sumWeek || weekOf(todayKey()), 7); if (n <= weekOf(todayKey())) { state.sumWeek = n; renderSummary(); } };
     $("tabs").addEventListener("click", e => { const b = e.target.closest("button[data-view]"); if (b) show(b.dataset.view); });

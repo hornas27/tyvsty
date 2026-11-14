@@ -7,8 +7,8 @@
 <meta name="theme-color" content="#2A45FF">
 <link rel="manifest" href="manifest.json">
 <script>try{if(localStorage.getItem("tvt-theme2")==="light")document.documentElement.removeAttribute("data-theme")}catch(e){}</script>
-<link rel="icon" href="icons/icon-192.png?v=14">
-<link rel="apple-touch-icon" href="icons/icon-192.png?v=14">
+<link rel="icon" href="icons/icon-192.png?v=15">
+<link rel="apple-touch-icon" href="icons/icon-192.png?v=15">
 <style>
 /* Layout: one column (max 560px) on phone, two-column overview on desktop; bottom tab bar on phone, top nav on desktop */
 /* Vzhled „Barevné bloky“ (návrh 5): světlý podklad, kobaltová + korálová, výrazné bloky. Výchozí tmavý (data-theme="dark"), světlý na přepnutí v Nastavení. */
@@ -291,6 +291,56 @@ h2{font-family:var(--f-display);font-weight:800;font-size:28px;line-height:1;let
 
 .sumhead .sec-t{font-family:var(--f-body);font-size:13px;font-weight:700;color:var(--soft);margin:0 0 4px}
 .sumhead h2{font-size:30px}
+/* oblíbená jídla */
+.favs{margin-top:14px}
+.favs-h{display:flex;justify-content:space-between;align-items:center;font-size:13px;color:var(--soft);margin-bottom:8px}
+.linkbtn{background:none;border:0;color:var(--sage);font-weight:700;cursor:pointer;font-size:13px;min-height:32px}
+.fav-chips{display:flex;flex-wrap:wrap;gap:8px}
+.fav{display:flex;align-items:stretch;gap:2px}
+.fav-add{border:0;border-radius:999px;background:var(--sage-l);color:var(--ink);padding:0 14px;min-height:44px;cursor:pointer;font-size:14px}
+.fav-add b{font-weight:700}
+.fav-del{border:0;border-radius:999px;background:var(--bg);color:var(--soft);min-width:44px;cursor:pointer}
+.fav-del.armed{background:var(--bad);color:#fff;font-size:12px;font-weight:700;padding:0 10px}
+/* lift hint + rekord */
+.lift small b{color:inherit;font-weight:700}
+.pr{display:inline-block;background:var(--coral);color:#141A2E;font-weight:800;font-size:11px;border-radius:999px;padding:1px 8px;letter-spacing:.02em}
+/* mapa roku */
+.ov > *,.ov .card{min-width:0}
+#mapCard{overflow:hidden}
+.map-scroll{max-width:100%;overflow-x:auto;padding-bottom:6px;--cell:12px;-webkit-overflow-scrolling:touch}
+.map-months{display:grid;gap:3px;font-size:11px;color:var(--soft);margin-left:26px;height:16px}
+.map-months span{white-space:nowrap}
+.map-wrap{display:flex;gap:4px}
+.map-days{display:grid;grid-template-rows:repeat(7,var(--cell));gap:3px;font-size:10px;color:var(--soft);width:22px;line-height:var(--cell)}
+.map-grid{display:grid;grid-template-rows:repeat(7,var(--cell));grid-auto-flow:column;gap:3px}
+.map-grid i,.map-legend i{display:block;width:var(--cell);height:var(--cell);border-radius:3px}
+.map-grid i.out{visibility:hidden}
+.l0,.lx{background:var(--line)} .lf{background:transparent;outline:1px solid var(--line);outline-offset:-1px}
+.l1{background:color-mix(in srgb,var(--cobalt) 32%,var(--card))} .l2{background:color-mix(in srgb,var(--cobalt) 62%,var(--card))} .l3{background:var(--cobalt)}
+.map-grid i.today{outline:2px solid var(--coral);outline-offset:1px}
+.map-legend{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--soft);margin:8px 0 2px;--cell:12px}
+/* síla */
+.lift-card{border-bottom:1px solid var(--line);padding:4px 0}
+.lift-card:last-child{border-bottom:0}
+.lift-card summary{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:baseline;min-height:44px;padding:10px 0;cursor:pointer;list-style:none}
+.lift-card summary::-webkit-details-marker{display:none}
+.lift-card .ln{font-weight:700}
+.lift-card .lv{font-family:var(--f-display);font-weight:900;font-size:22px}
+.lift-card .lc{font-size:12px;font-weight:700;color:var(--soft);min-width:44px;text-align:right}
+.lift-card .lc.up{color:var(--good)} .lift-card .lc.down{color:var(--bad)}
+.spark{width:100%;height:64px;display:block;margin:4px 0}
+.lift-meta{font-size:12px;color:var(--soft);margin:4px 0 8px}
+.lift-hist{list-style:none;margin:0 0 8px;padding:0;font-size:13px}
+.lift-hist li{display:grid;grid-template-columns:70px 1fr auto;gap:8px;padding:6px 0;border-top:1px dashed var(--line)}
+.lift-hist small{color:var(--soft)}
+/* rekordy */
+.recs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+@media (min-width:760px){.recs{grid-template-columns:repeat(4,minmax(0,1fr))}}
+.rec{background:var(--bg);border-radius:18px;padding:12px 14px}
+.rec.fresh{outline:2px solid var(--coral);outline-offset:-2px}
+.rec .rl{font-size:12px;color:var(--soft)}
+.rec .rv{font-family:var(--f-display);font-weight:900;font-size:26px;line-height:1.1;margin-top:4px}
+.rec .rs{font-size:12px;color:var(--soft);margin-top:2px}
 /* hero: modrý blok s dnem a cestou na cílovou váhu */
 .hero{background:var(--cobalt);color:var(--on-cobalt);border-radius:0 0 26px 26px;margin:0 -16px;padding:6px 18px 20px}
 .hero .dayhead .d{text-align:left}
@@ -440,6 +490,10 @@ nav.tabs button[aria-current="true"]{background:var(--cobalt);color:#fff}
         </div>
         <div class="hint" id="kcalHint"></div>
 
+        <div class="favs" id="favBox" hidden>
+          <div class="favs-h"><span>Oblíbená · přidáš jedním klikem</span><button type="button" class="linkbtn" id="favEdit">Upravit</button></div>
+          <div class="fav-chips" id="favChips"></div>
+        </div>
         <div class="foodbtns">
           <label class="btn" for="f-photo" role="button">📷 Vyfotit</label>
           <input id="f-photo" type="file" accept="image/*" capture="environment" hidden>
@@ -471,6 +525,7 @@ nav.tabs button[aria-current="true"]{background:var(--cobalt);color:#fff}
             <button type="button" class="btn" id="aiAdd">Přidat jídlo</button>
             <button type="button" class="btn ghost" id="aiRedo">Přepočítat</button>
             <button type="button" class="btn ghost" id="aiCancel">Zrušit</button>
+            <button type="button" class="btn ghost" id="aiFav">☆ Do oblíbených</button>
           </div>
         </div>
 
@@ -525,6 +580,20 @@ nav.tabs button[aria-current="true"]{background:var(--cobalt);color:#fff}
           <div class="weekgrid" id="weekGrid"></div>
         </div>
 
+        <div class="card span2" id="mapCard">
+          <div class="sumhead" style="margin-bottom:10px">
+            <button class="iconbtn" id="mapPrev" aria-label="Předchozí rok"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button>
+            <div><h2 id="mapTitle" style="font-size:28px">Mapa roku</h2><p class="hint" style="margin:2px 0 0">každý den = návyky + trénink</p></div>
+            <button class="iconbtn" id="mapNext" aria-label="Další rok"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>
+          </div>
+          <div class="map-scroll" id="mapScroll">
+            <div class="map-months" id="mapMonths"></div>
+            <div class="map-wrap"><div class="map-days" aria-hidden="true"><span>Po</span><span></span><span>St</span><span></span><span>Pá</span><span></span><span>Ne</span></div><div class="map-grid" id="mapGrid"></div></div>
+          </div>
+          <div class="map-legend"><span>méně</span><i class="l0"></i><i class="l1"></i><i class="l2"></i><i class="l3"></i><span>celý den</span></div>
+          <div class="hint" id="mapStats"></div>
+        </div>
+
         <div class="card span2" id="sumCard">
           <div class="sumhead">
             <button class="iconbtn" id="sumPrev" aria-label="Předchozí týden"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button>
@@ -543,6 +612,12 @@ nav.tabs button[aria-current="true"]{background:var(--cobalt);color:#fff}
           <div id="wChart"></div>
         </div>
 
+        <div class="card span2">
+          <p class="sec-t">Síla · hlavní cviky</p>
+          <div class="hint" style="margin:-6px 0 10px">Klikni na cvik pro graf a celou historii. Návrh na další trénink: 8+ opakování → přidej váhu, 6–7 → přidej opakování.</div>
+          <div id="strengthBox"></div>
+        </div>
+
         <div class="card">
           <p class="sec-t">Kalorie · 14 dní</p>
           <div id="kChart"></div>
@@ -556,6 +631,11 @@ nav.tabs button[aria-current="true"]{background:var(--cobalt);color:#fff}
         <div class="card span2">
           <p class="sec-t">Spánek · 14 dní</p>
           <div id="sChart"></div>
+        </div>
+
+        <div class="card span2">
+          <p class="sec-t">Zeď rekordů</p>
+          <div class="recs" id="recordsBox"></div>
         </div>
 
         <div class="card span2">
@@ -611,11 +691,11 @@ nav.tabs button[aria-current="true"]{background:var(--cobalt);color:#fff}
   </div>
 </div>
 
-<script src="config.js?v=14"></script>
+<script src="config.js?v=15"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="app.js?v=14"></script>
-<script type="module" src="ai.js?v=14"></script>
+<script src="app.js?v=15"></script>
+<script type="module" src="ai.js?v=15"></script>
 </body>
 </html>

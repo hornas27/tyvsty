@@ -7,8 +7,8 @@
 <meta name="theme-color" content="#2A45FF">
 <link rel="manifest" href="manifest.json">
 <script>try{if(localStorage.getItem("tvt-theme2")==="light")document.documentElement.removeAttribute("data-theme")}catch(e){}</script>
-<link rel="icon" href="icons/icon-192.png?v=17">
-<link rel="apple-touch-icon" href="icons/icon-192.png?v=17">
+<link rel="icon" href="icons/icon-192.png?v=18">
+<link rel="apple-touch-icon" href="icons/icon-192.png?v=18">
 <style>
 /* Layout: one column (max 560px) on phone, two-column overview on desktop; bottom tab bar on phone, top nav on desktop */
 /* Vzhled „Barevné bloky“ (návrh 5): světlý podklad, kobaltová + korálová, výrazné bloky. Výchozí tmavý (data-theme="dark"), světlý na přepnutí v Nastavení. */
@@ -54,7 +54,7 @@ button,input,textarea,select{font:inherit;color:inherit}
 
 /* nav */
 nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--card);border-top:1px solid var(--line);
-  display:grid;grid-template-columns:repeat(4,1fr);
+  display:grid;grid-template-columns:repeat(5,1fr);
   padding:6px max(8px,env(safe-area-inset-right,0px)) calc(6px + env(safe-area-inset-bottom,0px)) max(8px,env(safe-area-inset-left,0px))}
 nav.tabs button{background:none;border:0;padding:8px 4px;border-radius:12px;font-size:12px;color:var(--soft);display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer}
 nav.tabs button svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.7}
@@ -291,6 +291,29 @@ h2{font-family:var(--f-display);font-weight:800;font-size:28px;line-height:1;let
 
 .sumhead .sec-t{font-family:var(--f-body);font-size:13px;font-weight:700;color:var(--soft);margin:0 0 4px}
 .sumhead h2{font-size:30px}
+/* poznámky */
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.notes-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.folders{display:flex;gap:8px;overflow-x:auto;padding-bottom:2px;-webkit-overflow-scrolling:touch}
+.fchip{flex:none;border:0;border-radius:999px;background:var(--bg);color:var(--ink);min-height:44px;padding:0 16px;font-weight:700;cursor:pointer;font-size:14px}
+.fchip small{font-weight:500;color:var(--soft);margin-left:4px}
+.fchip.on{background:var(--cobalt);color:#fff} .fchip.on small{color:rgba(255,255,255,.8)}
+.frow{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.frow input{flex:1;min-width:140px;border:1.5px solid transparent;background:var(--card);border-radius:14px;padding:10px 12px;font-size:16px;outline:none;color:var(--ink)}
+.frow input:focus{border-color:var(--cobalt)}
+.notes{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.note{display:flex;gap:12px;padding:14px 0;border-top:1px solid var(--line)}
+.note:first-child{border-top:0}
+.note.editing{background:var(--sage-l);border-radius:14px;padding:14px 10px}
+.note-n{flex:none;font-family:var(--f-display);font-weight:900;font-size:26px;line-height:1;color:var(--coral);min-width:30px}
+.note-body{flex:1;min-width:0}
+.note-t{display:block;width:100%;text-align:left;background:none;border:0;padding:2px 0;margin:0;font-size:17px;line-height:1.4;white-space:pre-wrap;word-wrap:break-word;color:var(--ink);cursor:pointer;min-height:32px}
+.note.open{background:var(--bg);border-radius:14px;padding:14px 10px}
+.note-body small{display:block;color:var(--soft);font-size:12px;margin-top:4px}
+.note-act{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-top:6px}
+.note-act select{border:0;background:var(--bg);color:var(--ink);border-radius:10px;padding:6px 8px;font-size:13px;min-height:32px}
+.linkbtn.del{color:var(--soft)} .linkbtn.del.armed{color:var(--bad)}
+nav.tabs button{font-size:11px}
 /* oblíbená jídla */
 .favs{margin-top:14px}
 .favs-h{display:flex;justify-content:space-between;align-items:center;font-size:13px;color:var(--soft);margin-bottom:8px}
@@ -428,6 +451,7 @@ nav.tabs button[aria-current="true"]{background:var(--cobalt);color:#fff}
       <button data-view="today" aria-current="true"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="3"/><path d="M4 10h16M9 3v4M15 3v4"/></svg>Dnes</button>
       <button data-view="overview"><svg viewBox="0 0 24 24"><path d="M4 19V9M10 19V5M16 19v-7M22 19H2"/></svg>Přehled</button>
       <button data-view="history"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg>Historie</button>
+      <button data-view="notes"><svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5M9 13h7M9 17h5"/></svg>Poznámky</button>
       <button data-view="settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg>Nastavení</button>
     </nav>
 
@@ -651,6 +675,26 @@ nav.tabs button[aria-current="true"]{background:var(--cobalt);color:#fff}
     </section>
 
     <!-- SETTINGS -->
+    <!-- POZNÁMKY -->
+    <section id="v-notes" class="narrow stack" hidden>
+      <div class="card">
+        <div class="notes-head"><p class="sec-t" style="margin:0">Poznámky</p><button type="button" class="linkbtn" id="folderEdit">Upravit složky</button></div>
+        <div class="folders" id="folderBar"></div>
+        <div class="panel" id="folderEditBox" hidden>
+          <div class="stack" id="folderRows"></div>
+          <div class="frow" style="margin-top:10px"><label class="sr" for="folderNew">Nová složka</label><input id="folderNew" placeholder="Nová složka, např. Citáty" maxlength="30"><button type="button" class="btn sm" id="folderAdd">Přidat složku</button></div>
+        </div>
+        <div class="field" style="margin-top:14px"><label for="noteText" id="noteLabel">Nová poznámka</label><textarea id="noteText" rows="3" placeholder="Co tě napadlo…"></textarea></div>
+        <div class="row" style="margin-top:10px"><button type="button" class="btn" id="noteSave">Uložit</button><button type="button" class="btn ghost" id="noteCancel" hidden>Zrušit úpravu</button></div>
+      </div>
+      <div class="card">
+        <div class="field" style="margin-bottom:14px"><label class="sr" for="noteSearch">Hledat</label><input id="noteSearch" type="search" placeholder="Hledat ve všech poznámkách"></div>
+        <h2 id="noteHead" style="font-size:26px;margin-bottom:6px">Myšlenky</h2>
+        <p class="hint" style="margin:0 0 6px">Klepni na poznámku pro úpravu, přesun nebo smazání.</p>
+        <ul class="notes" id="noteList"></ul>
+      </div>
+    </section>
+
     <section id="v-settings" class="narrow stack" hidden>
       <div class="card">
         <p class="sec-t">Cíle a start</p>
@@ -691,11 +735,11 @@ nav.tabs button[aria-current="true"]{background:var(--cobalt);color:#fff}
   </div>
 </div>
 
-<script src="config.js?v=17"></script>
+<script src="config.js?v=18"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="app.js?v=17"></script>
-<script type="module" src="ai.js?v=17"></script>
+<script src="app.js?v=18"></script>
+<script type="module" src="ai.js?v=18"></script>
 </body>
 </html>

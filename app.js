@@ -65,7 +65,7 @@
   const fmtH = h => { const m = Math.round(h * 60); return Math.floor(m / 60) + " h " + pad(m % 60) + " min"; };
 
   // ---------- state ----------
-  const state = { days: {}, settings: { ...DEFAULT_SETTINGS }, key: todayKey(), view: "today", formKey: null, loaded: false };
+  const state = { days: {}, notes: {}, settings: { ...DEFAULT_SETTINGS }, key: todayKey(), view: "today", formKey: null, loaded: false };
 
   // ---------- store (Firebase nebo demo) ----------
   const cfg = window.FIREBASE_CONFIG || {};
@@ -76,7 +76,7 @@
   function makeDemoStore() {
     const read = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch (e) { return d; } };
     const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
-    let daysCb = () => {}, setCb = () => {};
+    let daysCb = () => {}, setCb = () => {}, notesCb = () => {};
     return {
       label: "Demo · data jen v tomto zařízení",
       onAuth(cb) { setTimeout(() => cb({ email: "demo režim" }), 0); },
@@ -84,7 +84,10 @@
       watchDays(cb) { daysCb = cb; cb(read("tvt-days", {})); },
       watchSettings(cb) { setCb = cb; cb(read("tvt-settings", {})); },
       saveDay(k, data) { const all = read("tvt-days", {}); all[k] = data; write("tvt-days", all); return Promise.resolve(); },
-      saveSettings(s) { write("tvt-settings", s); setCb(s); return Promise.resolve(); }
+      saveSettings(s) { write("tvt-settings", s); setCb(s); return Promise.resolve(); },
+      watchNotes(cb) { notesCb = cb; cb(read("tvt-notes", {})); },
+      saveNote(n) { const all = read("tvt-notes", {}); all[n.id] = { ...(all[n.id] || {}), ...n }; write("tvt-notes", all); notesCb(all); return Promise.resolve(); },
+      deleteNote(id) { const all = read("tvt-notes", {}); delete all[id]; write("tvt-notes", all); notesCb(all); return Promise.resolve(); }
     };
   }
 
@@ -110,7 +113,12 @@
         unsubs.push(userRef().collection("meta").doc("settings").onSnapshot(d => cb(d.exists ? d.data() : {}), () => {}));
       },
       saveDay: (k, data) => userRef().collection("days").doc(k).set(data, { merge: true }),
-      saveSettings: s => userRef().collection("meta").doc("settings").set(s)
+      saveSettings: s => userRef().collection("meta").doc("settings").set(s),
+      watchNotes(cb) {
+        unsubs.push(userRef().collection("notes").onSnapshot(snap => { const out = {}; snap.forEach(d => { out[d.id] = d.data(); }); cb(out); }, err => showSave("Chyba načtení poznámek: " + err.code)));
+      },
+      saveNote: n => userRef().collection("notes").doc(n.id).set(n, { merge: true }),
+      deleteNote: id => userRef().collection("notes").doc(id).delete()
     };
   }
 
@@ -947,6 +955,99 @@
     $("themeBtn").onclick = () => { th = th === "dark" ? "light" : "dark"; try { localStorage.setItem("tvt-theme2", th); } catch (e) {} applyTheme(th); };
   }
 
+  // ---------- POZNÁMKY (složky: Kodex, Myšlenky, Nápady…) ----------
+  const DEFAULT_FOLDERS = [{ id: "kodex", name: "Kodex", numbered: true }, { id: "myslenky", name: "Myšlenky" }, { id: "napady", name: "Nápady" }];
+  const KODEX = ["Žij svůj život.", "Nikdy nezapomeň, pro koho to děláš.", "Bojuj za to, jaký chceš být, a nikdy to nevzdávej.", "Vydržíš všechno.", "Jsi to jenom ty vs. ty.",
+    "Tvoje hlava tě brzdí. Nedovol jí to.", "Vybuduj si sebedůvěru vůči sobě.", "Buď tak dobrý, že tě nemůžou ignorovat.", "Jak by se cítil a choval Marek, který už je tam, kde chceš být?",
+    "Lepší rozhodnutí, lepší budoucnost.", "Go one more.", "Každý život stojí na rozhodnutích."];
+  const notesUI = { folder: null, editId: null, delArm: null, editFolders: false, q: "", open: null };
+  const folders = () => (state.settings.noteFolders && state.settings.noteFolders.length ? state.settings.noteFolders : DEFAULT_FOLDERS);
+  const notesIn = f => Object.entries(state.notes || {}).map(([id, n]) => ({ id, ...n })).filter(n => n.folder === f.id)
+    .sort((a, b) => f.numbered ? (a.order || 0) - (b.order || 0) || (a.createdAt || 0) - (b.createdAt || 0) : (b.createdAt || 0) - (a.createdAt || 0));
+  function curFolder() {
+    const fs = folders(); if (!notesUI.folder) { try { notesUI.folder = localStorage.getItem("tvt-notefolder"); } catch (e) {} }
+    return fs.find(f => f.id === notesUI.folder) || fs.find(f => f.id === "myslenky") || fs[0];
+  }
+  function seedKodex() {
+    if (!state.settingsLoaded) return;
+    if (state.settings.kodexSeeded || !state.notesLoaded) return;
+    const has = Object.values(state.notes).some(n => n.folder === "kodex");
+    state.settings.kodexSeeded = true;
+    const now = Date.now();
+    const jobs = has ? [] : KODEX.map((t, i) => store.saveNote({ id: "kodex-" + String(i + 1).padStart(2, "0"), folder: "kodex", text: t, order: i + 1, createdAt: now + i, updatedAt: now + i }));
+    Promise.all(jobs).then(() => saveSettingsPatch({ kodexSeeded: true, noteFolders: folders() })).catch(() => { state.settings.kodexSeeded = false; });
+  }
+  function fmtNoteDate(ms) { if (!ms) return ""; const d = new Date(ms); return d.getDate() + ". " + (d.getMonth() + 1) + ". " + d.getFullYear(); }
+  function renderNotes() {
+    const fs = folders(), f = curFolder(), q = notesUI.q.trim().toLowerCase();
+    $("folderBar").innerHTML = fs.map(x => `<button type="button" class="fchip${x.id === f.id && !q ? " on" : ""}" data-f="${esc(x.id)}">${esc(x.name)} <small>${notesIn(x).length}</small></button>`).join("");
+    $("noteLabel").textContent = notesUI.editId ? "Úprava poznámky" : "Nová poznámka do: " + f.name;
+    $("noteSave").textContent = notesUI.editId ? "Uložit změnu" : "Uložit";
+    $("noteCancel").hidden = !notesUI.editId;
+    $("folderEditBox").hidden = !notesUI.editFolders;
+    $("folderEdit").textContent = notesUI.editFolders ? "Hotovo" : "Upravit složky";
+    if (notesUI.editFolders) {
+      $("folderRows").innerHTML = fs.map(x => { const n = notesIn(x).length; return `<div class="frow" data-f="${esc(x.id)}"><label class="sr" for="fn-${esc(x.id)}">Název složky</label><input id="fn-${esc(x.id)}" value="${esc(x.name)}" maxlength="30"><button type="button" class="btn ghost sm" data-act="rename">Přejmenovat</button><button type="button" class="btn ghost sm" data-act="delf" ${n ? "disabled title=\"Nejdřív přesuň nebo smaž poznámky\"" : ""}>Smazat</button></div>`; }).join("");
+    }
+    const list = q ? Object.entries(state.notes || {}).map(([id, n]) => ({ id, ...n })).filter(n => String(n.text || "").toLowerCase().includes(q)).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)) : notesIn(f);
+    $("noteHead").textContent = q ? "Nalezeno: " + list.length : f.name + (f.numbered ? " · tvoje pravidla" : "");
+    const opts = id => fs.map(x => `<option value="${esc(x.id)}"${x.id === id ? " selected" : ""}>${esc(x.name)}</option>`).join("");
+    $("noteList").innerHTML = list.length ? list.map((n, i) => {
+      const fo = fs.find(x => x.id === n.folder);
+      const meta = (q && fo ? fo.name : "") + (!(fo && fo.numbered) ? (q && fo ? " · " : "") + fmtNoteDate(n.createdAt) : "");
+      return `<li class="note${n.id === notesUI.editId ? " editing" : ""}${notesUI.open === n.id ? " open" : ""}" data-id="${esc(n.id)}">
+        ${!q && f.numbered ? `<span class="note-n">${i + 1}</span>` : ""}
+        <div class="note-body"><button type="button" class="note-t" data-act="open" aria-expanded="${notesUI.open === n.id}">${esc(n.text || "")}</button>${meta ? `<small>${esc(meta)}</small>` : ""}
+          <div class="note-act"${notesUI.open === n.id ? "" : " hidden"}><button type="button" class="linkbtn" data-act="edit">Upravit</button>
+          <label class="sr" for="mv-${esc(n.id)}">Přesunout do složky</label><select id="mv-${esc(n.id)}" data-act="move">${opts(n.folder)}</select>
+          <button type="button" class="linkbtn del${notesUI.delArm === n.id ? " armed" : ""}" data-act="del">${notesUI.delArm === n.id ? "Opravdu smazat?" : "Smazat"}</button></div></div></li>`;
+    }).join("") : `<li class="empty">${q ? "Nic nenalezeno." : "Zatím prázdné. Napiš první poznámku nahoře."}</li>`;
+  }
+  function bindNotes() {
+    $("folderBar").addEventListener("click", e => { const b = e.target.closest("button[data-f]"); if (!b) return; notesUI.folder = b.dataset.f; notesUI.q = ""; notesUI.open = null; $("noteSearch").value = ""; try { localStorage.setItem("tvt-notefolder", b.dataset.f); } catch (err) {} renderNotes(); });
+    $("noteSave").onclick = () => {
+      const t = $("noteText").value.trim(); if (!t) { $("noteText").focus(); return; }
+      const now = Date.now(), f = curFolder();
+      let n;
+      if (notesUI.editId) n = { id: notesUI.editId, text: t, updatedAt: now };
+      else { const ord = f.numbered ? notesIn(f).reduce((m, x) => Math.max(m, x.order || 0), 0) + 1 : null; n = { id: "n" + now.toString(36) + Math.random().toString(36).slice(2, 6), folder: f.id, text: t, createdAt: now, updatedAt: now }; if (ord) n.order = ord; }
+      state.notes[n.id] = { ...(state.notes[n.id] || {}), ...n };
+      trackSave(store.saveNote(n)).then(() => showSave("Poznámka uložena ✓")).catch(e => showSave("Neuloženo: " + (e.code || e.message)));
+      notesUI.editId = null; notesUI.open = null; $("noteText").value = ""; renderNotes();
+    };
+    $("noteCancel").onclick = () => { notesUI.editId = null; $("noteText").value = ""; renderNotes(); };
+    $("noteSearch").addEventListener("input", e => { notesUI.q = e.target.value; renderNotes(); });
+    $("noteList").addEventListener("click", e => {
+      const b = e.target.closest("button[data-act]"); if (!b) return;
+      const id = b.closest(".note").dataset.id, n = state.notes[id]; if (!n) return;
+      if (b.dataset.act === "open") { notesUI.open = notesUI.open === id ? null : id; notesUI.delArm = null; renderNotes(); return; }
+      if (b.dataset.act === "edit") { notesUI.editId = id; $("noteText").value = n.text || ""; renderNotes(); $("noteText").focus(); window.scrollTo({ top: 0, behavior: "smooth" }); }
+      else if (b.dataset.act === "del") {
+        if (notesUI.delArm === id) { notesUI.delArm = null; delete state.notes[id]; trackSave(store.deleteNote(id)).then(() => showSave("Smazáno")); if (notesUI.editId === id) { notesUI.editId = null; $("noteText").value = ""; } renderNotes(); }
+        else { notesUI.delArm = id; renderNotes(); setTimeout(() => { if (notesUI.delArm === id) { notesUI.delArm = null; renderNotes(); } }, 3000); }
+      }
+    });
+    $("noteList").addEventListener("change", e => {
+      const sel = e.target.closest("select[data-act=move]"); if (!sel) return;
+      const id = sel.closest(".note").dataset.id, to = folders().find(x => x.id === sel.value); if (!to) return;
+      const upd = { id, folder: to.id, updatedAt: Date.now() }; if (to.numbered) upd.order = notesIn(to).reduce((m, x) => Math.max(m, x.order || 0), 0) + 1;
+      notesUI.open = null; state.notes[id] = { ...state.notes[id], ...upd }; trackSave(store.saveNote(upd)).then(() => showSave("Přesunuto do: " + to.name)); renderNotes();
+    });
+    $("folderEdit").onclick = () => { notesUI.editFolders = !notesUI.editFolders; renderNotes(); };
+    $("folderAdd").onclick = () => {
+      const name = $("folderNew").value.trim(); if (!name) { $("folderNew").focus(); return; }
+      if (folders().some(x => x.name.toLowerCase() === name.toLowerCase())) { showSave("Složka už existuje"); return; }
+      const nf = { id: "f" + Date.now().toString(36), name: name.slice(0, 30) };
+      notesUI.folder = nf.id; $("folderNew").value = ""; saveSettingsPatch({ noteFolders: folders().concat(nf) }, "Složka „" + nf.name + "“ vytvořena ✓");
+    };
+    $("folderRows").addEventListener("click", e => {
+      const b = e.target.closest("button[data-act]"); if (!b) return;
+      const row = b.closest(".frow"), id = row.dataset.f;
+      if (b.dataset.act === "rename") { const nm = row.querySelector("input").value.trim(); if (!nm) return; saveSettingsPatch({ noteFolders: folders().map(x => x.id === id ? { ...x, name: nm.slice(0, 30) } : x) }, "Přejmenováno ✓"); }
+      else if (b.dataset.act === "delf") { if (notesIn(folders().find(x => x.id === id)).length) return; const rest = folders().filter(x => x.id !== id); if (!rest.length) return; if (notesUI.folder === id) notesUI.folder = rest[0].id; saveSettingsPatch({ noteFolders: rest }, "Složka smazána"); }
+    });
+  }
+
   // ---------- PDF report ----------
   let lastPdf = null;
   function loadScript(src) {
@@ -995,7 +1096,7 @@
     btn.disabled = true; msg.textContent = "Připravuji PDF…"; $("pdfShare").hidden = true;
     try {
       await loadScript("vendor/jspdf.umd.min.js?v=2.5.1");
-      await loadScript("pdf.js?v=17");
+      await loadScript("pdf.js?v=18");
       const data = reportData();
       if (!data.days.length) throw new Error("Za zvolené období nejsou žádná data.");
       const blob = await window.TVT_PDF.build(data);
@@ -1018,7 +1119,7 @@
   // ---------- views ----------
   function show(view) {
     state.view = view;
-    ["today", "overview", "history", "settings"].forEach(v => { $("v-" + v).hidden = v !== view; });
+    ["today", "overview", "history", "notes", "settings"].forEach(v => { $("v-" + v).hidden = v !== view; });
     document.querySelectorAll("#tabs button").forEach(b => b.setAttribute("aria-current", b.dataset.view === view ? "true" : "false"));
     renderCurrent();
     window.scrollTo(0, 0);
@@ -1027,6 +1128,7 @@
     if (state.view === "today") renderToday();
     else if (state.view === "overview") renderOverview();
     else if (state.view === "history") renderHistory();
+    else if (state.view === "notes") renderNotes();
     else renderSettings();
   }
 
@@ -1059,7 +1161,7 @@
     catch (e) { return showFatal("Připojení k účtu se nepodařilo spustit: " + (e.code || e.message)); }
     renderSync();
     window.addEventListener("online", renderSync); window.addEventListener("offline", renderSync);
-    bindToday(); bindLifts(); bindWeekBox(); bindFood(); bindSettings(); bindAuth();
+    bindToday(); bindLifts(); bindWeekBox(); bindFood(); bindSettings(); bindAuth(); bindNotes();
     $("mapPrev").onclick = () => { state.mapYear = (state.mapYear || Number(todayKey().slice(0, 4))) - 1; renderYearMap(); };
     $("mapNext").onclick = () => { state.mapYear = (state.mapYear || Number(todayKey().slice(0, 4))) + 1; renderYearMap(); };
     $("sumPrev").onclick = () => { state.sumWeek = addDays(state.sumWeek || weekOf(todayKey()), -7); renderSummary(); };
@@ -1072,7 +1174,8 @@
       if (!user) return;
       $("acctTxt").textContent = DEMO ? "Demo režim: data jsou uložená jen v tomto prohlížeči. Po vložení Firebase configu se budou synchronizovat." : "Přihlášen: " + user.email;
       $("logoutBtn").hidden = DEMO;
-      store.watchSettings(s => { state.settings = { ...DEFAULT_SETTINGS, ...s }; if (state.view !== "settings") renderCurrent(); });
+      store.watchSettings(s => { state.settings = { ...DEFAULT_SETTINGS, ...s }; state.settingsLoaded = true; seedKodex(); if (state.view !== "settings" && !(state.view === "notes" && document.activeElement && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName))) renderCurrent(); });
+      store.watchNotes(ns => { state.notes = ns; state.notesLoaded = true; seedKodex(); if (state.view === "notes") renderNotes(); });
       store.watchDays(days => {
         const editing = state.view === "today" && document.activeElement && /^(INPUT|TEXTAREA)$/.test(document.activeElement.tagName);
         const pendingKey = saveTimer ? state.key : null;

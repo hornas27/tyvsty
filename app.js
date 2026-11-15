@@ -32,7 +32,7 @@
     { k: "mobil", t: "Mobil od 21:00 mimo dosah" },
     { k: "hygiena", t: "Hygiena a pleť" },
     { k: "gauc", t: "Nespal jsem na gauči" },
-    { k: "zapis", t: "Zápis do sešitu" },
+    { k: "zapis", t: "Zápis do sešitu: pocity, práce, sport + časy na zítřek" },
     { k: "budik", t: "Vstal jsem na 1 budík", since: "2026-11-10" },
     { k: "kreatin", t: "Kreatin 10–15 g", since: "2026-11-13" }
   ];

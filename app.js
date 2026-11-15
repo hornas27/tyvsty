@@ -37,6 +37,9 @@
     { k: "kreatin", t: "Kreatin 10–15 g", since: "2026-11-13" }
   ];
   const habitsFor = k => HABITS.filter(h => !h.since || k >= h.since);
+  // trénink dne: podle dne v týdnu, nebo prohozený s jiným dnem téhož týdne (day.plan = číslo dne, jehož trénink se dělá)
+  const planKey = k => { const p = (state.days[k] || {}).plan; return p != null && PLAN[p] ? Number(p) : parseKey(k).getDay(); };
+  const planOf = k => PLAN[planKey(k)];
   const DEFAULT_SETTINGS = { startWeight: null, startDate: null, targetWeight: 95, kcalTarget: 4000, sleepTarget: 7, hmDate: "2027-06-30", proteinPerKg: 2 };
   const DAYS_CS = ["neděle", "pondělí", "úterý", "středa", "čtvrtek", "pátek", "sobota"];
   const DAYS_SHORT = ["Ne", "Po", "Út", "St", "Čt", "Pá", "So"];
@@ -189,9 +192,10 @@
     $("goToday").hidden = k === tk;
     if (state.formKey !== k) fillForm();
 
-    const d = currentDay(), p = PLAN[wd];
+    const d = currentDay(), p = planOf(k);
     const pill = `<span class="pill ${p.optional ? "opt" : p.type}">${p.optional ? "volitelně" : p.type === "gym" ? "gym" : "běh"}</span>`;
-    $("trainBox").innerHTML = chkHtml("training", (p.type === "gym" ? "Gym · " : "Běh · ") + p.label, "Splněno", !!d.training, "train", pill);
+    $("trainBox").innerHTML = chkHtml("training", (p.type === "gym" ? "Gym · " : "Běh · ") + p.label, planKey(k) !== wd ? "Prohozeno · původně " + PLAN[wd].label : "Splněno", !!d.training, "train", pill);
+    renderSwap(k);
     $("exList").hidden = p.type !== "gym";
     $("runField").hidden = p.type !== "run";
     if (p.type === "gym") renderExList(k, p);
@@ -204,6 +208,36 @@
     if (food.dayKey !== k) closePending();
     renderMeals();
     renderTodayDerived();
+  }
+
+  // ---------- prohození tréninků mezi dny téhož týdne (počet tréninků v týdnu zůstává) ----------
+  const weekKeys = k => { const mon = mondayOf(k); return [0, 1, 2, 3, 4, 5, 6].map(i => addDays(mon, i)); };
+  const planName = p => (p.type === "gym" ? "Gym · " : "Běh · ") + p.label;
+  function renderSwap(k) {
+    const own = parseKey(k).getDay(), swapped = planKey(k) !== own;
+    const head = swapped ? "Prohodit znovu s…" : "Prohodit s jiným dnem…";
+    $("swapSel").innerHTML = `<option value="">${esc(head)}</option>` + weekKeys(k).filter(x => x !== k)
+      .map(x => `<option value="${x}">${DAYS_SHORT[parseKey(x).getDay()]} ${fmtShort(x)} · ${esc(planName(planOf(x)))}</option>`).join("");
+    $("swapSel").value = "";
+    $("swapReset").hidden = !weekKeys(k).some(x => planKey(x) !== parseKey(x).getDay());
+  }
+  function swapPlan(a, b) {
+    flushSave();
+    const pa = planKey(a), pb = planKey(b), da = state.days[a] || {}, db = state.days[b] || {};
+    patchDay({ plan: pb === parseKey(a).getDay() ? null : pb, run: db.run ?? null }, true, a);
+    patchDay({ plan: pa === parseKey(b).getDay() ? null : pa, run: da.run ?? null }, true, b);
+    state.formKey = null; renderToday();
+    showSave("Prohozeno: " + DAYS_SHORT[parseKey(a).getDay()] + " " + PLAN[pb].label + " ↔ " + DAYS_SHORT[parseKey(b).getDay()] + " " + PLAN[pa].label);
+  }
+  function resetWeekPlan(k) {
+    flushSave();
+    const ks = weekKeys(k), runs = {};
+    ks.forEach(x => { const r = (state.days[x] || {}).run; if (r) runs[planKey(x)] = r; });
+    ks.forEach(x => {
+      const d = state.days[x] || {}, own = parseKey(x).getDay(), run = runs[own] ?? null;
+      if (planKey(x) !== own || (d.run ?? null) !== run) patchDay({ plan: null, run }, true, x);
+    });
+    state.formKey = null; renderToday(); showSave("Týden vrácen na původní plán");
   }
 
   function renderTodayDerived() {
@@ -235,6 +269,8 @@
       else { const hk = id.slice(2); patchDay({ habits: { [hk]: !(d.habits || {})[hk] } }, true); }
     };
     $("trainBox").addEventListener("click", toggle);
+    $("swapSel").addEventListener("change", e => { if (e.target.value) swapPlan(state.key, e.target.value); });
+    $("swapReset").onclick = () => resetWeekPlan(state.key);
     $("habitBox").addEventListener("click", toggle);
     $("energyBox").addEventListener("click", e => {
       const b = e.target.closest("button[data-e]"); if (!b) return;
@@ -342,7 +378,7 @@
     return res;
   }
   const weekOf = k => mondayOf(k);
-  const runKeys = mon => RUN_DAYS.map(wd => addDays(mon, (wd + 6) % 7));
+  const runKeys = mon => RUN_DAYS.map(wd => { const ks = [0, 1, 2, 3, 4, 5, 6].map(i => addDays(mon, i)); return ks.find(k => planKey(k) === wd) || addDays(mon, (wd + 6) % 7); });
   function weekHasRuns(mon) { return runKeys(mon).some(k => (state.days[k] || {}).run); }
   function openWeekBox(mon) {
     state.weekMon = mon || weekOf(state.key);
@@ -369,7 +405,7 @@
       const found = RUN_DAYS.filter(wd => parsed[wd]).length;
       RUN_DAYS.forEach((wd, i) => {
         $("wb-" + wd).value = parsed[wd] || ((state.days[keys[i]] || {}).run || "");
-        $("wbl-" + wd).textContent = DAYS_CS[wd][0].toUpperCase() + DAYS_CS[wd].slice(1) + " " + fmtShort(keys[i]) + " · " + PLAN[wd].label;
+        { const dn = DAYS_CS[parseKey(keys[i]).getDay()]; $("wbl-" + wd).textContent = dn[0].toUpperCase() + dn.slice(1) + " " + fmtShort(keys[i]) + " · " + PLAN[wd].label; }
       });
       const other = Object.keys(parsed).map(Number).filter(wd => !RUN_DAYS.includes(wd));
       $("wbMsg").textContent = !found && !other.length ? "Nenašel jsem dny (Po/Čt/So). Celý text jsem dal k pondělí – rozděl ho prosím ručně."
@@ -658,7 +694,7 @@
     const mon = mondayOf(tk);
     let done = 0, bonus = 0, hDone = 0, hTotal = 0, grid = "";
     for (let i = 0; i < 7; i++) {
-      const k = addDays(mon, i), d = state.days[k] || {}, p = PLAN[parseKey(k).getDay()];
+      const k = addDays(mon, i), d = state.days[k] || {}, p = planOf(k);
       if (d.training) { if (p.optional) bonus++; else done++; }
       const hs = habitsFor(k);
       if (k <= tk) { hTotal += hs.length; hDone += hs.filter(h => (d.habits || {})[h.k]).length; }
@@ -713,7 +749,7 @@
 
   // ---------- skóre dne (návyky + trénink) ----------
   function dayScore(k) {
-    const d = state.days[k] || {}, p = PLAN[parseKey(k).getDay()], hs = habitsFor(k);
+    const d = state.days[k] || {}, p = planOf(k), hs = habitsFor(k);
     const parts = hs.filter(h => (d.habits || {})[h.k]).length + (p.optional ? 0 : (d.training ? 1 : 0));
     return { parts, max: hs.length + (p.optional ? 0 : 1) };
   }
@@ -831,7 +867,7 @@
     const sl = ds.map(d => sleepHours(d.bed, d.wake)).filter(v => v != null);
     let done = 0, bonus = 0, hDone = 0, hTot = 0; const per = {};
     ks.forEach((k, i) => {
-      const d = ds[i], p = PLAN[parseKey(k).getDay()];
+      const d = ds[i], p = planOf(k);
       if (d.training) { if (p.optional) bonus++; else done++; }
       if (k <= tk) habitsFor(k).forEach(h => { hTot++; const on = !!(d.habits || {})[h.k]; if (on) hDone++; if (k < tk || on) { per[h.k] = per[h.k] || { t: h.t, n: 0, of: 0 }; per[h.k].of++; if (on) per[h.k].n++; } });
     });
@@ -892,7 +928,7 @@
     const keys = Object.keys(state.days).sort().reverse();
     if (!keys.length) { $("histList").innerHTML = '<p class="empty">Zatím nic. První zápis uděláš v záložce Dnes.</p>'; return; }
     $("histList").innerHTML = keys.map(k => {
-      const d = state.days[k], h = sleepHours(d.bed, d.wake), p = PLAN[parseKey(k).getDay()];
+      const d = state.days[k], h = sleepHours(d.bed, d.wake), p = planOf(k);
       const vals = [d.weight != null ? "<b>" + nf1.format(d.weight) + "</b> kg" : null, d.kcal != null ? "<b>" + nf0.format(d.kcal) + "</b> kcal" : null, d.protein != null ? "<b>" + nf0.format(d.protein) + "</b> g B" : null, h != null ? "<b>" + nf1.format(h) + "</b> h" : null].filter(Boolean).join(" · ") || "—";
       const runTxt = d.run ? `<br><small style="color:var(--sage)">🏃 ${esc(d.run.split("\n")[0].slice(0, 60))}</small>` : "";
       const dots = `<i class="tr ${d.training ? "on" : ""}" title="${esc(p.label)}"></i>` + habitsFor(k).map(x => `<i class="${(d.habits || {})[x.k] ? "on" : ""}"></i>`).join("") + (d.energy ? `<em class="hen">⚡${d.energy}</em>` : "");
@@ -920,7 +956,7 @@
       "datum;den;vaha_kg;kcal;bilkoviny_g;sacharidy_g;tuky_g;spat;vstal;spanek_h;energie_1_5;trenink;splneno;mobil;hygiena;bez_gauce;zapis;budik;kreatin;hlavni_cviky;trenink_detail;jidla;poznamka"
     ];
     const rows = keys.map(k => {
-      const d = state.days[k], p = PLAN[parseKey(k).getDay()], h = sleepHours(d.bed, d.wake), hb = d.habits || {};
+      const d = state.days[k], p = planOf(k), h = sleepHours(d.bed, d.wake), hb = d.habits || {};
       return [k, DAYS_SHORT[parseKey(k).getDay()], d.weight ?? "", d.kcal ?? "", d.protein ?? "", d.carbs ?? "", d.fat ?? "", d.bed ?? "", d.wake ?? "", h != null ? h.toFixed(1) : "", d.energy ?? "", p.label, d.training ? 1 : 0,
         hb.mobil ? 1 : 0, hb.hygiena ? 1 : 0, hb.gauc ? 1 : 0, hb.zapis ? 1 : 0, k >= "2026-11-10" ? (hb.budik ? 1 : 0) : "", k >= "2026-11-13" ? (hb.kreatin ? 1 : 0) : "",
         Object.keys(d.lifts || {}).filter(id => d.lifts[id] && d.lifts[id].w != null).map(id => LIFTS[id] + " " + fmtLift(d.lifts[id])).join(" | "), (d.run || "").replace(/[;\n]/g, " | "), mealsOf(d).map(m => `${m.t} ${m.name} ${m.kcal}kcal/${m.protein}gB`).join(" | ").replace(/;/g, ","), (d.note || "").replace(/[;\n]/g, " ")].join(";");
@@ -1274,7 +1310,7 @@
     const all = []; for (let k = from; k <= to; k = addDays(k, 1)) all.push(k);
     const s = state.settings, pt = proteinTarget();
     const days = all.map(k => {
-      const d = state.days[k] || {}, p = PLAN[parseKey(k).getDay()], hs = habitsFor(k);
+      const d = state.days[k] || {}, p = planOf(k), hs = habitsFor(k);
       return { k, today: k === tk, short: fmtShort(k), dow: DAYS_SHORT[parseKey(k).getDay()], weight: d.weight ?? null, avg7: avg7(k), kcal: d.kcal ?? null, protein: d.protein ?? null,
         sleep: sleepHours(d.bed, d.wake), energy: d.energy ?? null, plan: p.label, optional: !!p.optional, training: !!d.training,
         habits: hs.filter(h => (d.habits || {})[h.k]).length, habitsOf: hs.length, note: d.note || "", run: d.run || "",

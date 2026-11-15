@@ -298,6 +298,7 @@ h2{font-family:var(--f-display);font-weight:800;font-size:28px;line-height:1;let
 .fchip{flex:none;border:0;border-radius:999px;background:var(--bg);color:var(--ink);min-height:44px;padding:0 16px;font-weight:700;cursor:pointer;font-size:14px}
 .fchip small{font-weight:500;color:var(--soft);margin-left:4px}
 .fchip.on{background:var(--cobalt);color:#fff} .fchip.on small{color:rgba(255,255,255,.8)}
+.calmode{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px} .calmode .fchip{min-height:40px;padding:0 14px;font-size:13px}
 .frow{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .frow input{flex:1;min-width:140px;border:1.5px solid transparent;background:var(--card);border-radius:14px;padding:10px 12px;font-size:16px;outline:none;color:var(--ink)}
 .frow input:focus{border-color:var(--cobalt)}
@@ -703,12 +704,15 @@ nav.tabs button[aria-current="true"]{background:var(--cobalt);color:#fff}
           <div class="frow" style="margin-top:10px"><label class="sr" for="folderNew">Nová složka</label><input id="folderNew" placeholder="Nová složka, např. Citáty" maxlength="30"><button type="button" class="btn sm" id="folderAdd">Přidat složku</button></div>
         </div>
         <div class="field" style="margin-top:14px"><label for="noteText" id="noteLabel">Nová poznámka</label><textarea id="noteText" rows="3" placeholder="Co tě napadlo…"></textarea></div>
-        <div class="field" id="remindRow" style="margin-top:10px" hidden><label for="noteRemind">Připomenout (volitelné)</label><input id="noteRemind" type="datetime-local"><div class="hint">Připomínka přijde v appce (když ji máš otevřenou nebo ji otevřeš). Na přesný čas se zavřenou appkou dej u úkolu „Do Google Kalendáře“. <button type="button" class="linkbtn" id="notifBtn" hidden>Povolit upozornění</button></div></div>
+        <div class="field" id="remindRow" style="margin-top:10px" hidden><label for="noteRemind">Připomenout (volitelné)</label><input id="noteRemind" type="datetime-local">
+          <div class="calmode" id="calMode" role="radiogroup" aria-label="Kde připomenout"><button type="button" class="fchip" data-m="app" role="radio">Jen v appce</button><button type="button" class="fchip" data-m="both" role="radio">Appka + kalendář</button><button type="button" class="fchip" data-m="cal" role="radio">Jen kalendář</button></div>
+          <div class="hint"><span id="calHint"></span> <button type="button" class="linkbtn" id="notifBtn" hidden>Povolit upozornění</button> <button type="button" class="linkbtn" id="gcalOff" hidden>Odpojit Google Kalendář</button></div></div>
         <div class="row" style="margin-top:10px"><button type="button" class="btn" id="noteSave">Uložit</button><button type="button" class="btn ghost" id="noteCancel" hidden>Zrušit úpravu</button></div>
       </div>
       <div class="card">
         <div class="field" style="margin-bottom:14px"><label class="sr" for="noteSearch">Hledat</label><input id="noteSearch" type="search" placeholder="Hledat ve všech poznámkách"></div>
         <h2 id="noteHead" style="font-size:26px;margin-bottom:6px">Myšlenky</h2>
+        <button type="button" class="btn ghost sm" id="calRetry" style="margin-bottom:8px" hidden>Synchronizovat kalendář</button>
         <p class="hint" style="margin:0 0 6px">Klepni na poznámku pro úpravu, přesun nebo smazání.</p>
         <ul class="notes" id="noteList"></ul>
       </div>
@@ -754,11 +758,11 @@ nav.tabs button[aria-current="true"]{background:var(--cobalt);color:#fff}
   </div>
 </div>
 
-<script src="config.js?v=19"></script>
+<script src="config.js?v=20"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="app.js?v=19"></script>
-<script type="module" src="ai.js?v=19"></script>
+<script src="app.js?v=20"></script>
+<script type="module" src="ai.js?v=20"></script>
 </body>
 </html>

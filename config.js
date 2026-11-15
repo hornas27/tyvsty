@@ -11,3 +11,6 @@ window.FIREBASE_CONFIG = {
 
 // reCAPTCHA (Fraud Defense) site key pro App Check – chrání Gemini proti zneužití.
 window.RECAPTCHA_SITE_KEY = "6LclWRkuAAAAADuf4ax5nIaEoClE4glYoqNz2UZT";
+
+// Google Kalendář: OAuth klient (veřejné ID, ne heslo). Povolený jen pro hornas27.github.io a jen pro tvůj účet.
+window.GCAL_CLIENT_ID = "1006050490144-okg2cr3p9vurlshojg96bsdjkji7n5qs.apps.googleusercontent.com";

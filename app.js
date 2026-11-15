@@ -1,4 +1,5 @@
 /* Ty vs. Ty — osobní tracker (Marek). Vanilla JS + Firebase (Auth email/heslo + Firestore). */
+/* global google */
 (function () {
   "use strict";
 
@@ -961,7 +962,7 @@
   const KODEX = ["Žij svůj život.", "Nikdy nezapomeň, pro koho to děláš.", "Bojuj za to, jaký chceš být, a nikdy to nevzdávej.", "Vydržíš všechno.", "Jsi to jenom ty vs. ty.",
     "Tvoje hlava tě brzdí. Nedovol jí to.", "Vybuduj si sebedůvěru vůči sobě.", "Buď tak dobrý, že tě nemůžou ignorovat.", "Jak by se cítil a choval Marek, který už je tam, kde chceš být?",
     "Lepší rozhodnutí, lepší budoucnost.", "Go one more.", "Každý život stojí na rozhodnutích."];
-  const notesUI = { folder: null, editId: null, delArm: null, editFolders: false, q: "", open: null };
+  const notesUI = { folder: null, editId: null, delArm: null, editFolders: false, q: "", open: null, calMode: null };
   const isTasks = f => !!f && (f.tasks ?? /úkol/i.test(f.name || ""));
   const folders = () => (state.settings.noteFolders && state.settings.noteFolders.length ? state.settings.noteFolders : DEFAULT_FOLDERS);
   const notesIn = f => Object.entries(state.notes || {}).map(([id, n]) => ({ id, ...n })).filter(n => n.folder === f.id)
@@ -987,7 +988,15 @@
     const tf = isTasks(f) || (notesUI.editId && isTasks(fs.find(x => x.id === (state.notes[notesUI.editId] || {}).folder)));
     $("remindRow").hidden = !tf;
     $("noteLabel").textContent = notesUI.editId ? "Úprava" : (tf ? "Nový úkol do: " : "Nová poznámka do: ") + f.name;
-    $("notifBtn").hidden = !(tf && "Notification" in window && Notification.permission === "default");
+    const cm = curCalMode();
+    $("calMode").querySelectorAll("button").forEach(b => { const on = b.dataset.m === cm; b.classList.toggle("on", on); b.setAttribute("aria-checked", on); });
+    $("calHint").textContent = cm === "app" ? "Připomínka přijde v appce (když ji máš otevřenou nebo ji otevřeš)."
+      : (cm === "both" ? "Připomínka v appce + událost v tvém Google Kalendáři, upozornění na telefonu přesně v čas." : "Jen událost v Google Kalendáři s upozorněním na telefonu, v appce nic nevyskočí.") + (gcalConnected() ? "" : " Poprvé tě Google požádá o přihlášení.");
+    $("notifBtn").hidden = !(tf && cm !== "cal" && "Notification" in window && Notification.permission === "default");
+    $("gcalOff").hidden = !(tf && gcalConnected());
+    if (tf && GCAL_ID) gisLoad().catch(() => {});
+    const pend = calPendingCount();
+    $("calRetry").hidden = !pend; $("calRetry").textContent = "Synchronizovat kalendář (" + pend + ")";
     $("noteSave").textContent = notesUI.editId ? "Uložit změnu" : "Uložit";
     $("noteCancel").hidden = !notesUI.editId;
     $("folderEditBox").hidden = !notesUI.editFolders;
@@ -1006,12 +1015,14 @@
       if (task && n.done) metaParts.push("Splněno " + fmtNoteDate(n.doneAt));
       else if (task && n.remindAt) metaParts.push((overdue ? "⏰ Mělo být " : "⏰ ") + fmtRemind(n.remindAt));
       else if (!(fo && fo.numbered)) metaParts.push(fmtNoteDate(n.createdAt));
+      if (task && !n.done && n.calPending) metaParts.push("📅 čeká na kalendář");
+      else if (task && !n.done && n.calEventId) metaParts.push(n.calMode === "cal" ? "📅 jen v kalendáři" : "📅 v kalendáři");
       const meta = metaParts.join(" · ");
       return `<li class="note${n.id === notesUI.editId ? " editing" : ""}${notesUI.open === n.id ? " open" : ""}${task ? " task" : ""}${n.done ? " done" : ""}${overdue ? " overdue" : ""}" data-id="${esc(n.id)}">
         ${task ? `<button type="button" class="tchk" data-act="toggle" aria-label="${n.done ? "Označit jako nesplněné" : "Označit jako splněné"}" aria-pressed="${!!n.done}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg></button>` : ""}
         ${!q && f.numbered ? `<span class="note-n">${i + 1}</span>` : ""}
         <div class="note-body"><button type="button" class="note-t" data-act="open" aria-expanded="${notesUI.open === n.id}">${esc(n.text || "")}</button>${meta ? `<small>${esc(meta)}</small>` : ""}
-          <div class="note-act"${notesUI.open === n.id ? "" : " hidden"}><button type="button" class="linkbtn" data-act="edit">Upravit</button>${task && n.remindAt && !n.done ? `<a class="linkbtn" href="${gcalUrl(n)}" target="_blank" rel="noopener">Do Google Kalendáře</a><button type="button" class="linkbtn" data-act="ics">Jiný kalendář</button>` : ""}
+          <div class="note-act"${notesUI.open === n.id ? "" : " hidden"}><button type="button" class="linkbtn" data-act="edit">Upravit</button>${task && n.remindAt && !n.done && !calOn(n) && GCAL_ID ? `<button type="button" class="linkbtn" data-act="tocal">Přidat do Google Kalendáře</button>` : ""}${task && n.remindAt && !n.done && !calOn(n) ? `<button type="button" class="linkbtn" data-act="ics">Jiný kalendář</button>` : ""}
           <label class="sr" for="mv-${esc(n.id)}">Přesunout do složky</label><select id="mv-${esc(n.id)}" data-act="move">${opts(n.folder)}</select>
           <button type="button" class="linkbtn del${notesUI.delArm === n.id ? " armed" : ""}" data-act="del">${notesUI.delArm === n.id ? "Opravdu smazat?" : "Smazat"}</button></div></div></li>`;
     }).join("") : `<li class="empty">${q ? "Nic nenalezeno." : "Zatím prázdné. Napiš první poznámku nahoře."}</li>`;
@@ -1024,14 +1035,23 @@
       let n;
       if (notesUI.editId) n = { id: notesUI.editId, text: t, updatedAt: now };
       else { const ord = f.numbered ? notesIn(f).reduce((m, x) => Math.max(m, x.order || 0), 0) + 1 : null; n = { id: "n" + now.toString(36) + Math.random().toString(36).slice(2, 6), folder: f.id, text: t, createdAt: now, updatedAt: now }; if (ord) n.order = ord; }
-      if (!$("remindRow").hidden) { const ra = $("noteRemind").value || null; const old = (state.notes[n.id] || {}).remindAt || null; n.remindAt = ra; if (ra !== old) n.reminded = false; }
+      if (!$("remindRow").hidden) {
+        const ra = $("noteRemind").value || null, cm = curCalMode(); const old = (state.notes[n.id] || {}).remindAt || null;
+        if (cm !== "app" && !ra) { showSave("Vyber čas – bez něj to do kalendáře nejde"); $("noteRemind").focus(); return; }
+        n.remindAt = ra; n.calMode = cm; if (ra !== old) n.reminded = false;
+        try { localStorage.setItem("tvt-calmode", cm); } catch (err) {}
+      }
       state.notes[n.id] = { ...(state.notes[n.id] || {}), ...n };
       trackSave(store.saveNote(n)).then(() => showSave("Poznámka uložena ✓")).catch(e => showSave("Neuloženo: " + (e.code || e.message)));
-      notesUI.editId = null; notesUI.open = null; $("noteText").value = ""; $("noteRemind").value = ""; renderNotes();
-      if (n.remindAt) showSave("Připomenu " + fmtRemind(n.remindAt) + (("Notification" in window && Notification.permission === "granted") ? "" : " (v appce)"));
+      notesUI.editId = null; notesUI.open = null; notesUI.calMode = null; $("noteText").value = ""; $("noteRemind").value = ""; renderNotes();
+      if (n.remindAt) showSave(n.calMode === "cal" ? "Ukládám do Google Kalendáře na " + fmtRemind(n.remindAt) : "Připomenu " + fmtRemind(n.remindAt) + (n.calMode === "both" ? " (appka + kalendář)" : ("Notification" in window && Notification.permission === "granted") ? "" : " (v appce)"));
+      calSync(n.id);
       checkReminders();
     };
-    $("noteCancel").onclick = () => { notesUI.editId = null; $("noteText").value = ""; $("noteRemind").value = ""; renderNotes(); };
+    $("noteCancel").onclick = () => { notesUI.editId = null; notesUI.calMode = null; $("noteText").value = ""; $("noteRemind").value = ""; renderNotes(); };
+    $("calMode").addEventListener("click", e => { const b = e.target.closest("button[data-m]"); if (!b) return; notesUI.calMode = b.dataset.m; renderNotes(); });
+    $("gcalOff").onclick = () => { gcalDisconnect(); showSave("Google Kalendář odpojen (události v kalendáři zůstaly)"); renderNotes(); };
+    $("calRetry").onclick = () => calRetry(true);
     $("notifBtn").onclick = () => { if ("Notification" in window) Notification.requestPermission().then(p => { showSave(p === "granted" ? "Upozornění povolena ✓" : "Upozornění nepovolena – připomínky uvidíš v appce"); renderNotes(); }); };
     $("noteSearch").addEventListener("input", e => { notesUI.q = e.target.value; renderNotes(); });
     $("noteList").addEventListener("click", e => {
@@ -1040,9 +1060,10 @@
       if (b.dataset.act === "open") { notesUI.open = notesUI.open === id ? null : id; notesUI.delArm = null; renderNotes(); return; }
       if (b.dataset.act === "toggle") { setTaskDone(id, !n.done); return; }
       if (b.dataset.act === "ics") { downloadIcs({ id, ...n }); return; }
-      if (b.dataset.act === "edit") { notesUI.editId = id; $("noteText").value = n.text || ""; $("noteRemind").value = n.remindAt || ""; renderNotes(); $("noteText").focus(); window.scrollTo({ top: 0, behavior: "smooth" }); }
+      if (b.dataset.act === "tocal") { const upd = { id, calMode: "both", updatedAt: Date.now() }; state.notes[id] = { ...n, ...upd }; notesUI.open = null; trackSave(store.saveNote(upd)); calSync(id); renderNotes(); return; }
+      if (b.dataset.act === "edit") { notesUI.editId = id; notesUI.calMode = n.calMode || "app"; $("noteText").value = n.text || ""; $("noteRemind").value = n.remindAt || ""; renderNotes(); $("noteText").focus(); window.scrollTo({ top: 0, behavior: "smooth" }); }
       else if (b.dataset.act === "del") {
-        if (notesUI.delArm === id) { notesUI.delArm = null; delete state.notes[id]; trackSave(store.deleteNote(id)).then(() => showSave("Smazáno")); if (notesUI.editId === id) { notesUI.editId = null; $("noteText").value = ""; } renderNotes(); }
+        if (notesUI.delArm === id) { notesUI.delArm = null; if (n.calEventId) calDeleteEvent(n.calEventId); delete state.notes[id]; trackSave(store.deleteNote(id)).then(() => showSave("Smazáno")); if (notesUI.editId === id) { notesUI.editId = null; notesUI.calMode = null; $("noteText").value = ""; } renderNotes(); }
         else { notesUI.delArm = id; renderNotes(); setTimeout(() => { if (notesUI.delArm === id) { notesUI.delArm = null; renderNotes(); } }, 3000); }
       }
     });
@@ -1050,7 +1071,7 @@
       const sel = e.target.closest("select[data-act=move]"); if (!sel) return;
       const id = sel.closest(".note").dataset.id, to = folders().find(x => x.id === sel.value); if (!to) return;
       const upd = { id, folder: to.id, updatedAt: Date.now() }; if (to.numbered) upd.order = notesIn(to).reduce((m, x) => Math.max(m, x.order || 0), 0) + 1;
-      notesUI.open = null; state.notes[id] = { ...state.notes[id], ...upd }; trackSave(store.saveNote(upd)).then(() => showSave("Přesunuto do: " + to.name)); renderNotes();
+      notesUI.open = null; state.notes[id] = { ...state.notes[id], ...upd }; trackSave(store.saveNote(upd)).then(() => showSave("Přesunuto do: " + to.name)); calSync(id); renderNotes();
     });
     $("folderEdit").onclick = () => { notesUI.editFolders = !notesUI.editFolders; renderNotes(); };
     $("folderAdd").onclick = () => {
@@ -1075,13 +1096,127 @@
     const upd = { id, done, doneAt: done ? Date.now() : null, updatedAt: Date.now() };
     state.notes[id] = { ...state.notes[id], ...upd };
     trackSave(store.saveNote(upd)).then(() => showSave(done ? "Splněno ✓ Dobrá práce." : "Vráceno mezi nesplněné"));
+    calSync(id);
     if (notesUI.open === id) notesUI.open = null;
     if (state.view === "notes") renderNotes(); else if (state.view === "today") renderTaskBanner();
   }
   const icsDate = d => d.getUTCFullYear() + pad2(d.getUTCMonth() + 1) + pad2(d.getUTCDate()) + "T" + pad2(d.getUTCHours()) + pad2(d.getUTCMinutes()) + "00Z";
-  function gcalUrl(n) {
-    const st = new Date(n.remindAt), en = new Date(st.getTime() + 30 * 60000);
-    return "https://calendar.google.com/calendar/render?action=TEMPLATE&text=" + encodeURIComponent(n.text.split("\n")[0].slice(0, 100)) + "&dates=" + icsDate(st) + "/" + icsDate(en) + "&details=" + encodeURIComponent(n.text + "\n\n– z appky Ty vs. Ty");
+  // ---------- Google Kalendář: přihlášení přes Google (jen kalendářové události) + synchronizace úkolů ----------
+  const GCAL_ID = window.GCAL_CLIENT_ID || "";
+  const GCAL_SCOPE = "https://www.googleapis.com/auth/calendar.events";
+  const GCAL_API = "https://www.googleapis.com/calendar/v3/calendars/primary/events";
+  const gcal = { tok: null, exp: 0, client: null, loading: null, waiters: null, lastAuto: 0 };
+  try { const t = JSON.parse(sessionStorage.getItem("tvt-gtok") || "null"); if (t && t.exp > Date.now()) { gcal.tok = t.tok; gcal.exp = t.exp; } } catch (e) {}
+  const lsGet = k => { try { return localStorage.getItem(k); } catch (e) { return null; } };
+  const gcalConnected = () => !!GCAL_ID && lsGet("tvt-gcal") === "1";
+  function curCalMode() { const m = notesUI.calMode || lsGet("tvt-calmode") || "app"; return GCAL_ID || m === "app" ? m : "app"; }
+  const calOn = n => n.calMode === "both" || n.calMode === "cal";
+  function calWanted(n) { const fo = folders().find(f => f.id === n.folder); return !!(isTasks(fo) && !n.done && n.remindAt && calOn(n)); }
+  const calPendingCount = () => Object.values(state.notes || {}).filter(n => n.calPending).length + (state.settings.calTrash || []).length;
+  function gisLoad() {
+    if (window.google && google.accounts && google.accounts.oauth2) return Promise.resolve();
+    if (gcal.loading) return gcal.loading;
+    gcal.loading = new Promise((res, rej) => {
+      const s = document.createElement("script"); s.src = "https://accounts.google.com/gsi/client"; s.async = true;
+      s.onload = res; s.onerror = () => { gcal.loading = null; s.remove(); rej(new Error("gis")); };
+      document.head.appendChild(s);
+    });
+    return gcal.loading;
+  }
+  function gcalSettle(err, tok) { const w = gcal.waiters || []; gcal.waiters = null; w.forEach(([res, rej]) => err ? rej(err) : res(tok)); }
+  // interactive = jen po klepnutí (Google otevře okno pro přihlášení); jinak jen použije platný token
+  function gcalToken(interactive) {
+    if (gcal.tok && gcal.exp > Date.now() + 60000) return Promise.resolve(gcal.tok);
+    if (!interactive || !GCAL_ID) return Promise.reject(new Error("notoken"));
+    if (gcal.waiters) return new Promise((res, rej) => gcal.waiters.push([res, rej]));
+    const p = new Promise((res, rej) => { gcal.waiters = [[res, rej]]; });
+    const go = () => {
+      if (!gcal.client) gcal.client = google.accounts.oauth2.initTokenClient({
+        client_id: GCAL_ID, scope: GCAL_SCOPE, login_hint: state.userEmail || undefined,
+        callback: r => {
+          if (!r || r.error || !google.accounts.oauth2.hasGrantedAllScopes(r, GCAL_SCOPE)) return gcalSettle(new Error((r && r.error) || "scope"));
+          gcal.tok = r.access_token; gcal.exp = Date.now() + (Number(r.expires_in) || 3600) * 1000;
+          try { sessionStorage.setItem("tvt-gtok", JSON.stringify({ tok: gcal.tok, exp: gcal.exp })); localStorage.setItem("tvt-gcal", "1"); } catch (e) {}
+          gcalSettle(null, gcal.tok);
+        },
+        error_callback: e => gcalSettle(new Error((e && e.type) || "popup"))
+      });
+      gcal.client.requestAccessToken({ prompt: gcalConnected() ? "" : "consent" });
+    };
+    if (window.google && google.accounts && google.accounts.oauth2) go(); else gisLoad().then(go, () => gcalSettle(new Error("gis")));
+    return p;
+  }
+  function gcalDisconnect() {
+    try { if (gcal.tok && window.google && google.accounts) google.accounts.oauth2.revoke(gcal.tok, () => {}); } catch (e) {}
+    gcal.tok = null; gcal.exp = 0;
+    try { sessionStorage.removeItem("tvt-gtok"); localStorage.removeItem("tvt-gcal"); } catch (e) {}
+  }
+  async function gapi(method, path, body) {
+    const tok = await gcalToken(false);
+    const r = await fetch(GCAL_API + path, { method, headers: body ? { Authorization: "Bearer " + tok, "Content-Type": "application/json" } : { Authorization: "Bearer " + tok }, body: body ? JSON.stringify(body) : undefined });
+    if (r.status === 401) { gcal.tok = null; gcal.exp = 0; try { sessionStorage.removeItem("tvt-gtok"); } catch (e) {} }
+    if (method === "DELETE" && (r.status === 404 || r.status === 410)) return null;
+    if (!r.ok) throw Object.assign(new Error("HTTP " + r.status), { status: r.status });
+    return r.status === 204 || method === "DELETE" ? null : r.json();
+  }
+  function calEvent(n) {
+    const st = new Date(n.remindAt), en = new Date(st.getTime() + 30 * 60000), tz = (Intl.DateTimeFormat().resolvedOptions().timeZone) || "Europe/Prague";
+    const loc = d => toKey(d) + "T" + pad2(d.getHours()) + ":" + pad2(d.getMinutes()) + ":00";
+    return { summary: n.text.split("\n")[0].slice(0, 100), description: n.text + "\n\n– z appky Ty vs. Ty", status: "confirmed",
+      start: { dateTime: loc(st), timeZone: tz }, end: { dateTime: loc(en), timeZone: tz },
+      reminders: { useDefault: false, overrides: [{ method: "popup", minutes: 0 }] }, extendedProperties: { private: { tvt: n.id } } };
+  }
+  function notePatch(id, upd) { if (!state.notes[id]) return Promise.resolve(); state.notes[id] = { ...state.notes[id], ...upd }; return store.saveNote({ id, ...upd }); }
+  // dorovná událost v kalendáři podle stavu úkolu: vytvořit / upravit / smazat
+  async function calDo(id) {
+    const n = state.notes[id]; if (!n) return;
+    const ev = n.calEventId;
+    if (calWanted(n)) {
+      const body = calEvent(n); let res = null;
+      if (ev) { try { res = await gapi("PATCH", "/" + encodeURIComponent(ev), body); } catch (e) { if (e.status !== 404 && e.status !== 410) throw e; } }
+      if (!res) res = await gapi("POST", "", body);
+      if (state.notes[id]) await notePatch(id, { calEventId: res.id, calPending: false });
+      else await gapi("DELETE", "/" + encodeURIComponent(res.id)); // úkol mezitím smazaný
+    } else if (ev) {
+      await gapi("DELETE", "/" + encodeURIComponent(ev));
+      await notePatch(id, { calEventId: null, calPending: false });
+    } else if (n.calPending) await notePatch(id, { calPending: false });
+  }
+  const calChain = {};
+  function calFail(id, e) {
+    const m = String((e && e.message) || "");
+    if (state.notes[id] && !state.notes[id].calPending) notePatch(id, { calPending: true }).catch(() => {});
+    showSave(/popup|access_denied|closed/.test(m) ? "Přihlášení ke Google zrušené – úkol je uložený, do kalendáře ho pošleš tlačítkem Synchronizovat"
+      : "Kalendář teď nešel upravit – úkol je uložený, zkusím to znovu");
+    if (state.view === "notes") renderNotes();
+  }
+  function calSync(id, interactive = true) {
+    const n = state.notes[id]; if (!n || !GCAL_ID) return Promise.resolve();
+    if (!n.calEventId && !calWanted(n)) return n.calPending ? notePatch(id, { calPending: false }) : Promise.resolve();
+    const tp = gcalToken(interactive); tp.catch(() => {}); // okno Google se musí otevřít hned po klepnutí
+    calChain[id] = (calChain[id] || Promise.resolve()).catch(() => {}).then(() => tp).then(() => calDo(id))
+      .then(() => { if (state.view === "notes") renderNotes(); }, e => { if (interactive) calFail(id, e); });
+    return calChain[id];
+  }
+  function calDeleteEvent(ev) {
+    const tp = gcalToken(true); tp.catch(() => {});
+    tp.then(() => gapi("DELETE", "/" + encodeURIComponent(ev))).catch(() => saveSettingsPatch({ calTrash: (state.settings.calTrash || []).concat(ev) }));
+  }
+  function calRetry(interactive) {
+    if (!GCAL_ID || !state.notesLoaded || !state.settingsLoaded) return;
+    const ids = Object.keys(state.notes).filter(id => state.notes[id].calPending), trash = (state.settings.calTrash || []).slice();
+    if (!ids.length && !trash.length) return;
+    if (!interactive && !(gcal.tok && gcal.exp > Date.now() + 60000)) return;
+    const tp = gcalToken(interactive); tp.catch(() => {});
+    tp.then(async () => {
+      let fails = 0;
+      for (const id of ids) { try { await calDo(id); } catch (e) { fails++; } }
+      const done = [];
+      for (const ev of trash) { try { await gapi("DELETE", "/" + encodeURIComponent(ev)); done.push(ev); } catch (e) { fails++; } }
+      if (done.length) saveSettingsPatch({ calTrash: (state.settings.calTrash || []).filter(x => !done.includes(x)) });
+      if (interactive) showSave(fails ? "Část se nepovedla (" + fails + ") – zkus to za chvíli" : "Kalendář synchronizován ✓");
+      if (state.view === "notes") renderNotes();
+    }).catch(e => { if (interactive) showSave("Synchronizace se nepovedla: " + ((e && e.message) || "") + " – zkus to za chvíli"); });
   }
   function downloadIcs(n) {
     const st = new Date(n.remindAt), en = new Date(st.getTime() + 30 * 60000), t = s2 => String(s2).replace(/[\;,]/g, m => "\\" + m).replace(/\n/g, "\\n");
@@ -1096,7 +1231,7 @@
   function checkReminders() {
     if (!state.notesLoaded) return;
     const now = new Date();
-    openTasks().filter(n => n.remindAt && !n.reminded && new Date(n.remindAt) <= now).forEach(n => {
+    openTasks().filter(n => n.remindAt && !n.reminded && n.calMode !== "cal" && new Date(n.remindAt) <= now).forEach(n => {
       state.notes[n.id] = { ...state.notes[n.id], reminded: true };
       store.saveNote({ id: n.id, reminded: true }).catch(() => {});
       if (!remindQueue.some(x => x.id === n.id)) remindQueue.push(n);
@@ -1119,11 +1254,11 @@
   }
   function bindTasks() {
     $("rtDone").onclick = () => { const n = remindQueue.shift(); if (n) setTaskDone(n.id, true); showRemindToast(); };
-    $("rtLater").onclick = () => { const n = remindQueue.shift(); if (n) { const d = new Date(Date.now() + 10 * 60000), v = toKey(d) + "T" + pad2(d.getHours()) + ":" + pad2(d.getMinutes()); state.notes[n.id] = { ...state.notes[n.id], remindAt: v, reminded: false }; trackSave(store.saveNote({ id: n.id, remindAt: v, reminded: false })).then(() => showSave("Připomenu za 10 minut")); } showRemindToast(); };
+    $("rtLater").onclick = () => { const n = remindQueue.shift(); if (n) { const d = new Date(Date.now() + 10 * 60000), v = toKey(d) + "T" + pad2(d.getHours()) + ":" + pad2(d.getMinutes()); state.notes[n.id] = { ...state.notes[n.id], remindAt: v, reminded: false }; trackSave(store.saveNote({ id: n.id, remindAt: v, reminded: false })).then(() => showSave("Připomenu za 10 minut")); calSync(n.id); } showRemindToast(); };
     $("rtClose").onclick = () => { remindQueue.shift(); showRemindToast(); };
     $("taskList").addEventListener("click", e => { const b = e.target.closest("button[data-act=toggle]"); if (b) setTaskDone(b.closest("li").dataset.id, true); });
     setInterval(checkReminders, 20000);
-    document.addEventListener("visibilitychange", () => { if (!document.hidden) checkReminders(); });
+    document.addEventListener("visibilitychange", () => { if (document.hidden) return; checkReminders(); if (Date.now() - gcal.lastAuto > 60000) { gcal.lastAuto = Date.now(); calRetry(false); } });
   }
 
   // ---------- PDF report ----------
@@ -1250,6 +1385,7 @@
     store.onAuth(user => {
       $("authView").hidden = !!user; $("app").hidden = !user;
       if (!user) return;
+      state.userEmail = user.email && user.email.includes("@") ? user.email : "";
       $("acctTxt").textContent = DEMO ? "Demo režim: data jsou uložená jen v tomto prohlížeči. Po vložení Firebase configu se budou synchronizovat." : "Přihlášen: " + user.email;
       $("logoutBtn").hidden = DEMO;
       store.watchSettings(s => { state.settings = { ...DEFAULT_SETTINGS, ...s }; state.settingsLoaded = true; seedKodex(); if (state.view !== "settings" && !(state.view === "notes" && document.activeElement && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName))) renderCurrent(); });

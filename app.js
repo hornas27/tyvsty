@@ -198,6 +198,7 @@
     renderEnergy(d);
     renderFavs();
     renderBanners();
+    renderTaskBanner();
     renderHeroGoal();
     if (food.dayKey !== k) closePending();
     renderMeals();
@@ -961,9 +962,11 @@
     "Tvoje hlava tě brzdí. Nedovol jí to.", "Vybuduj si sebedůvěru vůči sobě.", "Buď tak dobrý, že tě nemůžou ignorovat.", "Jak by se cítil a choval Marek, který už je tam, kde chceš být?",
     "Lepší rozhodnutí, lepší budoucnost.", "Go one more.", "Každý život stojí na rozhodnutích."];
   const notesUI = { folder: null, editId: null, delArm: null, editFolders: false, q: "", open: null };
+  const isTasks = f => !!f && (f.tasks ?? /úkol/i.test(f.name || ""));
   const folders = () => (state.settings.noteFolders && state.settings.noteFolders.length ? state.settings.noteFolders : DEFAULT_FOLDERS);
   const notesIn = f => Object.entries(state.notes || {}).map(([id, n]) => ({ id, ...n })).filter(n => n.folder === f.id)
-    .sort((a, b) => f.numbered ? (a.order || 0) - (b.order || 0) || (a.createdAt || 0) - (b.createdAt || 0) : (b.createdAt || 0) - (a.createdAt || 0));
+    .sort((a, b) => isTasks(f) ? (!!a.done - !!b.done) || (a.done ? (b.doneAt || 0) - (a.doneAt || 0) : String(a.remindAt || "9999").localeCompare(String(b.remindAt || "9999")) || (b.createdAt || 0) - (a.createdAt || 0))
+      : f.numbered ? (a.order || 0) - (b.order || 0) || (a.createdAt || 0) - (b.createdAt || 0) : (b.createdAt || 0) - (a.createdAt || 0));
   function curFolder() {
     const fs = folders(); if (!notesUI.folder) { try { notesUI.folder = localStorage.getItem("tvt-notefolder"); } catch (e) {} }
     return fs.find(f => f.id === notesUI.folder) || fs.find(f => f.id === "myslenky") || fs[0];
@@ -981,24 +984,34 @@
   function renderNotes() {
     const fs = folders(), f = curFolder(), q = notesUI.q.trim().toLowerCase();
     $("folderBar").innerHTML = fs.map(x => `<button type="button" class="fchip${x.id === f.id && !q ? " on" : ""}" data-f="${esc(x.id)}">${esc(x.name)} <small>${notesIn(x).length}</small></button>`).join("");
-    $("noteLabel").textContent = notesUI.editId ? "Úprava poznámky" : "Nová poznámka do: " + f.name;
+    const tf = isTasks(f) || (notesUI.editId && isTasks(fs.find(x => x.id === (state.notes[notesUI.editId] || {}).folder)));
+    $("remindRow").hidden = !tf;
+    $("noteLabel").textContent = notesUI.editId ? "Úprava" : (tf ? "Nový úkol do: " : "Nová poznámka do: ") + f.name;
+    $("notifBtn").hidden = !(tf && "Notification" in window && Notification.permission === "default");
     $("noteSave").textContent = notesUI.editId ? "Uložit změnu" : "Uložit";
     $("noteCancel").hidden = !notesUI.editId;
     $("folderEditBox").hidden = !notesUI.editFolders;
     $("folderEdit").textContent = notesUI.editFolders ? "Hotovo" : "Upravit složky";
     if (notesUI.editFolders) {
-      $("folderRows").innerHTML = fs.map(x => { const n = notesIn(x).length; return `<div class="frow" data-f="${esc(x.id)}"><label class="sr" for="fn-${esc(x.id)}">Název složky</label><input id="fn-${esc(x.id)}" value="${esc(x.name)}" maxlength="30"><button type="button" class="btn ghost sm" data-act="rename">Přejmenovat</button><button type="button" class="btn ghost sm" data-act="delf" ${n ? "disabled title=\"Nejdřív přesuň nebo smaž poznámky\"" : ""}>Smazat</button></div>`; }).join("");
+      $("folderRows").innerHTML = fs.map(x => { const n = notesIn(x).length; return `<div class="frow" data-f="${esc(x.id)}"><label class="sr" for="fn-${esc(x.id)}">Název složky</label><input id="fn-${esc(x.id)}" value="${esc(x.name)}" maxlength="30"><button type="button" class="btn ghost sm" data-act="rename">Přejmenovat</button><button type="button" class="btn ghost sm${isTasks(x) ? " on" : ""}" data-act="tasks" aria-pressed="${isTasks(x)}">${isTasks(x) ? "✓ Úkoly" : "Úkoly"}</button><button type="button" class="btn ghost sm" data-act="delf" ${n ? "disabled title=\"Nejdřív přesuň nebo smaž poznámky\"" : ""}>Smazat</button></div>`; }).join("");
     }
     const list = q ? Object.entries(state.notes || {}).map(([id, n]) => ({ id, ...n })).filter(n => String(n.text || "").toLowerCase().includes(q)).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)) : notesIn(f);
     $("noteHead").textContent = q ? "Nalezeno: " + list.length : f.name + (f.numbered ? " · tvoje pravidla" : "");
     const opts = id => fs.map(x => `<option value="${esc(x.id)}"${x.id === id ? " selected" : ""}>${esc(x.name)}</option>`).join("");
     $("noteList").innerHTML = list.length ? list.map((n, i) => {
       const fo = fs.find(x => x.id === n.folder);
-      const meta = (q && fo ? fo.name : "") + (!(fo && fo.numbered) ? (q && fo ? " · " : "") + fmtNoteDate(n.createdAt) : "");
-      return `<li class="note${n.id === notesUI.editId ? " editing" : ""}${notesUI.open === n.id ? " open" : ""}" data-id="${esc(n.id)}">
+      const task = isTasks(fo), overdue = task && !n.done && n.remindAt && new Date(n.remindAt) <= new Date();
+      const metaParts = [];
+      if (q && fo) metaParts.push(fo.name);
+      if (task && n.done) metaParts.push("Splněno " + fmtNoteDate(n.doneAt));
+      else if (task && n.remindAt) metaParts.push((overdue ? "⏰ Mělo být " : "⏰ ") + fmtRemind(n.remindAt));
+      else if (!(fo && fo.numbered)) metaParts.push(fmtNoteDate(n.createdAt));
+      const meta = metaParts.join(" · ");
+      return `<li class="note${n.id === notesUI.editId ? " editing" : ""}${notesUI.open === n.id ? " open" : ""}${task ? " task" : ""}${n.done ? " done" : ""}${overdue ? " overdue" : ""}" data-id="${esc(n.id)}">
+        ${task ? `<button type="button" class="tchk" data-act="toggle" aria-label="${n.done ? "Označit jako nesplněné" : "Označit jako splněné"}" aria-pressed="${!!n.done}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg></button>` : ""}
         ${!q && f.numbered ? `<span class="note-n">${i + 1}</span>` : ""}
         <div class="note-body"><button type="button" class="note-t" data-act="open" aria-expanded="${notesUI.open === n.id}">${esc(n.text || "")}</button>${meta ? `<small>${esc(meta)}</small>` : ""}
-          <div class="note-act"${notesUI.open === n.id ? "" : " hidden"}><button type="button" class="linkbtn" data-act="edit">Upravit</button>
+          <div class="note-act"${notesUI.open === n.id ? "" : " hidden"}><button type="button" class="linkbtn" data-act="edit">Upravit</button>${task && n.remindAt && !n.done ? `<a class="linkbtn" href="${gcalUrl(n)}" target="_blank" rel="noopener">Do Google Kalendáře</a><button type="button" class="linkbtn" data-act="ics">Jiný kalendář</button>` : ""}
           <label class="sr" for="mv-${esc(n.id)}">Přesunout do složky</label><select id="mv-${esc(n.id)}" data-act="move">${opts(n.folder)}</select>
           <button type="button" class="linkbtn del${notesUI.delArm === n.id ? " armed" : ""}" data-act="del">${notesUI.delArm === n.id ? "Opravdu smazat?" : "Smazat"}</button></div></div></li>`;
     }).join("") : `<li class="empty">${q ? "Nic nenalezeno." : "Zatím prázdné. Napiš první poznámku nahoře."}</li>`;
@@ -1011,17 +1024,23 @@
       let n;
       if (notesUI.editId) n = { id: notesUI.editId, text: t, updatedAt: now };
       else { const ord = f.numbered ? notesIn(f).reduce((m, x) => Math.max(m, x.order || 0), 0) + 1 : null; n = { id: "n" + now.toString(36) + Math.random().toString(36).slice(2, 6), folder: f.id, text: t, createdAt: now, updatedAt: now }; if (ord) n.order = ord; }
+      if (!$("remindRow").hidden) { const ra = $("noteRemind").value || null; const old = (state.notes[n.id] || {}).remindAt || null; n.remindAt = ra; if (ra !== old) n.reminded = false; }
       state.notes[n.id] = { ...(state.notes[n.id] || {}), ...n };
       trackSave(store.saveNote(n)).then(() => showSave("Poznámka uložena ✓")).catch(e => showSave("Neuloženo: " + (e.code || e.message)));
-      notesUI.editId = null; notesUI.open = null; $("noteText").value = ""; renderNotes();
+      notesUI.editId = null; notesUI.open = null; $("noteText").value = ""; $("noteRemind").value = ""; renderNotes();
+      if (n.remindAt) showSave("Připomenu " + fmtRemind(n.remindAt) + (("Notification" in window && Notification.permission === "granted") ? "" : " (v appce)"));
+      checkReminders();
     };
-    $("noteCancel").onclick = () => { notesUI.editId = null; $("noteText").value = ""; renderNotes(); };
+    $("noteCancel").onclick = () => { notesUI.editId = null; $("noteText").value = ""; $("noteRemind").value = ""; renderNotes(); };
+    $("notifBtn").onclick = () => { if ("Notification" in window) Notification.requestPermission().then(p => { showSave(p === "granted" ? "Upozornění povolena ✓" : "Upozornění nepovolena – připomínky uvidíš v appce"); renderNotes(); }); };
     $("noteSearch").addEventListener("input", e => { notesUI.q = e.target.value; renderNotes(); });
     $("noteList").addEventListener("click", e => {
       const b = e.target.closest("button[data-act]"); if (!b) return;
       const id = b.closest(".note").dataset.id, n = state.notes[id]; if (!n) return;
       if (b.dataset.act === "open") { notesUI.open = notesUI.open === id ? null : id; notesUI.delArm = null; renderNotes(); return; }
-      if (b.dataset.act === "edit") { notesUI.editId = id; $("noteText").value = n.text || ""; renderNotes(); $("noteText").focus(); window.scrollTo({ top: 0, behavior: "smooth" }); }
+      if (b.dataset.act === "toggle") { setTaskDone(id, !n.done); return; }
+      if (b.dataset.act === "ics") { downloadIcs({ id, ...n }); return; }
+      if (b.dataset.act === "edit") { notesUI.editId = id; $("noteText").value = n.text || ""; $("noteRemind").value = n.remindAt || ""; renderNotes(); $("noteText").focus(); window.scrollTo({ top: 0, behavior: "smooth" }); }
       else if (b.dataset.act === "del") {
         if (notesUI.delArm === id) { notesUI.delArm = null; delete state.notes[id]; trackSave(store.deleteNote(id)).then(() => showSave("Smazáno")); if (notesUI.editId === id) { notesUI.editId = null; $("noteText").value = ""; } renderNotes(); }
         else { notesUI.delArm = id; renderNotes(); setTimeout(() => { if (notesUI.delArm === id) { notesUI.delArm = null; renderNotes(); } }, 3000); }
@@ -1043,9 +1062,68 @@
     $("folderRows").addEventListener("click", e => {
       const b = e.target.closest("button[data-act]"); if (!b) return;
       const row = b.closest(".frow"), id = row.dataset.f;
+      if (b.dataset.act === "tasks") { saveSettingsPatch({ noteFolders: folders().map(x => x.id === id ? { ...x, tasks: !isTasks(x) } : x) }); return; }
       if (b.dataset.act === "rename") { const nm = row.querySelector("input").value.trim(); if (!nm) return; saveSettingsPatch({ noteFolders: folders().map(x => x.id === id ? { ...x, name: nm.slice(0, 30) } : x) }, "Přejmenováno ✓"); }
       else if (b.dataset.act === "delf") { if (notesIn(folders().find(x => x.id === id)).length) return; const rest = folders().filter(x => x.id !== id); if (!rest.length) return; if (notesUI.folder === id) notesUI.folder = rest[0].id; saveSettingsPatch({ noteFolders: rest }, "Složka smazána"); }
     });
+  }
+
+  // ---------- úkoly: hotovo, připomínky v appce, kalendář ----------
+  const pad2 = n => String(n).padStart(2, "0");
+  function fmtRemind(v) { const d = new Date(v); if (isNaN(d)) return ""; const tk = todayKey(), k = toKey(d); const day = k === tk ? "dnes" : k === addDays(tk, 1) ? "zítra" : d.getDate() + ". " + (d.getMonth() + 1) + "."; return day + " " + d.getHours() + ":" + pad2(d.getMinutes()); }
+  function setTaskDone(id, done) {
+    const upd = { id, done, doneAt: done ? Date.now() : null, updatedAt: Date.now() };
+    state.notes[id] = { ...state.notes[id], ...upd };
+    trackSave(store.saveNote(upd)).then(() => showSave(done ? "Splněno ✓ Dobrá práce." : "Vráceno mezi nesplněné"));
+    if (notesUI.open === id) notesUI.open = null;
+    if (state.view === "notes") renderNotes(); else if (state.view === "today") renderTaskBanner();
+  }
+  const icsDate = d => d.getUTCFullYear() + pad2(d.getUTCMonth() + 1) + pad2(d.getUTCDate()) + "T" + pad2(d.getUTCHours()) + pad2(d.getUTCMinutes()) + "00Z";
+  function gcalUrl(n) {
+    const st = new Date(n.remindAt), en = new Date(st.getTime() + 30 * 60000);
+    return "https://calendar.google.com/calendar/render?action=TEMPLATE&text=" + encodeURIComponent(n.text.split("\n")[0].slice(0, 100)) + "&dates=" + icsDate(st) + "/" + icsDate(en) + "&details=" + encodeURIComponent(n.text + "\n\n– z appky Ty vs. Ty");
+  }
+  function downloadIcs(n) {
+    const st = new Date(n.remindAt), en = new Date(st.getTime() + 30 * 60000), t = s2 => String(s2).replace(/[\;,]/g, m => "\\" + m).replace(/\n/g, "\\n");
+    const ics = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//TyvsTy//CZ", "BEGIN:VEVENT", "UID:" + n.id + "@tyvsty", "DTSTAMP:" + icsDate(new Date()), "DTSTART:" + icsDate(st), "DTEND:" + icsDate(en),
+      "SUMMARY:" + t(n.text.split("\n")[0].slice(0, 100)), "DESCRIPTION:" + t(n.text), "BEGIN:VALARM", "ACTION:DISPLAY", "DESCRIPTION:" + t(n.text.split("\n")[0].slice(0, 100)), "TRIGGER:PT0M", "END:VALARM", "END:VEVENT", "END:VCALENDAR"].join("\r\n");
+    const url = URL.createObjectURL(new Blob([ics], { type: "text/calendar" })), a = document.createElement("a");
+    a.href = url; a.download = "ukol.ics"; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 30000);
+  }
+  const taskFolderIds = () => folders().filter(isTasks).map(f => f.id);
+  const openTasks = () => Object.entries(state.notes || {}).map(([id, n]) => ({ id, ...n })).filter(n => taskFolderIds().includes(n.folder) && !n.done);
+  let remindQueue = [];
+  function checkReminders() {
+    if (!state.notesLoaded) return;
+    const now = new Date();
+    openTasks().filter(n => n.remindAt && !n.reminded && new Date(n.remindAt) <= now).forEach(n => {
+      state.notes[n.id] = { ...state.notes[n.id], reminded: true };
+      store.saveNote({ id: n.id, reminded: true }).catch(() => {});
+      if (!remindQueue.some(x => x.id === n.id)) remindQueue.push(n);
+      if ("Notification" in window && Notification.permission === "granted" && navigator.serviceWorker && navigator.serviceWorker.controller) {
+        navigator.serviceWorker.ready.then(r => r.showNotification("Připomínka · Ty vs. Ty", { body: n.text.slice(0, 140), icon: "icons/icon-192.png", tag: "tvt-" + n.id })).catch(() => {});
+      }
+    });
+    showRemindToast();
+    if (state.view === "today") renderTaskBanner();
+  }
+  function showRemindToast() {
+    const n = remindQueue[0]; $("remindToast").hidden = !n; if (!n) return;
+    $("rtTitle").textContent = (new Date() - new Date(n.remindAt) > 15 * 60000 ? "Zmeškaná připomínka · " : "Připomínka · ") + fmtRemind(n.remindAt);
+    $("rtText").textContent = n.text;
+  }
+  function renderTaskBanner() {
+    const end = todayKey() + "T23:59", list = openTasks().filter(n => n.remindAt && n.remindAt <= end).sort((a, b) => a.remindAt.localeCompare(b.remindAt));
+    $("taskCard").hidden = !list.length || state.key !== todayKey();
+    $("taskList").innerHTML = list.map(n => `<li data-id="${esc(n.id)}"><button type="button" class="tchk" data-act="toggle" aria-label="Označit jako splněné"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg></button><span>${esc(n.text.split("\n")[0])}</span><small${new Date(n.remindAt) <= new Date() ? ' class="late"' : ""}>${fmtRemind(n.remindAt)}</small></li>`).join("");
+  }
+  function bindTasks() {
+    $("rtDone").onclick = () => { const n = remindQueue.shift(); if (n) setTaskDone(n.id, true); showRemindToast(); };
+    $("rtLater").onclick = () => { const n = remindQueue.shift(); if (n) { const d = new Date(Date.now() + 10 * 60000), v = toKey(d) + "T" + pad2(d.getHours()) + ":" + pad2(d.getMinutes()); state.notes[n.id] = { ...state.notes[n.id], remindAt: v, reminded: false }; trackSave(store.saveNote({ id: n.id, remindAt: v, reminded: false })).then(() => showSave("Připomenu za 10 minut")); } showRemindToast(); };
+    $("rtClose").onclick = () => { remindQueue.shift(); showRemindToast(); };
+    $("taskList").addEventListener("click", e => { const b = e.target.closest("button[data-act=toggle]"); if (b) setTaskDone(b.closest("li").dataset.id, true); });
+    setInterval(checkReminders, 20000);
+    document.addEventListener("visibilitychange", () => { if (!document.hidden) checkReminders(); });
   }
 
   // ---------- PDF report ----------
@@ -1096,7 +1174,7 @@
     btn.disabled = true; msg.textContent = "Připravuji PDF…"; $("pdfShare").hidden = true;
     try {
       await loadScript("vendor/jspdf.umd.min.js?v=2.5.1");
-      await loadScript("pdf.js?v=18");
+      await loadScript("pdf.js?v=19");
       const data = reportData();
       if (!data.days.length) throw new Error("Za zvolené období nejsou žádná data.");
       const blob = await window.TVT_PDF.build(data);
@@ -1161,7 +1239,7 @@
     catch (e) { return showFatal("Připojení k účtu se nepodařilo spustit: " + (e.code || e.message)); }
     renderSync();
     window.addEventListener("online", renderSync); window.addEventListener("offline", renderSync);
-    bindToday(); bindLifts(); bindWeekBox(); bindFood(); bindSettings(); bindAuth(); bindNotes();
+    bindToday(); bindLifts(); bindWeekBox(); bindFood(); bindSettings(); bindAuth(); bindNotes(); bindTasks();
     $("mapPrev").onclick = () => { state.mapYear = (state.mapYear || Number(todayKey().slice(0, 4))) - 1; renderYearMap(); };
     $("mapNext").onclick = () => { state.mapYear = (state.mapYear || Number(todayKey().slice(0, 4))) + 1; renderYearMap(); };
     $("sumPrev").onclick = () => { state.sumWeek = addDays(state.sumWeek || weekOf(todayKey()), -7); renderSummary(); };
@@ -1175,7 +1253,7 @@
       $("acctTxt").textContent = DEMO ? "Demo režim: data jsou uložená jen v tomto prohlížeči. Po vložení Firebase configu se budou synchronizovat." : "Přihlášen: " + user.email;
       $("logoutBtn").hidden = DEMO;
       store.watchSettings(s => { state.settings = { ...DEFAULT_SETTINGS, ...s }; state.settingsLoaded = true; seedKodex(); if (state.view !== "settings" && !(state.view === "notes" && document.activeElement && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName))) renderCurrent(); });
-      store.watchNotes(ns => { state.notes = ns; state.notesLoaded = true; seedKodex(); if (state.view === "notes") renderNotes(); });
+      store.watchNotes(ns => { state.notes = ns; state.notesLoaded = true; seedKodex(); checkReminders(); if (state.view === "notes") renderNotes(); else if (state.view === "today") renderTaskBanner(); });
       store.watchDays(days => {
         const editing = state.view === "today" && document.activeElement && /^(INPUT|TEXTAREA)$/.test(document.activeElement.tagName);
         const pendingKey = saveTimer ? state.key : null;

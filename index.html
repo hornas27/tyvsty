@@ -7,8 +7,8 @@
 <meta name="theme-color" content="#2A45FF">
 <link rel="manifest" href="manifest.json">
 <script>try{if(localStorage.getItem("tvt-theme2")==="light")document.documentElement.removeAttribute("data-theme")}catch(e){}</script>
-<link rel="icon" href="icons/icon-192.png?v=18">
-<link rel="apple-touch-icon" href="icons/icon-192.png?v=18">
+<link rel="icon" href="icons/icon-192.png?v=19">
+<link rel="apple-touch-icon" href="icons/icon-192.png?v=19">
 <style>
 /* Layout: one column (max 560px) on phone, two-column overview on desktop; bottom tab bar on phone, top nav on desktop */
 /* Vzhled „Barevné bloky“ (návrh 5): světlý podklad, kobaltová + korálová, výrazné bloky. Výchozí tmavý (data-theme="dark"), světlý na přepnutí v Nastavení. */
@@ -314,6 +314,22 @@ h2{font-family:var(--f-display);font-weight:800;font-size:28px;line-height:1;let
 .note-act select{border:0;background:var(--bg);color:var(--ink);border-radius:10px;padding:6px 8px;font-size:13px;min-height:32px}
 .linkbtn.del{color:var(--soft)} .linkbtn.del.armed{color:var(--bad)}
 nav.tabs button{font-size:11px}
+/* úkoly */
+.tchk{flex:none;width:30px;height:30px;border-radius:50%;border:2px solid var(--soft);background:none;display:grid;place-items:center;cursor:pointer;margin-top:1px;padding:0}
+.tchk svg{width:16px;height:16px;fill:none;stroke:#fff;stroke-width:3;opacity:0}
+.note.done .tchk,.tchk[aria-pressed="true"]{background:var(--good);border-color:var(--good)} .note.done .tchk svg{opacity:1}
+.note.done .note-t{text-decoration:line-through;color:var(--soft)}
+.note.overdue small{color:var(--bad);font-weight:700}
+.frow .btn.on{background:var(--cobalt);color:#fff}
+.tasklist{list-style:none;margin:0;padding:0}
+.tasklist li{display:flex;align-items:center;gap:12px;padding:10px 0;border-top:1px solid var(--line)}
+.tasklist li:first-child{border-top:0}
+.tasklist span{flex:1;min-width:0}
+.tasklist small{color:var(--soft);font-size:12px;white-space:nowrap} .tasklist small.late{color:var(--bad);font-weight:700}
+.rtoast{position:fixed;left:12px;right:12px;top:calc(12px + env(safe-area-inset-top,0px));z-index:50;max-width:520px;margin:0 auto;background:var(--coral);color:#141A2E;border-radius:20px;padding:14px 16px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+.rtoast b{display:block;font-size:13px}
+.rtoast p{margin:4px 0 10px;font-size:17px;font-weight:700;white-space:pre-wrap}
+.rtoast .btn{background:#141A2E;color:#fff} .rtoast .btn.ghost{background:rgba(255,255,255,.45);color:#141A2E}
 /* oblíbená jídla */
 .favs{margin-top:14px}
 .favs-h{display:flex;justify-content:space-between;align-items:center;font-size:13px;color:var(--soft);margin-bottom:8px}
@@ -446,6 +462,7 @@ nav.tabs button[aria-current="true"]{background:var(--cobalt);color:#fff}
     </div>
   </section>
 
+  <div class="rtoast" id="remindToast" role="alert" hidden><b id="rtTitle">Připomínka</b><p id="rtText"></p><div class="row"><button type="button" class="btn sm" id="rtDone">Hotovo</button><button type="button" class="btn ghost sm" id="rtLater">Za 10 min</button><button type="button" class="btn ghost sm" id="rtClose">Zavřít</button></div></div>
   <div id="app" hidden>
     <nav class="tabs" id="tabs">
       <button data-view="today" aria-current="true"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="3"/><path d="M4 10h16M9 3v4M15 3v4"/></svg>Dnes</button>
@@ -468,6 +485,7 @@ nav.tabs button[aria-current="true"]{background:var(--cobalt);color:#fff}
       </div>
 
       <div class="banner" id="sumBanner" hidden><span>Neděle večer – mrkni na týdenní souhrn.</span><button type="button" class="btn sm" id="sumBannerBtn">Souhrn týdne</button></div>
+      <div class="card" id="taskCard" hidden><p class="sec-t">Úkoly na dnes</p><ul class="tasklist" id="taskList"></ul></div>
       <div class="banner run" id="runBanner" hidden><span id="runBannerTxt">Vlož běhy na tento týden</span><button type="button" class="btn sm" id="runBannerBtn">Vložit týden</button></div>
 
       <div class="card" id="weekBox" hidden>
@@ -685,6 +703,7 @@ nav.tabs button[aria-current="true"]{background:var(--cobalt);color:#fff}
           <div class="frow" style="margin-top:10px"><label class="sr" for="folderNew">Nová složka</label><input id="folderNew" placeholder="Nová složka, např. Citáty" maxlength="30"><button type="button" class="btn sm" id="folderAdd">Přidat složku</button></div>
         </div>
         <div class="field" style="margin-top:14px"><label for="noteText" id="noteLabel">Nová poznámka</label><textarea id="noteText" rows="3" placeholder="Co tě napadlo…"></textarea></div>
+        <div class="field" id="remindRow" style="margin-top:10px" hidden><label for="noteRemind">Připomenout (volitelné)</label><input id="noteRemind" type="datetime-local"><div class="hint">Připomínka přijde v appce (když ji máš otevřenou nebo ji otevřeš). Na přesný čas se zavřenou appkou dej u úkolu „Do Google Kalendáře“. <button type="button" class="linkbtn" id="notifBtn" hidden>Povolit upozornění</button></div></div>
         <div class="row" style="margin-top:10px"><button type="button" class="btn" id="noteSave">Uložit</button><button type="button" class="btn ghost" id="noteCancel" hidden>Zrušit úpravu</button></div>
       </div>
       <div class="card">
@@ -735,11 +754,11 @@ nav.tabs button[aria-current="true"]{background:var(--cobalt);color:#fff}
   </div>
 </div>
 
-<script src="config.js?v=18"></script>
+<script src="config.js?v=19"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="app.js?v=18"></script>
-<script type="module" src="ai.js?v=18"></script>
+<script src="app.js?v=19"></script>
+<script type="module" src="ai.js?v=19"></script>
 </body>
 </html>

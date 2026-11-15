@@ -1,5 +1,5 @@
 // Ty vs. Ty – service worker: appka se otevře i bez internetu (data dosynchronizuje Firebase).
-const CACHE = "tvt-v18";
+const CACHE = "tvt-v19";
 const SHELL = ["./", "index.html", "app.js", "ai.js", "config.js", "manifest.json", "icons/icon-192.png", "icons/icon-512.png", "pdf.js", "vendor/jspdf.umd.min.js", "fonts/DejaVuSans.ttf", "fonts/DejaVuSans-Bold.ttf", "fonts/big-shoulders-display-latin-800-normal.woff2", "fonts/big-shoulders-display-latin-900-normal.woff2", "fonts/big-shoulders-display-latin-ext-800-normal.woff2", "fonts/big-shoulders-display-latin-ext-900-normal.woff2", "fonts/dm-sans-latin-400-normal.woff2", "fonts/dm-sans-latin-500-normal.woff2", "fonts/dm-sans-latin-700-normal.woff2", "fonts/dm-sans-latin-ext-400-normal.woff2", "fonts/dm-sans-latin-ext-500-normal.woff2", "fonts/dm-sans-latin-ext-700-normal.woff2"];
 
 // knihovny Firebase z gstatic: mají číslo verze v adrese, takže se drží v cache napořád → appka se otevře i bez netu
@@ -16,6 +16,11 @@ self.addEventListener("activate", e => {
   e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE && k !== LIBS).map(k => caches.delete(k)))).then(() => self.clients.claim()));
 });
 // vlastní soubory: nejdřív síť (ať máš vždy novou verzi), bez sítě cache
+// klik na připomínku otevře appku
+self.addEventListener("notificationclick", e => {
+  e.notification.close();
+  e.waitUntil(self.clients.matchAll({ type: "window", includeUncontrolled: true }).then(cs => { const c = cs.find(x => "focus" in x); return c ? c.focus() : self.clients.openWindow("./"); }));
+});
 self.addEventListener("fetch", e => {
   const url = new URL(e.request.url);
   if (e.request.method !== "GET") return;

@@ -1,0 +1,3 @@
+{"root":true,"env":{"browser":true,"es2022":true},"parserOptions":{"ecmaVersion":2022,"sourceType":"script"},
+ "globals":{"firebase":"readonly","google":"readonly"},
+ "rules":{"no-undef":"error","no-unused-vars":["warn",{"args":"none"}],"no-redeclare":"error","no-dupe-keys":"error","no-unreachable":"error","no-self-assign":"error","no-dupe-else-if":"error","no-cond-assign":"error","no-func-assign":"error","no-const-assign":"error","use-isnan":"error","valid-typeof":"error","no-empty":["warn",{"allowEmptyCatch":true}]}}

@@ -1,0 +1,7 @@
+{
+  "name": "tyvsty-tests",
+  "private": true,
+  "description": "Smoke testy appky Ty vs. Ty (Playwright). Spuštění: npm test",
+  "scripts": { "test": "node run.js", "lint": "eslint --no-eslintrc -c eslint.config.json ../app.js ../sw.js ../config.js" },
+  "devDependencies": { "playwright": "^1.56.0", "eslint": "^8.57.0" }
+}

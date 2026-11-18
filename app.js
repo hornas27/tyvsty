@@ -8,23 +8,29 @@
   const PLAN = {
     1: { type: "run", label: "Tempo / intervaly" },
     2: { type: "gym", label: "Nohy", ex: [
-      ["Bulharské dřepy (smith)", "2 do selhání", "bulgar"], ["Rumunský mrtvý tah", S2, "rdl"], ["Leg press", S2],
-      ["Zákopy", S2], ["Předkopy", S2], ["Třísla", S2], ["Lýtka", S2]] },
+      ["Bulharské dřepy (smith)", "2 do selhání", "bulgar"], ["Rumunský mrtvý tah", S2, "rdl"], ["Leg press", S2, "legpress"],
+      ["Zákopy", S2, "zakopy"], ["Předkopy", S2, "predkopy"], ["Třísla", S2, "trisla"], ["Lýtka", S2, "lytka"]] },
     3: { type: "gym", label: "Hrudník + biceps + břicho", ex: [
-      ["Smith bench", S2, "bench"], ["Šikmý tlak s jednoručkami", S2], ["Rozpažky na stroji", S2],
-      ["Upažování na kladce", S2], ["Bayesian curl", S2], ["Zdvih s lanem na kladce", S2], ["Kladkový crunch v kleku", S2]] },
+      ["Smith bench", S2, "bench"], ["Šikmý tlak s jednoručkami", S2, "dbincline"], ["Rozpažky na stroji", S2, "flyes"],
+      ["Upažování na kladce", S2, "lateral"], ["Bayesian curl", S2, "bayes"], ["Zdvih s lanem na kladce", S2, "rope"], ["Kladkový crunch v kleku", S2, "crunch"]] },
     4: { type: "run", label: "Chill run", optional: true },
     5: { type: "gym", label: "Záda + ramena + triceps", ex: [
-      ["Shyby se závažím / stahování na stroji", S2, "pull"], ["Přítahy úzké kladky vsedě", S2], ["Úzké stahování kladky", S2],
-      ["Tlaky na ramena na stroji", S2, "ohp"], ["Zadní ramena na stroji", S2], ["Triceps za hlavou na kladce", S2],
-      ["Stahování kladky jednoruč", S2], ["Hyperextenze se závažím", S2]] },
+      ["Shyby se závažím / stahování na stroji", S2, "pull"], ["Přítahy úzké kladky vsedě", S2, "rowclose"], ["Úzké stahování kladky", S2, "pdclose"],
+      ["Tlaky na ramena na stroji", S2, "ohp"], ["Zadní ramena na stroji", S2, "reardeltm"], ["Triceps za hlavou na kladce", S2, "triceps"],
+      ["Stahování kladky jednoruč", S2, "pdsingle"], ["Hyperextenze se závažím", S2, "hyper"]] },
     6: { type: "run", label: "Long run" },
     0: { type: "gym", label: "Celý hořejšek", ex: [
-      ["Smith incline bench", S2, "incline"], ["Přítahy vsedě širokým úchopem", S2], ["Upažování na kladce", S2],
-      ["Zadní ramena na kladce", S2], ["Triceps za hlavou", S2], ["Bayesian curl", S2]] }
+      ["Smith incline bench", S2, "incline"], ["Přítahy vsedě širokým úchopem", S2, "rowwide"], ["Upažování na kladce", S2, "lateral"],
+      ["Zadní ramena na kladce", S2, "reardeltc"], ["Triceps za hlavou", S2, "triceps"], ["Bayesian curl", S2, "bayes"]] }
   };
-  // hlavní cviky, u kterých se zapisuje váha × opakování
-  const LIFTS = { bulgar: "Bulharské dřepy", rdl: "Rumunský mrtvý tah", bench: "Smith bench", pull: "Shyby / stahování", ohp: "Tlaky na ramena", incline: "Smith incline bench" };
+  // všechny cviky, u kterých se zapisuje nejtěžší série (váha × opakování); stejné ID = společná historie napříč dny
+  const LIFTS = { bulgar: "Bulharské dřepy", rdl: "Rumunský mrtvý tah", bench: "Smith bench", pull: "Shyby / stahování", ohp: "Tlaky na ramena", incline: "Smith incline bench",
+    legpress: "Leg press", zakopy: "Zákopy", predkopy: "Předkopy", trisla: "Třísla", lytka: "Lýtka",
+    dbincline: "Šikmý tlak s jednoručkami", flyes: "Rozpažky na stroji", lateral: "Upažování na kladce", bayes: "Bayesian curl", rope: "Zdvih s lanem na kladce", crunch: "Kladkový crunch v kleku",
+    rowclose: "Přítahy úzké kladky vsedě", pdclose: "Úzké stahování kladky", reardeltm: "Zadní ramena na stroji", triceps: "Triceps za hlavou", pdsingle: "Stahování kladky jednoruč", hyper: "Hyperextenze se závažím",
+    rowwide: "Přítahy vsedě širokým úchopem", reardeltc: "Zadní ramena na kladce" };
+  const MAIN_LIFTS = ["bulgar", "rdl", "bench", "pull", "ohp", "incline"]; // hlavní cviky (zeď rekordů)
+  const GYM_DAYS = [2, 3, 5, 0];
   const RUN_DAYS = [1, 4, 6]; // Po, Čt, So
   const PLAN_AHEAD_DAYS = 14; // dopředu jde vložit běh z Gemini až na 14 dní
   const REQUIRED_PER_WEEK = Object.values(PLAN).filter(p => !p.optional).length; // 6
@@ -244,6 +250,8 @@
     const d = currentDay(), s = state.settings;
     const h = sleepHours(d.bed, d.wake);
     $("sleepHint").textContent = h != null ? "Spánek: " + fmtH(h) + (h < s.sleepTarget ? " · pod cílem " + s.sleepTarget + " h" : " ✓") : "";
+    const ww = weekWeight(mondayOf(state.key), state.key), wc = weekChange(ww.ch), thisWk = mondayOf(state.key) === mondayOf(todayKey());
+    $("weightWeek").innerHTML = ww.n ? (thisWk ? "Tento týden zatím" : "Ten týden") + " Ø " + nf1.format(ww.avg) + " kg" + (ww.ch != null ? ` · <span class="wchg ${wc.c}">${wc.v} ${wc.t}</span> proti minulému týdnu` : "") : "";
     renderMacros(d);
     document.querySelectorAll("#trainBox .chk, #habitBox .chk").forEach(el => {
       const id = el.dataset.id;
@@ -289,7 +297,7 @@
   const dni = n => n === 1 ? "den" : n >= 2 && n <= 4 ? "dny" : "dní";
   const fmtKg = w => nf1.format(w).replace(/,0$/, "");
   const e1rm = l => l && l.w != null ? l.w * (1 + (l.r || 1) / 30) : 0; // odhad maxima na 1 opakování (Epley)
-  const LIFT_STEP = { bulgar: 2.5, rdl: 5, bench: 2.5, pull: 2.5, ohp: 2.5, incline: 2.5 };
+  const LIFT_STEP = { rdl: 5, legpress: 5 }; // ostatní 2,5 kg
   function liftHistory(id, beforeK) {
     return Object.keys(state.days).filter(k => (!beforeK || k < beforeK) && ((state.days[k].lifts || {})[id] || {}).w != null).sort()
       .map(k => { const l = state.days[k].lifts[id]; return { k, w: l.w, r: l.r ?? null, e: e1rm(l) }; });
@@ -305,12 +313,35 @@
     if (prev && prev.w === last.w && prev.r != null && prev.r < 6 && last.w - step > 0) return { w: last.w - step, r: "6–8", why: "2× pod 6 opakování → uber a zpevni techniku" };
     return { w: last.w, r: "6", why: "stejná váha, cíl aspoň 6" };
   }
+  // porovnání s minulým tréninkem: víc / stejně / míň (podle odhadu maxima)
+  function liftCompare(cur, last) {
+    if (!cur || cur.w == null || !last) return null;
+    if (cur.w === last.w && (cur.r ?? null) === (last.r ?? null)) return { c: "eq", t: "= stejně jako minule" };
+    if (!cur.r) return null;
+    const d = e1rm(cur) - e1rm(last);
+    if (Math.abs(d) < 0.05) return { c: "eq", t: "= stejně jako minule" };
+    const parts = [];
+    if (cur.w !== last.w) parts.push((cur.w > last.w ? "+" : "−") + fmtKg(Math.abs(cur.w - last.w)) + " kg");
+    if (last.r != null && cur.r !== last.r) parts.push((cur.r > last.r ? "+" : "−") + Math.abs(cur.r - last.r) + " opak.");
+    return d > 0 ? { c: "up", t: "▲ víc než minule" + (parts.length ? " (" + parts.join(", ") + ")" : "") } : { c: "down", t: "▼ míň než minule" + (parts.length ? " (" + parts.join(", ") + ")" : "") };
+  }
+  // stagnace: poslední 3 zápisy stejná váha i opakování
+  function liftStalled(h) {
+    if (h.length < 3) return false;
+    const t = h.slice(-3); return t.every(x => x.w === t[0].w && x.r === t[0].r);
+  }
   function liftHint(id, k, cur) {
-    const h = liftHistory(id, k), best = h.reduce((m, x) => x.e > m ? x.e : m, 0), sg = liftSuggestion(id, k);
-    if (cur && cur.w != null && cur.r && h.length && e1rm(cur) > best + 0.01) return `<span class="pr">Nový osobní rekord</span> · předchozí max ${fmtLift(h.reduce((a, x) => x.e > a.e ? x : a, h[0]))}`;
-    if (!sg) return "první zápis: nejlepší série dne";
-    const last = h[h.length - 1];
-    return `<b>Dnes zkus ${fmtKg(sg.w)} kg × ${sg.r}</b> · minule ${fmtLift(last)}`;
+    const h = liftHistory(id, k), sg = liftSuggestion(id, k);
+    if (!h.length) return cur && cur.w != null ? "první zápis · příště se porovná" : "zapiš nejtěžší sérii: kg × opakování";
+    const last = h[h.length - 1], best = h.reduce((a, x) => x.e > a.e ? x : a, h[0]);
+    const prev = `minule <b>${fmtLift(last)}</b> (${fmtShort(last.k)})`;
+    if (cur && cur.w != null) {
+      if (cur.r && e1rm(cur) > best.e + 0.01) return `<span class="pr">Nový osobní rekord</span> · ${prev} · předchozí max ${fmtLift(best)}`;
+      const cmp = liftCompare(cur, last);
+      if (cmp) return `<span class="cmp ${cmp.c}">${cmp.t}</span> · ${prev}`;
+    }
+    const stall = liftStalled(h) ? ` · <span class="cmp down">3× stejně – přidej opakování nebo váhu</span>` : "";
+    return `${prev} · <b>dnes zkus ${fmtKg(sg.w)} kg × ${sg.r}</b>${stall}`;
   }
   function renderExList(k, p) {
     const box = $("exList");
@@ -611,27 +642,92 @@
   function lastWeight() { const ks = Object.keys(state.days).filter(k => state.days[k].weight != null).sort(); return ks.length ? state.days[ks[ks.length - 1]].weight : null; }
 
   // ---------- charts ----------
-  function lineChart(points, avgPts, target, W) {
-    W = Math.max(300, W || 640); const H = W < 500 ? 210 : 260, L = 38, R = 12, T = 12, B = 26;
+  // ---------- váha: týdny + graf ----------
+  // průměr vážení v týdnu Po–Ne (jen do dneška) a změna proti předchozímu týdnu
+  function weekWeight(mon, upTo) {
+    const end = addDays(mon, 6), to = upTo && upTo < end ? upTo : end;
+    const cur = weightsBetween(mon, to), prev = weightsBetween(addDays(mon, -7), addDays(mon, -1));
+    const a = avg(cur), b = avg(prev);
+    return { mon, end, n: cur.length, avg: a, prevAvg: b, ch: a != null && b != null ? a - b : null };
+  }
+  // slovně + barva podle tempa objemu (ideál +0,25–0,5 kg/týden)
+  function weekChange(ch) {
+    if (ch == null) return { t: "—", c: "none", v: "" };
+    const r = Math.round(ch * 10) / 10, v = (r > 0 ? "+" : r < 0 ? "−" : "±") + nf1.format(Math.abs(r)) + " kg";
+    if (Math.abs(r) < 0.1) return { t: "stejně", c: "warn", v };
+    if (r < 0) return { t: "shodil", c: "bad", v };
+    return { t: "nabral", c: r < 0.25 ? "warn" : r <= 0.5 ? "good" : "bad", v };
+  }
+  function weightChart(points, avgPts, target, W, n, mondays, k0) {
+    W = Math.max(300, W || 640); const H = W < 500 ? 230 : 280, L = 38, R = 44, T = 14, B = 26;
     if (points.length < 2) return `<p class="empty">Graf se ukáže po 2 zápisech váhy.</p>`;
-    const vals = points.map(p => p.y);
-    let lo = Math.min(...vals) - 0.8, hi = Math.max(...vals) + 0.8;
-    const showT = target != null && target <= hi + 4 && target >= lo - 4;
-    if (showT) { lo = Math.min(lo, target - 0.5); hi = Math.max(hi, target + 0.5); }
-    const n = points[points.length - 1].x || 1;
+    const vals = points.map(p => p.y).concat(avgPts.map(p => p.y));
+    let lo = Math.min(...vals) - 0.6, hi = Math.max(...vals) + 0.6;
+    const showT = target != null && target <= hi + 3 && target >= lo - 3;
+    if (showT) { lo = Math.min(lo, target - 0.4); hi = Math.max(hi, target + 0.4); }
+    n = n || 1;
     const sx = x => L + (x / n) * (W - L - R), sy = y => T + (1 - (y - lo) / (hi - lo)) * (H - T - B);
     let g = "";
-    const step = (hi - lo) / 4;
-    for (let i = 0; i <= 4; i++) { const y = lo + step * i; g += `<line x1="${L}" x2="${W - R}" y1="${sy(y)}" y2="${sy(y)}" stroke="var(--line)" stroke-width="1"/><text x="${L - 6}" y="${sy(y) + 3}" text-anchor="end">${nf1.format(y)}</text>`; }
-    if (showT) g += `<line x1="${L}" x2="${W - R}" y1="${sy(target)}" y2="${sy(target)}" stroke="var(--clay)" stroke-dasharray="5 4" stroke-width="1.5"/><text x="${W - R}" y="${sy(target) - 5}" text-anchor="end" style="fill:var(--clay)">cíl ${nf0.format(target)} kg</text>`;
-    const dots = points.map(p => `<circle cx="${sx(p.x)}" cy="${sy(p.y)}" r="2.6" fill="var(--soft)" opacity=".55"/>`).join("");
-    const path = avgPts.length > 1 ? `<path d="${avgPts.map((p, i) => (i ? "L" : "M") + sx(p.x).toFixed(1) + " " + sy(p.y).toFixed(1)).join(" ")}" fill="none" stroke="var(--sage)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>` : "";
+    const step = [0.5, 1, 2, 5, 10].find(st => (hi - lo) / st <= 5) || 10; // hezká čísla na ose
+    for (let y = Math.ceil(lo / step) * step; y <= hi; y += step) { const fy = nf1.format(y).replace(/,0$/, ""); g += `<line x1="${L}" x2="${W - R}" y1="${sy(y).toFixed(1)}" y2="${sy(y).toFixed(1)}" stroke="var(--line)" stroke-width="1"/><text x="${L - 6}" y="${(sy(y) + 3).toFixed(1)}" text-anchor="end">${fy}</text>`; }
+    (mondays || []).forEach(x => { g += `<line x1="${sx(x).toFixed(1)}" x2="${sx(x).toFixed(1)}" y1="${T}" y2="${H - B}" stroke="var(--line)" stroke-dasharray="2 4" stroke-width="1"/>`; });
+    if (showT) g += `<line x1="${L}" x2="${W - R}" y1="${sy(target).toFixed(1)}" y2="${sy(target).toFixed(1)}" stroke="var(--clay)" stroke-dasharray="5 4" stroke-width="1.5"/><text x="${L + 4}" y="${(sy(target) - 5).toFixed(1)}" style="fill:var(--clay)">cíl ${nf0.format(target)} kg</text>`;
+    const dots = points.map(p => `<circle cx="${sx(p.x).toFixed(1)}" cy="${sy(p.y).toFixed(1)}" r="${n > 120 ? 1.8 : 3}" fill="var(--soft)" opacity=".5"><title>${fmtShort(p.k)}: ${nf1.format(p.y)} kg</title></circle>`).join("");
+    let line = "";
+    if (avgPts.length > 1) {
+      const d = avgPts.map((p, i) => (i ? "L" : "M") + sx(p.x).toFixed(1) + " " + sy(p.y).toFixed(1)).join(" ");
+      const base = (H - B).toFixed(1);
+      line = `<defs><linearGradient id="wGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--sage)" stop-opacity=".32"/><stop offset="1" stop-color="var(--sage)" stop-opacity="0"/></linearGradient></defs>
+        <path d="${d} L${sx(avgPts[avgPts.length - 1].x).toFixed(1)} ${base} L${sx(avgPts[0].x).toFixed(1)} ${base} Z" fill="url(#wGrad)"/>
+        <path d="${d}" fill="none" stroke="var(--sage)" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round"/>`;
+    }
     const lastA = avgPts[avgPts.length - 1];
-    const end = lastA ? `<circle cx="${sx(lastA.x)}" cy="${sy(lastA.y)}" r="4.5" fill="var(--sage)" stroke="var(--card)" stroke-width="2"/>` : "";
-    const xl = [points[0], points[Math.floor(points.length / 2)], points[points.length - 1]].map((p, i) => `<text x="${sx(p.x)}" y="${H - 8}" text-anchor="${["start", "middle", "end"][i]}">${fmtShort(p.k)}</text>`).join("");
-    const note = !showT && target != null ? `<text x="${W - R}" y="${T + 10}" text-anchor="end" style="fill:var(--clay)">cíl ${nf0.format(target)} kg ↑</text>` : "";
-    return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Graf váhy">${g}${dots}${path}${end}${xl}${note}</svg>
-      <div class="hint">Tečky = denní vážení · čára = průměr 7 dní</div>`;
+    const end = lastA ? `<circle cx="${sx(lastA.x).toFixed(1)}" cy="${sy(lastA.y).toFixed(1)}" r="5.5" fill="var(--coral)" stroke="var(--card)" stroke-width="2.5"/>
+      <text class="wend" x="${(sx(lastA.x) + 8).toFixed(1)}" y="${(sy(lastA.y) + 4).toFixed(1)}">${nf1.format(lastA.y)}</text>` : "";
+    const ticks = n <= 31 ? [0, Math.round(n / 3), Math.round(2 * n / 3), n] : [0, Math.round(n / 2), n];
+    const xl = ticks.map((x, i) => `<text x="${sx(x).toFixed(1)}" y="${H - 8}" text-anchor="${i === 0 ? "start" : i === ticks.length - 1 ? "end" : "middle"}">${fmtShort(addDays(k0, x))}</text>`).join("");
+    const note = !showT && target != null ? `<text x="${L + 4}" y="${T + 10}" style="fill:var(--clay)">cíl ${nf0.format(target)} kg ↑</text>` : "";
+    return `<svg class="chart wchart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Graf váhy">${g}${line}${dots}${end}${xl}${note}</svg>
+      <div class="hint">Tečky = denní vážení · čára = průměr 7 dní (vyhlazuje výkyvy vody a jídla)</div>`;
+  }
+  function renderWeightCard() {
+    const s = state.settings, tk = todayKey();
+    let range = state.wRange;
+    if (!range) { try { range = localStorage.getItem("tvt-wrange"); } catch (e) { range = null; } }
+    if (!["28", "90", "all"].includes(range)) range = "90";
+    state.wRange = range;
+    document.querySelectorAll("#wRange button").forEach(b => b.setAttribute("aria-pressed", b.dataset.r === range ? "true" : "false"));
+    const fw = Object.keys(state.days).filter(k => k <= tk && state.days[k].weight != null).sort()[0];
+    let from = range === "all" ? (fw || addDays(tk, -27)) : addDays(tk, -(Number(range) - 1));
+    if (range === "all" && from > addDays(tk, -13)) from = addDays(tk, -13);
+    const pts = [], aPts = [], mondays = [];
+    let n = 0;
+    for (let i = 0, k = from; k <= tk; i++, k = addDays(k, 1)) {
+      n = i;
+      if (parseKey(k).getDay() === 1 && i > 0) mondays.push(i);
+      const w = (state.days[k] || {}).weight;
+      if (w != null) { pts.push({ x: i, y: w, k }); const a = avg7(k); if (a != null) aPts.push({ x: i, y: a }); }
+    }
+    $("wChart").innerHTML = weightChart(pts, aPts, s.targetWeight, $("wChart").clientWidth, n, n <= 120 ? mondays : [], from);
+    // aktuální stav
+    const now = avg7(tk), cw = weekWeight(mondayOf(tk), tk), cc = weekChange(cw.ch);
+    $("wNow").innerHTML = now != null ? nf1.format(now) + "<small>kg · Ø 7 dní</small>" : "—";
+    $("wNowS").innerHTML = cw.ch != null ? `Tento týden zatím <span class="wchg ${cc.c}">${cc.v} · ${cc.t}</span> proti minulému` : cw.n ? "Tento týden " + cw.n + "× vážení · minulý týden bez dat" : "Tento týden zatím bez vážení";
+    // týden po týdnu
+    const weeks = [];
+    for (let mon = mondayOf(tk), i = 0; weeks.length < 8 && i < 104; mon = addDays(mon, -7), i++) {
+      const wk = weekWeight(mon, tk); if (wk.n) weeks.push(wk);
+      if (!fw || mon < fw) break;
+    }
+    const maxAbs = Math.max(0.8, ...weeks.map(w => Math.abs(w.ch || 0)));
+    $("wWeeks").innerHTML = weeks.length ? weeks.map(w => {
+      const c = weekChange(w.ch), cur = w.mon === mondayOf(tk);
+      const pct = w.ch != null ? Math.max(2, Math.min(50, Math.abs(w.ch) / maxAbs * 50)) : 0;
+      const bar = w.ch != null ? `<i class="${c.c}" style="${w.ch >= 0 ? "left" : "right"}:50%;width:${pct.toFixed(1)}%"></i>` : "";
+      return `<li${cur ? ' class="cur"' : ""}><span class="wk">${fmtShort(w.mon)} – ${fmtShort(w.end)}<small>${cur ? "zatím · " : ""}${w.n}× vážení</small></span>
+        <span class="wa">${nf1.format(w.avg)}<small> kg</small></span><span class="wbar" aria-hidden="true">${bar}</span>
+        <span class="wchg ${c.c}">${w.ch != null ? c.v + "<small>" + c.t + "</small>" : "—<small>bez srovnání</small>"}</span></li>`;
+    }).join("") : `<li class="empty">Zatím žádné vážení.</li>`;
   }
 
   function barChart(items, target, fmt, unitLabel, W) {
@@ -716,13 +812,7 @@
     $("k-sleepS").textContent = "cíl " + nf1.format(s.sleepTarget) + " h";
 
     // charts
-    const from = addDays(tk, -59), pts = [], aPts = [];
-    for (let i = 0, k = from; k <= tk; i++, k = addDays(k, 1)) {
-      const w = (state.days[k] || {}).weight;
-      if (w != null) { pts.push({ x: i, y: w, k }); const a = avg7(k); if (a != null) aPts.push({ x: i, y: a }); }
-    }
-    if (pts.length) { const x0 = pts[0].x; pts.forEach(p => p.x -= x0); aPts.forEach(p => p.x -= x0); }
-    $("wChart").innerHTML = lineChart(pts, aPts, s.targetWeight, $("wChart").clientWidth);
+    renderWeightCard();
     const last14 = []; for (let i = 13; i >= 0; i--) { const k = addDays(tk, -i); last14.push(k); }
     $("kChart").innerHTML = barChart(last14.map(k => ({ k, v: (state.days[k] || {}).kcal ?? null })), s.kcalTarget, v => nf0.format(v), "kcal", $("kChart").clientWidth);
     const pt = proteinTarget() || 160;
@@ -793,18 +883,25 @@
   }
   function renderStrength() {
     const box = $("strengthBox"), w = box.clientWidth;
-    const rows = Object.keys(LIFTS).map(id => {
+    const seen = new Set();
+    const card = id => {
       const h = liftHistory(id); if (!h.length) return "";
-      const last = h[h.length - 1], best = h.reduce((a, x) => x.e > a.e ? x : a, h[0]), firstE = h[0].e;
+      const last = h[h.length - 1], prev = h[h.length - 2], best = h.reduce((a, x) => x.e > a.e ? x : a, h[0]), firstE = h[0].e;
       const ch = firstE ? (last.e - firstE) / firstE * 100 : 0;
+      const cmp = prev ? liftCompare(last, prev) : null;
+      const tag = !prev ? "nový" : cmp ? (cmp.c === "up" ? "▲ víc" : cmp.c === "down" ? "▼ míň" : "= stejně") : "—";
       const sg = liftSuggestion(id, addDays(todayKey(), 1));
       return `<details class="lift-card"><summary><span class="ln">${esc(LIFTS[id])}</span><span class="lv">${fmtLift(last)}</span>
-        <span class="lc ${ch > 0.5 ? "up" : ch < -0.5 ? "down" : ""}">${h.length > 1 ? (ch >= 0 ? "+" : "") + nf0.format(ch) + " %" : "nový"}</span></summary>
+        <span class="lc ${cmp ? cmp.c : ""}">${tag}</span></summary>
         ${sparkline(h, w - 20)}
-        <div class="lift-meta">Rekord ${fmtLift(best)} (${fmtShort(best.k)}) · ${h.length}× zapsáno${sg ? " · příště " + fmtKg(sg.w) + " kg × " + sg.r : ""}</div>
+        <div class="lift-meta">${prev ? "Minule " + fmtLift(prev) + " (" + fmtShort(prev.k) + ") · " : ""}Rekord ${fmtLift(best)} (${fmtShort(best.k)}) · od začátku ${(ch >= 0 ? "+" : "") + nf0.format(ch)} % · ${h.length}× zapsáno${sg ? " · příště " + fmtKg(sg.w) + " kg × " + sg.r : ""}${liftStalled(h) ? ' · <span class="cmp down">3× stejně</span>' : ""}</div>
         <ol class="lift-hist">${h.slice().reverse().map(x => `<li><span>${fmtShort(x.k)}</span><b>${fmtLift(x)}</b><small>≈ ${nf0.format(x.e)} kg max</small></li>`).join("")}</ol></details>`;
+    };
+    const rows = GYM_DAYS.map(dn => {
+      const cards = PLAN[dn].ex.map(e => e[2]).filter(id => id && !seen.has(id) && seen.add(id)).map(card).join("");
+      return cards ? `<p class="lift-day">${DAYS_CS[dn][0].toUpperCase() + DAYS_CS[dn].slice(1)} · ${esc(PLAN[dn].label)}</p>${cards}` : "";
     }).join("");
-    box.innerHTML = rows || `<p class="empty">Zatím žádné zapsané váhy. Zapisuj u hlavních cviků váhu × opakování nejlepší série a tady uvidíš, jak síla roste.</p>`;
+    box.innerHTML = rows || `<p class="empty">Zatím žádné zapsané váhy. U každého cviku zapisuj váhu × opakování nejtěžší série a tady uvidíš, jak síla roste.</p>`;
   }
 
   // ---------- zeď rekordů ----------
@@ -812,7 +909,7 @@
     const tk = todayKey(), keys = Object.keys(state.days).filter(k => k <= tk).sort(), recent = addDays(tk, -6);
     const tiles = [];
     const tile = (label, val, k, sub) => tiles.push(`<div class="rec${k && k >= recent ? " fresh" : ""}"><div class="rl">${label}${k && k >= recent ? ' <span class="pr">nový</span>' : ""}</div><div class="rv">${val}</div><div class="rs">${sub || (k ? fmtShort(k) : "")}</div></div>`);
-    Object.keys(LIFTS).forEach(id => { const h = liftHistory(id); if (!h.length) return; const b = h.reduce((a, x) => x.e > a.e ? x : a, h[0]); tile(esc(LIFTS[id]), fmtLift(b), b.k); });
+    MAIN_LIFTS.forEach(id => { const h = liftHistory(id); if (!h.length) return; const b = h.reduce((a, x) => x.e > a.e ? x : a, h[0]); tile(esc(LIFTS[id]), fmtLift(b), b.k); });
     const maxBy = f => keys.reduce((a, k) => { const v = f(state.days[k]); return v != null && (a == null || v > a.v) ? { k, v } : a; }, null);
     const wm = maxBy(d => d.weight); if (wm) tile("Nejvyšší váha", nf1.format(wm.v) + " kg", wm.k);
     const sk = streaks(); if (sk.best) tile("Nejdelší série návyků", sk.best + " " + dni(sk.best), null, sk.cur === sk.best && sk.cur ? "právě běží" : "aktuálně " + sk.cur);
@@ -918,7 +1015,7 @@
       const e = x => x.w * (1 + (x.r || 1) / 30), diff = l.prev ? e(l.best) - e(l.prev) : null;
       const tag = diff == null ? "" : diff > 0.5 ? `<span class="up">▲ silnější</span>` : diff < -0.5 ? `<span class="down">▼ slabší</span>` : `<span class="eq">= stejně</span>`;
       return `<li><span>${esc(l.name)}</span><b>${fmtLift(l.best)}</b>${tag}</li>`;
-    }).join("") : `<li class="empty">Tento týden bez zapsaných vah na hlavních cvicích.</li>`;
+    }).join("") : `<li class="empty">Tento týden bez zapsaných vah.</li>`;
     const ins = summaryInsights(st);
     $("sumIns").innerHTML = ins.length ? ins.map(t => `<li>${esc(t)}</li>`).join("") : `<li class="empty">Málo dat na hodnocení – zapisuj a v neděli tu bude souhrn.</li>`;
   }
@@ -1410,6 +1507,11 @@
     catch (e) { return showFatal("Připojení k účtu se nepodařilo spustit: " + (e.code || e.message)); }
     renderSync();
     window.addEventListener("online", renderSync); window.addEventListener("offline", renderSync);
+    $("wRange").addEventListener("click", e => {
+      const b = e.target.closest("button[data-r]"); if (!b) return;
+      state.wRange = b.dataset.r; try { localStorage.setItem("tvt-wrange", b.dataset.r); } catch (er) { /* bez úložiště */ }
+      renderWeightCard();
+    });
     bindToday(); bindLifts(); bindWeekBox(); bindFood(); bindSettings(); bindAuth(); bindNotes(); bindTasks();
     $("mapPrev").onclick = () => { state.mapYear = (state.mapYear || Number(todayKey().slice(0, 4))) - 1; renderYearMap(); };
     $("mapNext").onclick = () => { state.mapYear = (state.mapYear || Number(todayKey().slice(0, 4))) + 1; renderYearMap(); };

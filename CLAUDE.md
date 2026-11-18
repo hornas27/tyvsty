@@ -29,7 +29,8 @@ Osobní PWA tracker Marka (váha, kcal, bílkoviny, spánek, energie, trénink a
 - Prohození: `renderSwap`, `swapPlan(a,b)` (prohodí i `run` text), `resetWeekPlan`. Jen v rámci týdne Po–Ne → počet tréninků v týdnu sedí (6 povinných).
 - `HABITS` (s `since` pro návyky přidané později), `habitsFor(k)`.
 - Ukládání: `patchDay` (debounce 600 ms) + `flushSave` na pagehide/visibility/přepnutí dne, `trackSave` → indikátor synchronizace.
-- Progresivní přetížení: `LIFTS`, `LIFT_STEP`, `liftHistory`, `liftSuggestion` (8+ opak. → +krok; 6–7 → stejná váha +1 opak.; 2× pod 6 → −krok), e1RM = w·(1+r/30).
+- Progresivní přetížení: každý cvik v `PLAN` má ID (3. prvek) a zapisuje se nejtěžší série; `LIFTS` (všechny cviky, stejné ID = společná historie, např. `lateral`, `bayes`, `triceps`), `MAIN_LIFTS` (6 hlavních pro zeď rekordů), `LIFT_STEP` (výchozí 2,5), `liftHistory`, `liftSuggestion` (8+ opak. → +krok; 6–7 → stejná váha +1 opak.; 2× pod 6 → −krok), `liftCompare` (víc/stejně/míň než minule), `liftStalled` (3× stejně), e1RM = w·(1+r/30).
+- Váha na Přehledu: `renderWeightCard` (graf `weightChart` s rozsahem 4 týdny/3 měsíce/vše v `localStorage["tvt-wrange"]`, týden po týdnu `weekWeight` + `weekChange` = Ø týdne proti Ø minulého), na Dnes řádek `#weightWeek`.
 - Poznámky/úkoly: `folders()`, `isTasks()`, `renderNotes`, `bindNotes`, `checkReminders` (in-app připomínky, každých 20 s), `renderTaskBanner`.
 - **Google Kalendář** (sekce „Google Kalendář“): GIS token client (`accounts.google.com/gsi/client`), scope `calendar.events`, token jen na klepnutí uživatele (popup), v sessionStorage `tvt-gtok`. `calSync(id)` dorovná událost podle úkolu (vytvořit / PATCH / DELETE při hotovo nebo smazání), chyby → `calPending` + tlačítko „Synchronizovat kalendář“. Režim „cal“ potlačí in-app připomínku.
   - Google Cloud projekt `tyvsty-aa163`: OAuth klient „Ty vs. Ty web“ (origin jen `https://hornas27.github.io`), consent screen v režimu **Testing** s jediným test userem (Markův účet). Calendar API zapnuté. Neověřená appka → Google ukáže varování, Marek klikne Pokračovat. Token v Testing režimu platí ~1 h, refresh na klepnutí.
@@ -38,7 +39,7 @@ Osobní PWA tracker Marka (váha, kcal, bílkoviny, spánek, energie, trénink a
 - `index.html` načítá `config.js?v=N`, `app.js?v=N`, `ai.js?v=N`, ikony `?v=N`. Při změně souboru **zvyš jeho `?v=`** (jinak telefon drží starý JS s novým HTML).
 - `sw.js`: `CACHE = "tvt-vN"` – **zvyš při každém nasazení**. Same-origin network-first, `ignoreSearch` fallback; `LIBS` (`tvt-libs-1`, gstatic firebase) cache-first a zůstává napříč verzemi.
 - `manifest.json` se v `index.html` odkazuje **bez** `?v=` (jinak se rozbije aktualizace WebAPK ikony).
-- Aktuálně: app.js v22, config/ai v20, `CACHE = "tvt-v22"`.
+- Aktuálně: app.js v23, config/ai v20, `CACHE = "tvt-v23"`.
 
 ## Nasazení
 1. Změny + testy (níže) + lint.
@@ -56,7 +57,7 @@ node run.js poznamky     # jen vybrané
 VERBOSE=1 node run.js    # vypíše i JSON výstupy
 npm run lint             # eslint 8 (0 chyb; 2 staré warningy jsou ok)
 ```
-Scénáře: core, navyky-export, ukladani-flush, pretizeni-mapa-rekordy, fatal-vs-demo, poznamky, ukoly-pripominky, google-kalendar, prohozeni-treninku. Jsou to smoke testy (JSON výstup + kontrola chyb stránky), ne přesné asserty – po změně se podívej i na výstup a screenshoty v `tests/out/`.
+Scénáře: core, navyky-export, ukladani-flush, pretizeni-mapa-rekordy, fatal-vs-demo, poznamky, ukoly-pripominky, google-kalendar, prohozeni-treninku, vaha-cviky. Jsou to smoke testy (JSON výstup + kontrola chyb stránky), ne přesné asserty – po změně se podívej i na výstup a screenshoty v `tests/out/`.
 Nejdřív vytvoř `.gitignore` s `tests/node_modules/` a `tests/out/`, ať se to necommitne.
 
 ## Design (Barevné bloky, výchozí tmavý)

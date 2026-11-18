@@ -439,6 +439,37 @@ nav.tabs button[aria-current="true"]{background:var(--cobalt);color:#fff}
   nav.tabs{margin:16px auto 4px;box-shadow:none}
   .hero{margin-top:0}
 }
+.lift-card .lc.eq{color:var(--soft)}
+.lift-day{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--clay);font-weight:700;margin:14px 0 2px}
+.lift-day:first-child{margin-top:0}
+.cmp{font-weight:700}.cmp.up{color:var(--good)}.cmp.down{color:var(--bad)}.cmp.eq{color:var(--soft)}
+.blk-train .cmp.up{color:#0B5E35}.blk-train .cmp.down{color:#8E1F0B}.blk-train .cmp.eq{color:#3B2620}
+.whead{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:8px}
+.wnow{font-family:var(--f-display);font-weight:900;font-size:40px;line-height:1;font-variant-numeric:tabular-nums}
+.wnow small{font-family:var(--f-body);font-weight:500;font-size:13px;color:var(--soft);margin-left:6px}
+.seg{display:inline-flex;background:var(--bg);border:1px solid var(--line);border-radius:999px;padding:3px}
+.seg button{border:0;background:none;color:var(--soft);font:inherit;font-size:13px;padding:7px 12px;border-radius:999px;cursor:pointer;min-height:36px}
+.seg button[aria-pressed="true"]{background:var(--cobalt);color:#fff;font-weight:700}
+.wsub{font-weight:700;font-size:15px;margin:18px 0 6px}
+.wsub small{display:block;font-weight:400;font-size:12px;color:var(--soft);margin-top:2px}
+.wchart text.wend{fill:var(--ink);font-size:13px;font-weight:700}
+.wchg{font-weight:700;font-variant-numeric:tabular-nums}
+.wchg.good{color:var(--good)}.wchg.warn{color:var(--warn)}.wchg.bad{color:var(--bad)}.wchg.none{color:var(--soft)}
+.wweeks{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.wweeks li{display:grid;grid-template-columns:minmax(0,1.3fr) auto minmax(50px,1fr) 78px;gap:10px;align-items:center;padding:9px 0;border-top:1px dashed var(--line);font-size:14px}
+.wweeks li.cur{background:color-mix(in srgb,var(--sage) 8%,transparent);border-radius:10px;padding-left:8px;padding-right:8px}
+.wweeks li.empty{display:block;color:var(--soft)}
+.wweeks .wk small{display:block;color:var(--soft);font-size:11px}
+.wweeks .wa{font-weight:700;font-variant-numeric:tabular-nums}
+.wweeks .wa small{font-weight:400;color:var(--soft)}
+.wweeks .wbar{position:relative;height:10px;border-radius:99px;background:var(--bg)}
+.wweeks .wbar::after{content:"";position:absolute;left:50%;top:-3px;bottom:-3px;width:1px;background:var(--soft);opacity:.5}
+.wweeks .wbar i{position:absolute;top:0;bottom:0;border-radius:99px;background:currentColor}
+.wweeks .wbar i.good{color:var(--good)}.wweeks .wbar i.warn{color:var(--warn)}.wweeks .wbar i.bad{color:var(--bad)}
+.wweeks .wchg{text-align:right}
+.wweeks .wchg small{display:block;font-weight:500;font-size:11px}
+#weightWeek:empty{display:none}
+.blk-train .pr{background:#141A2E;color:#FF6B4A}
 </style>
 </head>
 <body>
@@ -512,7 +543,7 @@ nav.tabs button[aria-current="true"]{background:var(--cobalt);color:#fff}
       <div class="card">
         <p class="sec-t">Ráno</p>
         <div class="fields">
-          <div class="field full"><label for="f-weight">Váha (ráno po záchodě)</label><div class="unit"><input id="f-weight" type="number" inputmode="decimal" step="0.1" min="30" max="200" placeholder="—"><span>kg</span></div></div>
+          <div class="field full"><label for="f-weight">Váha (ráno po záchodě)</label><div class="unit"><input id="f-weight" type="number" inputmode="decimal" step="0.1" min="30" max="200" placeholder="—"><span>kg</span></div><div class="hint" id="weightWeek"></div></div>
           <div class="field"><label for="f-bed">Šel spát (minulá noc)</label><input id="f-bed" type="time"></div>
           <div class="field"><label for="f-wake">Vstal</label><input id="f-wake" type="time"></div>
         </div>
@@ -627,6 +658,16 @@ nav.tabs button[aria-current="true"]{background:var(--cobalt);color:#fff}
           <div class="weekgrid" id="weekGrid"></div>
         </div>
 
+        <div class="card span2" id="wCard">
+          <div class="whead">
+            <div><p class="sec-t" style="margin-bottom:4px">Váha</p><div class="wnow" id="wNow">—</div><div class="hint" id="wNowS" style="margin-top:4px"></div></div>
+            <div class="seg" id="wRange" role="group" aria-label="Rozsah grafu"><button type="button" data-r="28">4 týdny</button><button type="button" data-r="90">3 měsíce</button><button type="button" data-r="all">Vše</button></div>
+          </div>
+          <div id="wChart"></div>
+          <p class="wsub">Týden po týdnu <small>Ø týdne proti minulému · ideál +0,25–0,5 kg</small></p>
+          <ul class="wweeks" id="wWeeks"></ul>
+        </div>
+
         <div class="card span2" id="mapCard">
           <div class="sumhead" style="margin-bottom:10px">
             <button class="iconbtn" id="mapPrev" aria-label="Předchozí rok"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button>
@@ -649,19 +690,14 @@ nav.tabs button[aria-current="true"]{background:var(--cobalt);color:#fff}
           </div>
           <div class="kpis k4" id="sumKpis"></div>
           <div class="sumcols">
-            <div><p class="sec-t" style="margin-top:14px">Hlavní cviky · nejlepší série</p><ul class="lifts" id="sumLifts"></ul></div>
+            <div><p class="sec-t" style="margin-top:14px">Cviky · nejlepší série týdne</p><ul class="lifts" id="sumLifts"></ul></div>
             <div><p class="sec-t" style="margin-top:14px">Co z toho plyne</p><ul class="ins" id="sumIns"></ul></div>
           </div>
         </div>
 
         <div class="card span2">
-          <p class="sec-t">Váha · posledních 60 dní</p>
-          <div id="wChart"></div>
-        </div>
-
-        <div class="card span2">
-          <p class="sec-t">Síla · hlavní cviky</p>
-          <div class="hint" style="margin:-6px 0 10px">Klikni na cvik pro graf a celou historii. Návrh na další trénink: 8+ opakování → přidej váhu, 6–7 → přidej opakování.</div>
+          <p class="sec-t">Síla · všechny cviky</p>
+          <div class="hint" style="margin:-6px 0 10px">Nejtěžší série každého cviku. ▲/▼ = proti minulému tréninku. Klikni na cvik pro graf a celou historii. Návrh: 8+ opakování → přidej váhu, 6–7 → přidej opakování.</div>
           <div id="strengthBox"></div>
         </div>
 
@@ -766,7 +802,7 @@ nav.tabs button[aria-current="true"]{background:var(--cobalt);color:#fff}
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="app.js?v=22"></script>
+<script src="app.js?v=23"></script>
 <script type="module" src="ai.js?v=20"></script>
 </body>
 </html>

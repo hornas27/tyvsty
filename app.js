@@ -204,7 +204,7 @@
     renderSwap(k);
     $("exList").hidden = p.type !== "gym";
     $("runField").hidden = p.type !== "run";
-    if (p.type === "gym") renderExList(k, p);
+    if (p.type === "gym") renderExList(k);
     $("habitBox").innerHTML = habitsFor(k).map(h => chkHtml("h-" + h.k, h.t, "", !!(d.habits || {})[h.k])).join("");
     renderEnergy(d);
     renderFavs();
@@ -343,32 +343,83 @@
     const stall = liftStalled(h) ? ` · <span class="cmp down">3× stejně – přidej opakování nebo váhu</span>` : "";
     return `${prev} · <b>dnes zkus ${fmtKg(sg.w)} kg × ${sg.r}</b>${stall}`;
   }
-  function renderExList(k, p) {
+  // ---------- cviky dne: pořadí a přesuny (jen tento týden = day.ex, natrvalo = settings.planEx[číslo dne plánu]) ----------
+  const EX = {}; Object.values(PLAN).forEach(p => (p.ex || []).forEach(e => { if (e[2] && !EX[e[2]]) EX[e[2]] = { name: e[0], sets: e[1] }; }));
+  const planExIds = dn => { const pe = (state.settings.planEx || {})[dn]; return Array.isArray(pe) ? pe.filter(id => EX[id]) : (PLAN[dn].ex || []).map(e => e[2]); };
+  const exIdsFor = k => { const d = state.days[k] || {}; return Array.isArray(d.ex) ? d.ex.filter(id => EX[id]) : planExIds(planKey(k)); };
+  const exOverridden = k => Array.isArray((state.days[k] || {}).ex) || Array.isArray((state.settings.planEx || {})[planKey(k)]);
+  function renderExList(k) {
     const box = $("exList");
-    if (state.exKey === k && box.contains(document.activeElement)) return; // nepřepisuj během psaní
+    if (state.exKey === k && box.contains(document.activeElement) && document.activeElement.matches("input")) return; // nepřepisuj během psaní
     state.exKey = k;
-    const lifts = (state.days[k] || {}).lifts || {};
-    box.innerHTML = `<li class="exnote">Do selhání · cíl min. 6–8 opakování</li>` + p.ex.map((e, i) => {
-      const id = e[2];
-      let lift = "";
-      if (id) {
-        const cur = lifts[id] || {};
-        lift = `<div class="lift" data-lift="${id}">
-          <div class="unit"><input type="number" inputmode="decimal" step="0.5" min="0" placeholder="0" value="${cur.w ?? ""}" data-f="w" aria-label="Váha ${esc(e[0])}"><span>kg</span></div>
+    const lifts = (state.days[k] || {}).lifts || {}, ids = exIdsFor(k), open = state.exOpen;
+    const scope = state.exScope || "week";
+    const targets = weekKeys(k).filter(x => x !== k && planOf(x).type === "gym");
+    box.innerHTML = `<li class="exnote">Do selhání · cíl min. 6–8 opakování · nejtěžší série</li>` + ids.map((id, i) => {
+      const e = EX[id], cur = lifts[id] || {};
+      const lift = `<div class="lift" data-lift="${id}">
+          <div class="unit"><input type="number" inputmode="decimal" step="0.5" min="0" placeholder="0" value="${cur.w ?? ""}" data-f="w" aria-label="Váha ${esc(e.name)}"><span>kg</span></div>
           <span class="x">×</span>
-          <div class="unit"><input type="number" inputmode="numeric" step="1" min="0" placeholder="opak." value="${cur.r ?? ""}" data-f="r" aria-label="Opakování ${esc(e[0])}"></div>
+          <div class="unit"><input type="number" inputmode="numeric" step="1" min="0" placeholder="opak." value="${cur.r ?? ""}" data-f="r" aria-label="Opakování ${esc(e.name)}"></div>
           <small data-hint="${id}">${liftHint(id, k, cur)}</small></div>`;
-      }
-      return `<li class="${id ? "haslift" : ""}"><i>${i + 1}</i><span>${esc(e[0])}</span><b>${esc(e[1])}</b>${lift}</li>`;
-    }).join("");
+      const panel = open === id ? `<div class="exmove">
+          <div class="seg sm" role="group" aria-label="Platnost změny"><button type="button" data-scope="week" aria-pressed="${scope === "week"}">Jen tento týden</button><button type="button" data-scope="perm" aria-pressed="${scope === "perm"}">Natrvalo</button></div>
+          <div class="exbtns"><button type="button" class="btn ghost sm" data-mv="up" ${i === 0 ? "disabled" : ""}>↑ Výš</button><button type="button" class="btn ghost sm" data-mv="down" ${i === ids.length - 1 ? "disabled" : ""}>↓ Níž</button>
+          <select data-mv="to" aria-label="Přesunout na jiný den"><option value="">Přesunout na…</option>${targets.map(x => `<option value="${x}">${DAYS_SHORT[parseKey(x).getDay()]} ${fmtShort(x)} · ${esc(planOf(x).label)}</option>`).join("")}</select></div>
+        </div>` : "";
+      return `<li class="haslift" data-ex="${id}"><i>${i + 1}</i><span>${esc(e.name)}</span><span class="exr"><b>${esc(e.sets)}</b><button type="button" class="exmenu" data-menu="${id}" aria-expanded="${open === id}" aria-label="Pořadí a přesun: ${esc(e.name)}">⋯</button></span>${lift}${panel}</li>`;
+    }).join("") + (exOverridden(k) ? `<li class="exnote"><button type="button" class="linkbtn" data-mv="reset">Vrátit původní cviky tohohle dne</button></li>` : "")
+      + (ids.length ? "" : `<li class="exnote">Žádné cviky – všechny jsou přesunuté jinam.</li>`);
+  }
+  // úprava seznamu cviků: na dni (jen tento týden) nebo v plánu (natrvalo)
+  function editEx(k, fn, k2, fn2) {
+    flushSave();
+    if ((state.exScope || "week") === "perm") {
+      const pe = { ...(state.settings.planEx || {}) }, dn = planKey(k);
+      pe[dn] = fn(planExIds(dn).slice());
+      if (k2) { const dn2 = planKey(k2); pe[dn2] = fn2(planExIds(dn2).slice()); }
+      // když má den i úpravu jen pro tento týden, promítni změnu i do ní
+      [[k, fn], [k2, fn2]].forEach(([x, f]) => { const ov = x && (state.days[x] || {}).ex; if (Array.isArray(ov)) patchDay({ ex: f(ov.slice()) }, true, x); });
+      saveSettingsPatch({ planEx: pe }, "Plán změněn natrvalo");
+    } else {
+      patchDay({ ex: fn(exIdsFor(k).slice()) }, true, k);
+      if (k2) patchDay({ ex: fn2(exIdsFor(k2).slice()) }, true, k2);
+      showSave("Změněno jen pro tento týden");
+    }
+    state.exKey = null; renderToday();
   }
   function bindLifts() {
-    $("exList").addEventListener("input", e => {
+    const box = $("exList");
+    box.addEventListener("input", e => {
       const inp = e.target.closest("input[data-f]"); if (!inp) return;
       const id = inp.closest(".lift").dataset.lift, cur = { ...(((currentDay().lifts) || {})[id] || {}) };
       cur[inp.dataset.f] = num(inp.value);
       patchDay({ lifts: { [id]: cur } });
-      const hint = $("exList").querySelector(`[data-hint="${id}"]`); if (hint) hint.innerHTML = liftHint(id, state.key, cur);
+      const hint = box.querySelector(`[data-hint="${id}"]`); if (hint) hint.innerHTML = liftHint(id, state.key, cur);
+    });
+    box.addEventListener("click", e => {
+      const m = e.target.closest("[data-menu]");
+      if (m) { state.exOpen = state.exOpen === m.dataset.menu ? null : m.dataset.menu; state.exKey = null; renderExList(state.key); return; }
+      const sc = e.target.closest("[data-scope]");
+      if (sc) { state.exScope = sc.dataset.scope; state.exKey = null; renderExList(state.key); return; }
+      const mv = e.target.closest("button[data-mv]"); if (!mv) return;
+      const k = state.key;
+      if (mv.dataset.mv === "reset") {
+        flushSave();
+        if (Array.isArray((state.days[k] || {}).ex)) patchDay({ ex: null }, true, k);
+        const pe = { ...(state.settings.planEx || {}) }, dn = planKey(k);
+        if (Array.isArray(pe[dn])) { delete pe[dn]; saveSettingsPatch({ planEx: pe }, "Původní cviky vráceny"); } else showSave("Původní cviky vráceny");
+        state.exOpen = null; state.exKey = null; renderToday(); return;
+      }
+      const id = mv.closest("[data-ex]").dataset.ex, dir = mv.dataset.mv === "up" ? -1 : 1;
+      editEx(k, l => { const i = l.indexOf(id), j = i + dir; if (i < 0 || j < 0 || j >= l.length) return l; [l[i], l[j]] = [l[j], l[i]]; return l; });
+    });
+    box.addEventListener("change", e => {
+      const sel = e.target.closest("select[data-mv]"); if (!sel || !sel.value) return;
+      const id = sel.closest("[data-ex]").dataset.ex, to = sel.value;
+      state.exOpen = null;
+      editEx(state.key, l => l.filter(x => x !== id), to, l => l.includes(id) ? l : l.concat(id));
+      showSave(((state.exScope || "week") === "perm" ? "Natrvalo přesunuto na " : "Přesunuto na ") + DAYS_CS[parseKey(to).getDay()]);
     });
   }
 
@@ -715,7 +766,7 @@
     $("wNowS").innerHTML = cw.ch != null ? `Tento týden zatím <span class="wchg ${cc.c}">${cc.v} · ${cc.t}</span> proti minulému` : cw.n ? "Tento týden " + cw.n + "× vážení · minulý týden bez dat" : "Tento týden zatím bez vážení";
     // týden po týdnu
     const weeks = [];
-    for (let mon = mondayOf(tk), i = 0; weeks.length < 8 && i < 104; mon = addDays(mon, -7), i++) {
+    for (let mon = mondayOf(tk), i = 0; weeks.length < 6 && i < 104; mon = addDays(mon, -7), i++) {
       const wk = weekWeight(mon, tk); if (wk.n) weeks.push(wk);
       if (!fw || mon < fw) break;
     }
@@ -752,15 +803,19 @@
   // ---------- OVERVIEW ----------
   function renderOverview() {
     const s = state.settings, tk = todayKey();
-    $("tgtW").textContent = $("tgtW2").textContent = nf0.format(s.targetWeight);
+    $("tgtW").textContent = nf0.format(s.targetWeight);
     const cur = avg7(tk), prev = avg7(addDays(tk, -7));
     const nowW = weightsBetween(addDays(tk, -6), tk), prevW = weightsBetween(addDays(tk, -13), addDays(tk, -7));
-    $("k-avg").innerHTML = cur != null ? nf1.format(cur) + "<small>kg</small>" : "—";
-    $("k-avgS").textContent = nowW.length + "× vážení za 7 dní";
     let rate = null;
     if (nowW.length >= 2 && prevW.length >= 2) rate = cur - prev;
-    $("k-rate").innerHTML = rate != null ? (rate >= 0 ? "+" : "") + nf1.format(rate) + "<small>kg</small>" : "—";
-    $("k-rateS").textContent = rate != null ? "oproti předchozímu týdnu" : "potřeba 2 týdny dat";
+    // tempo · za 4 týdny · od startu
+    const sgn = v => (v > 0.05 ? "+" : v < -0.05 ? "−" : "±") + nf1.format(Math.abs(v)) + " kg";
+    const cls = v => v == null ? "" : v > 0.05 ? "up" : v < -0.05 ? "down" : "";
+    const m4 = avg7(addDays(tk, -28)), st0 = s.startWeight ?? firstWeight(), nowA = cur ?? lastWeight();
+    const d4 = cur != null && m4 != null ? cur - m4 : null, dS = nowA != null && st0 != null ? nowA - st0 : null;
+    const tile = (l, v, c, sub) => `<div class="kpi"><div class="l">${l}</div><div class="v sm ${c}">${v}</div><div class="s">${sub}</div></div>`;
+    $("wStats").innerHTML = tile("Tempo", rate != null ? sgn(rate) : "—", cls(rate), rate != null ? "za týden" : "potřeba 2 týdny") +
+      tile("Za 4 týdny", d4 != null ? sgn(d4) : "—", cls(d4), "Ø proti Ø") + tile("Od startu", dS != null ? sgn(dS) : "—", cls(dS), st0 != null ? "z " + nf1.format(st0) + " kg" : "");
     let st = '<span class="status none">Sbírám data</span>';
     if (rate != null) {
       rate = Math.round(rate * 10) / 10;
@@ -801,15 +856,21 @@
     }
     $("k-train").innerHTML = done + "<small>/ " + REQUIRED_PER_WEEK + "</small>";
     $("k-trainS").textContent = bonus ? "+ chill run" : "4 gym + 2 běhy";
-    $("k-hab").innerHTML = hTotal ? Math.round(hDone / hTotal * 100) + "<small>%</small>" : "—";
+    const habNow = hTotal ? Math.round(hDone / hTotal * 100) : null;
+    let pD = 0, pT = 0; for (let i = 0; i < 7; i++) { const k = addDays(mon, i - 7), d = state.days[k] || {}; habitsFor(k).forEach(h => { pT++; if ((d.habits || {})[h.k]) pD++; }); }
+    const habPrev = pT ? Math.round(pD / pT * 100) : null;
+    $("k-hab").innerHTML = habNow != null ? habNow + "<small>%</small>" : "—";
+    const hd = habNow != null && habPrev != null ? habNow - habPrev : null;
+    $("k-habS").innerHTML = hd == null ? "" : hd > 0 ? `<span class="cmp up">▲ +${hd} % proti minulému</span>` : hd < 0 ? `<span class="cmp down">▼ −${-hd} % proti minulému</span>` : `<span class="cmp eq">= stejně jako minule</span>`;
+    const per = {}; for (let i = 0; i < 14; i++) { const k = addDays(tk, -i - 1), d = state.days[k] || {}; habitsFor(k).forEach(h => { per[h.k] = per[h.k] || { t: h.t, n: 0, of: 0 }; per[h.k].of++; if ((d.habits || {})[h.k]) per[h.k].n++; }); }
+    const weak = Object.values(per).sort((a, b) => a.n / a.of - b.n / b.of)[0];
+    $("k-weak").textContent = weak && weak.n < weak.of ? weak.t.split(":")[0] : "—";
+    $("k-weakS").textContent = weak && weak.n < weak.of ? weak.n + "/" + weak.of + " za 14 dní" : "všechny drží";
     $("weekGrid").innerHTML = grid;
     const sk = streaks();
     $("k-streak").innerHTML = sk.cur + "<small>" + dni(sk.cur) + "</small>";
     $("k-streakS").textContent = "rekord " + sk.best + " · cíl 30";
-    const sl = []; for (let i = 0; i < 7; i++) { const d = state.days[addDays(tk, -i)] || {}; const h = sleepHours(d.bed, d.wake); if (h != null) sl.push(h); }
-    const sa = avg(sl);
-    $("k-sleep").innerHTML = sa != null ? nf1.format(sa) + "<small>h</small>" : "—";
-    $("k-sleepS").textContent = "cíl " + nf1.format(s.sleepTarget) + " h";
+    renderSleepCard();
 
     // charts
     renderWeightCard();
@@ -835,6 +896,27 @@
       <div><div class="goalrow"><b>Návyky 30 dní v řadě</b><span>${Math.min(sk.cur, 30)} / 30</span></div>${bar(sk.cur, 30)}</div>
       <div><div class="goalrow"><b>Návyky 90 dní v řadě</b><span>${Math.min(sk.cur, 90)} / 90</span></div>${bar(sk.cur, 90)}</div>
       <div><div class="goalrow"><b>Půlmaraton pod 1:40</b><span>${hm ? "za " + wksToHm + " týdnů · " + hm.toLocaleDateString("cs-CZ", { month: "long", year: "numeric" }) : "—"}</span></div><div class="hint">Tempo 4:44 / km</div></div>`;
+  }
+
+  // ---------- spánek: průměr + stabilita ----------
+  const bedMin = t => { if (!t) return null; const [h, m] = t.split(":").map(Number); const v = h * 60 + m; return v < 12 * 60 ? v + 1440 : v; };
+  const fmtMin = v => { v = ((Math.round(v) % 1440) + 1440) % 1440; return String(Math.floor(v / 60)).padStart(2, "0") + ":" + String(v % 60).padStart(2, "0"); };
+  function sleepStats(endK) {
+    const hs = [], beds = [];
+    for (let i = 0; i < 7; i++) { const d = state.days[addDays(endK, -i)] || {}; const h = sleepHours(d.bed, d.wake); if (h != null) hs.push(h); const b = bedMin(d.bed); if (b != null) beds.push(b); }
+    const a = avg(hs), sd = hs.length >= 3 ? Math.sqrt(avg(hs.map(x => (x - a) ** 2))) : null;
+    return { n: hs.length, avg: a, sd, bedLo: beds.length ? Math.min(...beds) : null, bedHi: beds.length ? Math.max(...beds) : null };
+  }
+  function renderSleepCard() {
+    const s = state.settings, tk = todayKey(), cur = sleepStats(tk), prev = sleepStats(addDays(tk, -7));
+    $("k-sleep").innerHTML = cur.avg != null ? nf1.format(cur.avg) + "<small>h</small>" : "—";
+    const dd = cur.avg != null && prev.avg != null ? cur.avg - prev.avg : null;
+    $("k-sleepS").innerHTML = dd == null ? "cíl " + nf1.format(s.sleepTarget) + " h" : Math.abs(dd) < 0.1 ? `<span class="cmp eq">= jako minulý týden</span>` : `<span class="cmp ${dd > 0 ? "up" : "down"}">${dd > 0 ? "▲ +" : "▼ −"}${nf1.format(Math.abs(dd))} h proti minulému</span>`;
+    if (cur.sd == null) { $("k-stab").textContent = "—"; $("k-stabS").textContent = "potřeba 3 noci za týden"; return; }
+    const spread = cur.bedHi - cur.bedLo;
+    const lvl = cur.sd <= 0.5 && spread <= 60 ? ["good", "Stabilní"] : cur.sd <= 1 && spread <= 120 ? ["warn", "Kolísá"] : ["bad", "Nestabilní"];
+    $("k-stab").innerHTML = `<span class="wchg ${lvl[0]}">${lvl[1]}</span>`;
+    $("k-stabS").textContent = "délka ±" + nf1.format(cur.sd) + " h · usínáš " + fmtMin(cur.bedLo) + "–" + fmtMin(cur.bedHi);
   }
 
   // ---------- skóre dne (návyky + trénink) ----------
@@ -889,7 +971,9 @@
       const last = h[h.length - 1], prev = h[h.length - 2], best = h.reduce((a, x) => x.e > a.e ? x : a, h[0]), firstE = h[0].e;
       const ch = firstE ? (last.e - firstE) / firstE * 100 : 0;
       const cmp = prev ? liftCompare(last, prev) : null;
-      const tag = !prev ? "nový" : cmp ? (cmp.c === "up" ? "▲ víc" : cmp.c === "down" ? "▼ míň" : "= stejně") : "—";
+      const dw = prev ? last.w - prev.w : 0, dr = prev && last.r != null && prev.r != null ? last.r - prev.r : 0;
+      const amt = dw ? (dw > 0 ? "+" : "−") + fmtKg(Math.abs(dw)) + " kg" : dr ? (dr > 0 ? "+" : "−") + Math.abs(dr) + " opak." : "";
+      const tag = !prev ? "nový" : cmp ? (cmp.c === "up" ? "▲ " + amt : cmp.c === "down" ? "▼ " + amt : "= stejně") : "—";
       const sg = liftSuggestion(id, addDays(todayKey(), 1));
       return `<details class="lift-card"><summary><span class="ln">${esc(LIFTS[id])}</span><span class="lv">${fmtLift(last)}</span>
         <span class="lc ${cmp ? cmp.c : ""}">${tag}</span></summary>
@@ -898,9 +982,19 @@
         <ol class="lift-hist">${h.slice().reverse().map(x => `<li><span>${fmtShort(x.k)}</span><b>${fmtLift(x)}</b><small>≈ ${nf0.format(x.e)} kg max</small></li>`).join("")}</ol></details>`;
     };
     const rows = GYM_DAYS.map(dn => {
-      const cards = PLAN[dn].ex.map(e => e[2]).filter(id => id && !seen.has(id) && seen.add(id)).map(card).join("");
+      const cards = planExIds(dn).filter(id => id && !seen.has(id) && seen.add(id)).map(card).join("");
       return cards ? `<p class="lift-day">${DAYS_CS[dn][0].toUpperCase() + DAYS_CS[dn].slice(1)} · ${esc(PLAN[dn].label)}</p>${cards}` : "";
     }).join("");
+    // shrnutí: za 4 týdny silnější v X z Y cviků + co stojí
+    const tk = todayKey(); let up = 0, of = 0; const stuck = [];
+    Object.keys(LIFTS).forEach(id => {
+      const h = liftHistory(id); if (h.length < 2) return;
+      const old = h.filter(x => x.k <= addDays(tk, -28)).pop() || h[0], last = h[h.length - 1];
+      if (old === last) return; of++; if (last.e > old.e * 1.005) up++;
+      if (liftStalled(h)) stuck.push(LIFTS[id]);
+    });
+    $("strengthSum").innerHTML = of ? `<div class="verdict ${up / of >= 0.6 ? "good" : up / of >= 0.3 ? "warn" : "bad"}"><b>Silnější v ${up} z ${of} cviků</b> za poslední 4 týdny</div>` +
+      (stuck.length ? `<div class="hint" style="margin:6px 0 0">Stojí na místě (3× stejně): <b>${stuck.map(esc).join(", ")}</b> – přidej opakování nebo váhu.</div>` : "") : `<div class="hint" style="margin:0">Srovnání se ukáže po 2 trénincích u cviku.</div>`;
     box.innerHTML = rows || `<p class="empty">Zatím žádné zapsané váhy. U každého cviku zapisuj váhu × opakování nejtěžší série a tady uvidíš, jak síla roste.</p>`;
   }
 
@@ -1507,6 +1601,7 @@
     catch (e) { return showFatal("Připojení k účtu se nepodařilo spustit: " + (e.code || e.message)); }
     renderSync();
     window.addEventListener("online", renderSync); window.addEventListener("offline", renderSync);
+    $("moreBox").addEventListener("toggle", () => { if ($("moreBox").open) renderOverview(); });
     $("wRange").addEventListener("click", e => {
       const b = e.target.closest("button[data-r]"); if (!b) return;
       state.wRange = b.dataset.r; try { localStorage.setItem("tvt-wrange", b.dataset.r); } catch (er) { /* bez úložiště */ }

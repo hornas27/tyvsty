@@ -18,8 +18,8 @@ Osobní PWA tracker Marka (váha, kcal, bílkoviny, spánek, energie, trénink a
 - Fonty self-hosted v `fonts/` (Big Shoulders Display 800/900, DM Sans 400/500/700; DejaVu pro PDF).
 
 ## Data (Firestore, vše pod `users/{uid}`)
-- `days/{YYYY-MM-DD}` – zápis dne, vždy `set(data, {merge:true})`. Pole mj.: weight, kcal, protein, carbs, fat, bed, wake, energy, training, habits{}, lifts{id:{w,r}}, meals[], run, note, **plan** (číslo dne v týdnu, jehož trénink se ten den dělá – prohození tréninků; null = podle kalendáře).
-- `meta/settings` – kcalTarget, targetWeight, favorites[], noteFolders[], kodexSeeded, calTrash[] (ID událostí ke smazání v kalendáři), … Ukládá se celé přes `set` (`saveSettingsPatch`).
+- `days/{YYYY-MM-DD}` – zápis dne, vždy `set(data, {merge:true})`. Pole mj.: ex[] (pořadí cviků jen pro tento týden), weight, kcal, protein, carbs, fat, bed, wake, energy, training, habits{}, lifts{id:{w,r}}, meals[], run, note, **plan** (číslo dne v týdnu, jehož trénink se ten den dělá – prohození tréninků; null = podle kalendáře).
+- `meta/settings` – planEx{den:[id]} (cviky dne natrvalo), kcalTarget, targetWeight, favorites[], noteFolders[], kodexSeeded, calTrash[] (ID událostí ke smazání v kalendáři), … Ukládá se celé přes `set` (`saveSettingsPatch`).
 - `notes/{id}` – {folder, text, order, createdAt, updatedAt, done, doneAt, remindAt "YYYY-MM-DDTHH:MM", reminded, calMode "app"|"both"|"cal", calEventId, calPending}.
 - Firestore pravidla: přístup jen vlastník (anonymně 403 – ověřeno).
 
@@ -30,6 +30,8 @@ Osobní PWA tracker Marka (váha, kcal, bílkoviny, spánek, energie, trénink a
 - `HABITS` (s `since` pro návyky přidané později), `habitsFor(k)`.
 - Ukládání: `patchDay` (debounce 600 ms) + `flushSave` na pagehide/visibility/přepnutí dne, `trackSave` → indikátor synchronizace.
 - Progresivní přetížení: každý cvik v `PLAN` má ID (3. prvek) a zapisuje se nejtěžší série; `LIFTS` (všechny cviky, stejné ID = společná historie, např. `lateral`, `bayes`, `triceps`), `MAIN_LIFTS` (6 hlavních pro zeď rekordů), `LIFT_STEP` (výchozí 2,5), `liftHistory`, `liftSuggestion` (8+ opak. → +krok; 6–7 → stejná váha +1 opak.; 2× pod 6 → −krok), `liftCompare` (víc/stejně/míň než minule), `liftStalled` (3× stejně), e1RM = w·(1+r/30).
+- Cviky dne: `exIdsFor(k)` (pořadí = `day.ex` jen pro tento týden › `settings.planEx[číslo dne plánu]` natrvalo › `PLAN`), `planExIds(dn)`, `EX` (id → název, série). Menu ⋯ u cviku: ↑/↓, přesun na jiný gym den týdne, přepínač Jen tento týden / Natrvalo (`editEx`), „Vrátit původní cviky“.
+- Přehled = 4 otázky: Nabírám? (`#wCard`), Zvedám víc? (`#strengthSum` + `renderStrength`), Jsem lepší v návycích?, Mám stabilní spánek? (`renderSleepCard`, stabilita = rozptyl délky a času usínání). Zbytek (souhrn týdne, kalorie, bílkoviny, mapa roku, rekordy, cíle) v `<details id="moreBox">` „Víc detailů“.
 - Váha na Přehledu: `renderWeightCard` (graf `weightChart` s rozsahem 4 týdny/3 měsíce/vše v `localStorage["tvt-wrange"]`, týden po týdnu `weekWeight` + `weekChange` = Ø týdne proti Ø minulého), na Dnes řádek `#weightWeek`.
 - Poznámky/úkoly: `folders()`, `isTasks()`, `renderNotes`, `bindNotes`, `checkReminders` (in-app připomínky, každých 20 s), `renderTaskBanner`.
 - **Google Kalendář** (sekce „Google Kalendář“): GIS token client (`accounts.google.com/gsi/client`), scope `calendar.events`, token jen na klepnutí uživatele (popup), v sessionStorage `tvt-gtok`. `calSync(id)` dorovná událost podle úkolu (vytvořit / PATCH / DELETE při hotovo nebo smazání), chyby → `calPending` + tlačítko „Synchronizovat kalendář“. Režim „cal“ potlačí in-app připomínku.
@@ -39,7 +41,7 @@ Osobní PWA tracker Marka (váha, kcal, bílkoviny, spánek, energie, trénink a
 - `index.html` načítá `config.js?v=N`, `app.js?v=N`, `ai.js?v=N`, ikony `?v=N`. Při změně souboru **zvyš jeho `?v=`** (jinak telefon drží starý JS s novým HTML).
 - `sw.js`: `CACHE = "tvt-vN"` – **zvyš při každém nasazení**. Same-origin network-first, `ignoreSearch` fallback; `LIBS` (`tvt-libs-1`, gstatic firebase) cache-first a zůstává napříč verzemi.
 - `manifest.json` se v `index.html` odkazuje **bez** `?v=` (jinak se rozbije aktualizace WebAPK ikony).
-- Aktuálně: app.js v23, config/ai v20, `CACHE = "tvt-v23"`.
+- Aktuálně: app.js v24, config/ai v20, `CACHE = "tvt-v24"`.
 
 ## Nasazení
 1. Změny + testy (níže) + lint.
@@ -57,7 +59,7 @@ node run.js poznamky     # jen vybrané
 VERBOSE=1 node run.js    # vypíše i JSON výstupy
 npm run lint             # eslint 8 (0 chyb; 2 staré warningy jsou ok)
 ```
-Scénáře: core, navyky-export, ukladani-flush, pretizeni-mapa-rekordy, fatal-vs-demo, poznamky, ukoly-pripominky, google-kalendar, prohozeni-treninku, vaha-cviky. Jsou to smoke testy (JSON výstup + kontrola chyb stránky), ne přesné asserty – po změně se podívej i na výstup a screenshoty v `tests/out/`.
+Scénáře: core, navyky-export, ukladani-flush, pretizeni-mapa-rekordy, fatal-vs-demo, poznamky, ukoly-pripominky, google-kalendar, prohozeni-treninku, vaha-cviky, cviky-presun. Jsou to smoke testy (JSON výstup + kontrola chyb stránky), ne přesné asserty – po změně se podívej i na výstup a screenshoty v `tests/out/`.
 Nejdřív vytvoř `.gitignore` s `tests/node_modules/` a `tests/out/`, ať se to necommitne.
 
 ## Design (Barevné bloky, výchozí tmavý)

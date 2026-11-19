@@ -470,6 +470,35 @@ nav.tabs button[aria-current="true"]{background:var(--cobalt);color:#fff}
 .wweeks .wchg small{display:block;font-weight:500;font-size:11px}
 #weightWeek:empty{display:none}
 .blk-train .pr{background:#141A2E;color:#FF6B4A}
+.q{font-family:var(--f-display);font-weight:800;font-size:26px;line-height:1.05;margin:0 0 10px;color:var(--ink)}
+.wstats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:10px 0}
+.kpi .v.sm{font-size:20px;line-height:1.25}
+.kpi .v.up{color:var(--good)}.kpi .v.down{color:var(--bad)}
+.verdict{font-size:15px;padding:10px 12px;border-radius:12px;background:var(--bg)}
+.verdict b{font-weight:700}
+.verdict.good b{color:var(--good)}.verdict.warn b{color:var(--warn)}.verdict.bad b{color:var(--bad)}
+#strengthBox{margin-top:6px}
+details.more{border:1px dashed var(--line);border-radius:18px;padding:0}
+details.more>summary{cursor:pointer;list-style:none;padding:16px 18px;font-weight:700;font-size:15px;display:flex;flex-direction:column;gap:2px;min-height:44px}
+details.more>summary::-webkit-details-marker{display:none}
+details.more>summary::after{content:"▾";position:absolute;right:22px;color:var(--soft)}
+details.more{position:relative}
+details.more[open]>summary::after{content:"▴"}
+details.more>summary small{font-weight:400;font-size:12px;color:var(--soft)}
+details.more>.ov{padding:0 0 4px}
+details.more[open]{border:0}
+.exl .exr{display:flex;align-items:center;gap:6px}
+.exmenu{border:0;background:rgba(20,26,46,.12);color:#141A2E;border-radius:10px;min-width:36px;min-height:32px;font-size:18px;font-weight:800;line-height:1;cursor:pointer}
+.exmenu[aria-expanded="true"]{background:#141A2E;color:#FF6B4A}
+.exmove{grid-column:2/4;margin-top:8px;padding:10px;border-radius:12px;background:rgba(255,255,255,.45);display:flex;flex-direction:column;gap:8px}
+.exmove .seg{align-self:flex-start;background:rgba(255,255,255,.6);border-color:rgba(20,26,46,.2)}
+.exmove .seg button{color:#3B2620;min-height:32px;padding:5px 10px}
+.exmove .seg button[aria-pressed="true"]{background:#141A2E;color:#fff}
+.exbtns{display:flex;gap:6px;flex-wrap:wrap}
+.exbtns .btn{background:#fff;color:#141A2E;border-color:rgba(20,26,46,.25)}
+.exbtns .btn[disabled]{opacity:.4}
+.exbtns select{flex:1;min-width:150px;border:1px solid rgba(20,26,46,.25);background:#fff;color:#141A2E;border-radius:10px;padding:6px 8px;font:inherit;font-size:14px;min-height:36px}
+.blk-train .exnote .linkbtn{color:#141A2E;text-decoration:underline}
 </style>
 </head>
 <body>
@@ -629,102 +658,107 @@ nav.tabs button[aria-current="true"]{background:var(--cobalt);color:#fff}
     <!-- OVERVIEW -->
     <section id="v-overview" hidden>
       <div class="ov">
-        <div class="card">
-          <p class="sec-t">Objem · cíl <span id="tgtW">95</span> kg</p>
-          <div class="kpis">
-            <div class="kpi"><div class="l">Průměr 7 dní</div><div class="v" id="k-avg">—</div><div class="s" id="k-avgS"></div></div>
-            <div class="kpi"><div class="l">Tempo / týden</div><div class="v" id="k-rate">—</div><div class="s" id="k-rateS"></div></div>
+        <!-- 1. VÁHA: nabírám? jak rychle? kolik? -->
+        <div class="card span2" id="wCard">
+          <p class="q">Nabírám?</p>
+          <div class="whead">
+            <div><div class="wnow" id="wNow">—</div><div class="hint" id="wNowS" style="margin-top:4px"></div></div>
+            <div class="seg" id="wRange" role="group" aria-label="Rozsah grafu"><button type="button" data-r="28">4 týdny</button><button type="button" data-r="90">3 měsíce</button><button type="button" data-r="all">Vše</button></div>
           </div>
-          <div style="margin-top:12px" id="rateStatus"></div>
+          <div class="wstats" id="wStats"></div>
+          <div id="rateStatus"></div>
           <div class="suggest" id="kcalSuggest" hidden>
             <p id="ksTxt"></p>
             <div class="row"><button type="button" class="btn sm" id="ksApply">Zvýšit cíl</button><button type="button" class="btn ghost sm" id="ksLater">Teď ne</button></div>
           </div>
-          <div style="margin-top:14px">
-            <div class="goalrow"><b>Cesta na <span id="tgtW2">95</span> kg</b><span id="goalTxt">—</span></div>
+          <div id="wChart"></div>
+          <div style="margin-top:6px">
+            <div class="goalrow"><b>Cesta na <span id="tgtW">95</span> kg</b><span id="goalTxt">—</span></div>
             <div class="bar-track"><div class="bar-fill" id="goalBar" style="width:0%"></div></div>
             <div class="hint" id="etaTxt"></div>
           </div>
-        </div>
-
-        <div class="card">
-          <p class="sec-t">Tento týden</p>
-          <div class="kpis">
-            <div class="kpi"><div class="l">Tréninky</div><div class="v" id="k-train">—</div><div class="s" id="k-trainS"></div></div>
-            <div class="kpi"><div class="l">Návyky</div><div class="v" id="k-hab">—</div><div class="s">ze všech odškrtnutí</div></div>
-            <div class="kpi"><div class="l">Návyky v řadě</div><div class="v" id="k-streak">—</div><div class="s" id="k-streakS"></div></div>
-            <div class="kpi"><div class="l">Spánek Ø 7 dní</div><div class="v" id="k-sleep">—</div><div class="s" id="k-sleepS"></div></div>
-          </div>
-          <div class="weekgrid" id="weekGrid"></div>
-        </div>
-
-        <div class="card span2" id="wCard">
-          <div class="whead">
-            <div><p class="sec-t" style="margin-bottom:4px">Váha</p><div class="wnow" id="wNow">—</div><div class="hint" id="wNowS" style="margin-top:4px"></div></div>
-            <div class="seg" id="wRange" role="group" aria-label="Rozsah grafu"><button type="button" data-r="28">4 týdny</button><button type="button" data-r="90">3 měsíce</button><button type="button" data-r="all">Vše</button></div>
-          </div>
-          <div id="wChart"></div>
           <p class="wsub">Týden po týdnu <small>Ø týdne proti minulému · ideál +0,25–0,5 kg</small></p>
           <ul class="wweeks" id="wWeeks"></ul>
         </div>
 
-        <div class="card span2" id="mapCard">
-          <div class="sumhead" style="margin-bottom:10px">
-            <button class="iconbtn" id="mapPrev" aria-label="Předchozí rok"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button>
-            <div><h2 id="mapTitle" style="font-size:28px">Mapa roku</h2><p class="hint" style="margin:2px 0 0">každý den = návyky + trénink</p></div>
-            <button class="iconbtn" id="mapNext" aria-label="Další rok"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>
-          </div>
-          <div class="map-scroll" id="mapScroll">
-            <div class="map-months" id="mapMonths"></div>
-            <div class="map-wrap"><div class="map-days" aria-hidden="true"><span>Po</span><span></span><span>St</span><span></span><span>Pá</span><span></span><span>Ne</span></div><div class="map-grid" id="mapGrid"></div></div>
-          </div>
-          <div class="map-legend"><span>méně</span><i class="l0"></i><i class="l1"></i><i class="l2"></i><i class="l3"></i><span>celý den</span></div>
-          <div class="hint" id="mapStats"></div>
-        </div>
-
-        <div class="card span2" id="sumCard">
-          <div class="sumhead">
-            <button class="iconbtn" id="sumPrev" aria-label="Předchozí týden"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button>
-            <div><p class="sec-t" style="margin:0" id="sumLabel">Týdenní souhrn</p><h2 id="sumTitle" style="font-size:20px">—</h2></div>
-            <button class="iconbtn" id="sumNext" aria-label="Další týden"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>
-          </div>
-          <div class="kpis k4" id="sumKpis"></div>
-          <div class="sumcols">
-            <div><p class="sec-t" style="margin-top:14px">Cviky · nejlepší série týdne</p><ul class="lifts" id="sumLifts"></ul></div>
-            <div><p class="sec-t" style="margin-top:14px">Co z toho plyne</p><ul class="ins" id="sumIns"></ul></div>
-          </div>
-        </div>
-
+        <!-- 2. SÍLA: zvedám víc? o kolik? -->
         <div class="card span2">
-          <p class="sec-t">Síla · všechny cviky</p>
-          <div class="hint" style="margin:-6px 0 10px">Nejtěžší série každého cviku. ▲/▼ = proti minulému tréninku. Klikni na cvik pro graf a celou historii. Návrh: 8+ opakování → přidej váhu, 6–7 → přidej opakování.</div>
+          <p class="q">Zvedám víc?</p>
+          <div id="strengthSum"></div>
           <div id="strengthBox"></div>
         </div>
 
+        <!-- 3. NÁVYKY: jsem lepší? -->
         <div class="card">
-          <p class="sec-t">Kalorie · 14 dní</p>
-          <div id="kChart"></div>
-          <div class="hint" id="kAvg"></div>
-        </div>
-        <div class="card">
-          <p class="sec-t">Bílkoviny · 14 dní</p>
-          <div id="pChart"></div>
-          <div class="hint" id="pAvg"></div>
-        </div>
-        <div class="card span2">
-          <p class="sec-t">Spánek · 14 dní</p>
-          <div id="sChart"></div>
+          <p class="q">Jsem lepší v návycích?</p>
+          <div class="kpis">
+            <div class="kpi"><div class="l">Návyky tento týden</div><div class="v" id="k-hab">—</div><div class="s" id="k-habS"></div></div>
+            <div class="kpi"><div class="l">Tréninky</div><div class="v" id="k-train">—</div><div class="s" id="k-trainS"></div></div>
+            <div class="kpi"><div class="l">Všechny návyky v řadě</div><div class="v" id="k-streak">—</div><div class="s" id="k-streakS"></div></div>
+            <div class="kpi"><div class="l">Nejslabší návyk</div><div class="v sm" id="k-weak">—</div><div class="s" id="k-weakS"></div></div>
+          </div>
+          <div class="weekgrid" id="weekGrid"></div>
         </div>
 
-        <div class="card span2">
-          <p class="sec-t">Zeď rekordů</p>
-          <div class="recs" id="recordsBox"></div>
+        <!-- 4. SPÁNEK: je stabilní? -->
+        <div class="card">
+          <p class="q">Mám stabilní spánek?</p>
+          <div class="kpis">
+            <div class="kpi"><div class="l">Spánek Ø 7 dní</div><div class="v" id="k-sleep">—</div><div class="s" id="k-sleepS"></div></div>
+            <div class="kpi"><div class="l">Stabilita</div><div class="v sm" id="k-stab">—</div><div class="s" id="k-stabS"></div></div>
+          </div>
+          <div id="sChart" style="margin-top:10px"></div>
         </div>
 
-        <div class="card span2">
-          <p class="sec-t">Cíle</p>
-          <div class="stack" id="goalsBox"></div>
-        </div>
+        <!-- VÍC DETAILŮ -->
+        <details class="more span2" id="moreBox">
+          <summary>Víc detailů <small>souhrn týdne, jídlo, mapa roku, rekordy, cíle</small></summary>
+          <div class="ov">
+            <div class="card span2" id="sumCard">
+              <div class="sumhead">
+                <button class="iconbtn" id="sumPrev" aria-label="Předchozí týden"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button>
+                <div><p class="sec-t" style="margin:0" id="sumLabel">Týdenní souhrn</p><h2 id="sumTitle" style="font-size:20px">—</h2></div>
+                <button class="iconbtn" id="sumNext" aria-label="Další týden"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>
+              </div>
+              <div class="kpis k4" id="sumKpis"></div>
+              <div class="sumcols">
+                <div><p class="wsub">Cviky · nejlepší série týdne</p><ul class="lifts" id="sumLifts"></ul></div>
+                <div><p class="wsub">Co z toho plyne</p><ul class="ins" id="sumIns"></ul></div>
+              </div>
+            </div>
+            <div class="card">
+              <p class="sec-t">Kalorie · 14 dní</p>
+              <div id="kChart"></div>
+              <div class="hint" id="kAvg"></div>
+            </div>
+            <div class="card">
+              <p class="sec-t">Bílkoviny · 14 dní</p>
+              <div id="pChart"></div>
+              <div class="hint" id="pAvg"></div>
+            </div>
+            <div class="card span2" id="mapCard">
+              <div class="sumhead" style="margin-bottom:10px">
+                <button class="iconbtn" id="mapPrev" aria-label="Předchozí rok"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button>
+                <div><h2 id="mapTitle" style="font-size:28px">Mapa roku</h2><p class="hint" style="margin:2px 0 0">každý den = návyky + trénink</p></div>
+                <button class="iconbtn" id="mapNext" aria-label="Další rok"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>
+              </div>
+              <div class="map-scroll" id="mapScroll">
+                <div class="map-months" id="mapMonths"></div>
+                <div class="map-wrap"><div class="map-days" aria-hidden="true"><span>Po</span><span></span><span>St</span><span></span><span>Pá</span><span></span><span>Ne</span></div><div class="map-grid" id="mapGrid"></div></div>
+              </div>
+              <div class="map-legend"><span>méně</span><i class="l0"></i><i class="l1"></i><i class="l2"></i><i class="l3"></i><span>celý den</span></div>
+              <div class="hint" id="mapStats"></div>
+            </div>
+            <div class="card span2">
+              <p class="sec-t">Zeď rekordů</p>
+              <div class="recs" id="recordsBox"></div>
+            </div>
+            <div class="card span2">
+              <p class="sec-t">Cíle</p>
+              <div class="stack" id="goalsBox"></div>
+            </div>
+          </div>
+        </details>
       </div>
     </section>
 
@@ -802,7 +836,7 @@ nav.tabs button[aria-current="true"]{background:var(--cobalt);color:#fff}
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="app.js?v=23"></script>
+<script src="app.js?v=24"></script>
 <script type="module" src="ai.js?v=20"></script>
 </body>
 </html>

@@ -59,7 +59,7 @@ const SP = process.env.OUT;
   await p.click('nav.tabs button:nth-child(2)'); await p.waitForTimeout(400);
   console.log('kcalSuggest visible:', await p.isVisible('#kcalSuggest'), await p.textContent('#ksTxt'), await p.textContent('#ksApply'));
   await p.screenshot({ path: SP + '/m4_overview.png', fullPage: true });
-  await p.click('#sumPrev'); await p.waitForTimeout(200);
+  await p.click('#moreBox summary'); await p.waitForTimeout(300); await p.click('#sumPrev'); await p.waitForTimeout(200);
   console.log('sum prev title:', await p.textContent('#sumTitle'), '| ins:', await p.textContent('#sumIns'));
   // settings PDF
   await p.click('nav.tabs button[data-view="settings"]'); await p.waitForTimeout(300);

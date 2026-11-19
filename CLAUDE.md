@@ -31,7 +31,7 @@ Osobní PWA tracker Marka (váha, kcal, bílkoviny, spánek, energie, trénink a
 - Ukládání: `patchDay` (debounce 600 ms) + `flushSave` na pagehide/visibility/přepnutí dne, `trackSave` → indikátor synchronizace.
 - Progresivní přetížení: každý cvik v `PLAN` má ID (3. prvek) a zapisuje se nejtěžší série; `LIFTS` (všechny cviky, stejné ID = společná historie, např. `lateral`, `bayes`, `triceps`), `MAIN_LIFTS` (6 hlavních pro zeď rekordů), `LIFT_STEP` (výchozí 2,5), `liftHistory`, `liftSuggestion` (8+ opak. → +krok; 6–7 → stejná váha +1 opak.; 2× pod 6 → −krok), `liftCompare` (víc/stejně/míň než minule), `liftStalled` (3× stejně), e1RM = w·(1+r/30).
 - Cviky dne: `exIdsFor(k)` (pořadí = `day.ex` jen pro tento týden › `settings.planEx[číslo dne plánu]` natrvalo › `PLAN`), `planExIds(dn)`, `EX` (id → název, série). Menu ⋯ u cviku: ↑/↓, přesun na jiný gym den týdne, přepínač Jen tento týden / Natrvalo (`editEx`), „Vrátit původní cviky“.
-- Přehled = sekce Váha (`#wCard`), Síla (`#strengthSum` + top 3 změny, detail `renderStrength` + rekordy), Jídlo (`renderFood`), Spánek, Návyky (detail mapa roku + cíle); každá sekce má vlastní `<details class="det">`, žádný společný „Víc detailů“. Historie dní je v Nastavení (`#histCard`), záložky jsou 4: Dnes, Přehled, Poznámky, Nastavení. Týdenní souhrn zrušen. Spánek: (`renderSleepCard`, stabilita = rozptyl délky a času usínání; `sleepTimeline` = 7 nocí jako čáry usnutí→vstávání, cílové okno `SLEEP_WIN` 22:30–23:30; návyky `habitTable` = návyk × den, krátké názvy `HABITS[].s`). Zbytek (souhrn týdne, kalorie, bílkoviny, mapa roku, rekordy, cíle) v `<details id="moreBox">` „Víc detailů“.
+- Přehled = sekce Váha (`#wCard`), Síla (`#strengthSum` + top 3 změny, detail `renderStrength` + rekordy), Jídlo (`renderFood`), Spánek, Návyky (detail mapa roku + cíle); každá sekce má vlastní `<details class="det">`, žádný společný „Víc detailů“. Historie dní je v Nastavení (`#histCard`), záložky jsou 4: Dnes, Přehled, Poznámky, Nastavení. Týdenní souhrn zrušen. Spánek: (`renderSleepCard`, stabilita = rozptyl délky a času usínání; `sleepTimeline` = 7 nocí jako čáry usnutí→vstávání, cílové okno `SLEEP_WIN` 22:30–23:30; návyky `habitTable` = návyk × den, krátké názvy `HABITS[].s`).
 - Váha na Přehledu: `renderWeightCard` (graf `weightChart` s rozsahem 4 týdny/3 měsíce/vše v `localStorage["tvt-wrange"]`, týden po týdnu `weekWeight` + `weekChange` = Ø týdne proti Ø minulého), na Dnes řádek `#weightWeek`.
 - Poznámky/úkoly: `folders()`, `isTasks()`, `renderNotes`, `bindNotes`, `checkReminders` (in-app připomínky, každých 20 s), `renderTaskBanner`.
 - **Google Kalendář** (sekce „Google Kalendář“): GIS token client (`accounts.google.com/gsi/client`), scope `calendar.events`, token jen na klepnutí uživatele (popup), v sessionStorage `tvt-gtok`. `calSync(id)` dorovná událost podle úkolu (vytvořit / PATCH / DELETE při hotovo nebo smazání), chyby → `calPending` + tlačítko „Synchronizovat kalendář“. Režim „cal“ potlačí in-app připomínku.
@@ -41,7 +41,7 @@ Osobní PWA tracker Marka (váha, kcal, bílkoviny, spánek, energie, trénink a
 - `index.html` načítá `config.js?v=N`, `app.js?v=N`, `ai.js?v=N`, ikony `?v=N`. Při změně souboru **zvyš jeho `?v=`** (jinak telefon drží starý JS s novým HTML).
 - `sw.js`: `CACHE = "tvt-vN"` – **zvyš při každém nasazení**. Same-origin network-first, `ignoreSearch` fallback; `LIBS` (`tvt-libs-1`, gstatic firebase) cache-first a zůstává napříč verzemi.
 - `manifest.json` se v `index.html` odkazuje **bez** `?v=` (jinak se rozbije aktualizace WebAPK ikony).
-- Aktuálně: app.js v27, config/ai v20, `CACHE = "tvt-v27"`.
+- Aktuálně: app.js v27, config/ai v20, `CACHE = "tvt-v28"`.
 
 ## Nasazení
 1. Změny + testy (níže) + lint.
@@ -64,8 +64,8 @@ Nejdřív vytvoř `.gitignore` s `tests/node_modules/` a `tests/out/`, ať se to
 
 ## Design (Graphite, výchozí tmavý)
 - Paleta **Graphite** (černá, grafit, ocel, křída; barva jen pro stav good/warn/bad). Tokeny v `:root` (světlý) a `html[data-theme="dark"]` (výchozí); jména tokenů (`--cobalt`, `--sage`, `--coral`…) zůstala historická, ale mají šedé/bílé hodnoty. `--hero`, `--train` = hlavička a blok tréninku. Přepínač ukládá `localStorage["tvt-theme2"]`. Náčrt vzhledu v `design/` (necommitovat).
-- Plovoucí pilulková navigace s 5 záložkami (Dnes, Přehled, Historie, Poznámky, Nastavení). Testy hledají záložky přes `data-view`.
-- Logo „Zrcadlo“ v Graphite (bílé T, šedý odraz, černé pozadí); zdroj `icons/logo.svg`, PNG se renderují z něj (Playwright screenshot).
+- Plovoucí pilulková navigace se 4 záložkami (Dnes, Přehled, Poznámky, Nastavení). Testy hledají záložky přes `data-view`.
+- Logo „T / T“ (bílé T = ty dnes, šedé T = ty včera, lomítko); zdroj `icons/logo.svg`, PNG se renderují z něj (Playwright screenshot, maskable se zmenšením .78), v hlavičce inline `.brand .mark`.
 
 ## Nápady / backlog (nic z toho neschváleno, napřed se zeptej)
 - Normální osobní kalendář přímo v appce (Marek chce „později“).

@@ -1,7 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <!-- Ty vs. Ty · logo „Zrcadlo“ (Graphite): T a jeho odraz pod zrcadlovou linkou -->
-  <rect width="512" height="512" fill="#0B0C0D"/>
-  <path d="M122 82h267v71h-97v92h-72v-92h-98z" fill="#F0F0EC"/>
-  <rect x="122" y="254" width="267" height="3" fill="#3A3F44"/>
-  <path d="M220 266h72v92h97v72h-267v-72h98z" fill="#6B7178"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96">
+  <!-- Ty vs. Ty · logo „T / T“ (Graphite): bílé T = ty dnes, šedé T = ty včera, lomítko = zápas -->
+  <rect width="96" height="96" fill="#0B0C0D"/>
+  <path d="M12 28h28v10h-9v30H21V38h-9z" fill="#F0F0EC"/>
+  <path d="M56 28h28v10h-9v30H65V38h-9z" fill="#6B7178"/>
+  <path d="M52 22L44 74" stroke="#F0F0EC" stroke-width="4"/>
 </svg>

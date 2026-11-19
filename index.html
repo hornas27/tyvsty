@@ -7,8 +7,8 @@
 <meta name="theme-color" content="#000000">
 <link rel="manifest" href="manifest.json">
 <script>try{if(localStorage.getItem("tvt-theme2")==="light")document.documentElement.removeAttribute("data-theme")}catch(e){}</script>
-<link rel="icon" href="icons/icon-192.png?v=20">
-<link rel="apple-touch-icon" href="icons/icon-192.png?v=20">
+<link rel="icon" href="icons/icon-192.png?v=21">
+<link rel="apple-touch-icon" href="icons/icon-192.png?v=21">
 <style>
 /* Layout: one column (max 560px) on phone, two-column overview on desktop; bottom tab bar on phone, top nav on desktop */
 /* Vzhled „Graphite“: černá, grafit, ocel, křída; barva jen pro stav (good/warn/bad). Výchozí tmavý (data-theme="dark"), světlý na přepnutí v Nastavení. */
@@ -250,6 +250,8 @@ html,body{overflow-x:clip}
 .top{background:var(--hero);color:var(--hero-ink);margin:0 calc(50% - 50vw);padding:calc(14px + env(safe-area-inset-top,0px)) max(18px,calc(50vw - 472px)) 12px;margin-top:calc(-1 * env(safe-area-inset-top,0px))}
 .brand{font-family:var(--f-display);font-weight:900;font-size:26px;letter-spacing:.01em;text-transform:uppercase;line-height:1}
 .brand em{font-style:normal;color:#8C9299}
+.brand{display:flex;align-items:center;gap:9px}
+.brand .mark{width:30px;height:22px;flex:none}
 .top .mode{color:rgba(255,255,255,.85);letter-spacing:.04em;text-transform:none;font-size:12px;margin-top:4px}
 .top .mode.off{color:var(--bad)}
 .top .save{color:rgba(255,255,255,.85)}
@@ -562,7 +564,7 @@ details.histcard[open]>summary{margin-bottom:10px}
 <div class="wrap">
   <header class="top">
     <div>
-      <div class="brand">Ty <em>vs.</em> Ty</div>
+      <div class="brand"><svg class="mark" viewBox="10 20 76 56" aria-hidden="true"><path d="M12 28h28v10h-9v30H21V38h-9z" fill="currentColor"/><path d="M56 28h28v10h-9v30H65V38h-9z" fill="var(--soft)"/><path d="M52 22L44 74" stroke="currentColor" stroke-width="4"/></svg><span>Ty <em>vs.</em> Ty</span></div>
       <div class="mode" id="mode"></div>
     </div>
     <div class="save" id="saveState" aria-live="polite"></div>

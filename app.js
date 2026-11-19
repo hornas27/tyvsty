@@ -40,9 +40,14 @@
     { k: "gauc", s: "Bez gauče", t: "Nespal jsem na gauči" },
     { k: "zapis", s: "Zápis do sešitu", t: "Zápis do sešitu: pocity, práce, sport + časy na zítřek" },
     { k: "budik", s: "1 budík", t: "Vstal jsem na 1 budík", since: "2026-11-10" },
-    { k: "kreatin", s: "Kreatin", t: "Kreatin 10–15 g", since: "2026-11-13" }
+    { k: "kreatin", s: "Kreatin", t: "Kreatin 10–15 g", since: "2026-11-13" },
+    { k: "rannibeh", s: "Ranní běh", t: "Ranní běh 3–5 km", perWeek: 3, since: "2026-11-16" }
   ];
-  const habitsFor = k => HABITS.filter(h => !h.since || k >= h.since);
+  // vlastní návyky jsou jen v settings.customHabits (soukromě ve Firestore, ne v kódu – repo je veřejné)
+  const habitDefs = () => HABITS.concat((state.settings.customHabits || []).map(h => ({ ...h, s: h.t.length > 20 ? h.t.slice(0, 19) + "…" : h.t, custom: true })));
+  const habitsFor = k => habitDefs().filter(h => !h.perWeek && (!h.since || k >= h.since)); // denní návyky (skóre, série, mapa)
+  const weeklyFor = k => habitDefs().filter(h => h.perWeek && (!h.since || k >= h.since)); // X× týdně
+  const weeklyCount = (h, k) => { const mon = mondayOf(k); let n = 0; for (let i = 0; i < 7; i++) if (((state.days[addDays(mon, i)] || {}).habits || {})[h.k]) n++; return n; };
   // trénink dne: podle dne v týdnu, nebo prohozený s jiným dnem téhož týdne (day.plan = číslo dne, jehož trénink se dělá)
   const planKey = k => { const p = (state.days[k] || {}).plan; return p != null && PLAN[p] ? Number(p) : parseKey(k).getDay(); };
   const planOf = k => PLAN[planKey(k)];
@@ -205,7 +210,8 @@
     $("exList").hidden = p.type !== "gym";
     $("runField").hidden = p.type !== "run";
     if (p.type === "gym") renderExList(k);
-    $("habitBox").innerHTML = habitsFor(k).map(h => chkHtml("h-" + h.k, h.t, "", !!(d.habits || {})[h.k])).join("");
+    $("habitBox").innerHTML = habitsFor(k).map(h => chkHtml("h-" + h.k, h.t, "", !!(d.habits || {})[h.k])).join("") +
+      weeklyFor(k).map(h => chkHtml("h-" + h.k, h.t, weeklyCount(h, k) + "/" + h.perWeek + " tento týden · " + h.perWeek + "× týdně", !!(d.habits || {})[h.k])).join("");
     renderEnergy(d);
     renderFavs();
     renderBanners();
@@ -248,6 +254,7 @@
 
   function renderTodayDerived() {
     const d = currentDay(), s = state.settings;
+    renderCoach();
     const h = sleepHours(d.bed, d.wake);
     $("sleepHint").textContent = h != null ? "Spánek: " + fmtH(h) + (h < s.sleepTarget ? " · pod cílem " + s.sleepTarget + " h" : " ✓") : "";
     const ww = weekWeight(mondayOf(state.key), state.key), wc = weekChange(ww.ch), thisWk = mondayOf(state.key) === mondayOf(todayKey());
@@ -274,7 +281,7 @@
       const el = e.target.closest(".chk"); if (!el) return;
       const id = el.dataset.id, d = currentDay();
       if (id === "training") patchDay({ training: !d.training }, true);
-      else { const hk = id.slice(2); patchDay({ habits: { [hk]: !(d.habits || {})[hk] } }, true); }
+      else { const hk = id.slice(2); patchDay({ habits: { [hk]: !(d.habits || {})[hk] } }, true); if (weeklyFor(state.key).some(h => h.k === hk)) renderToday(); }
     };
     $("trainBox").addEventListener("click", toggle);
     $("swapSel").addEventListener("change", e => { if (e.target.value) swapPlan(state.key, e.target.value); });
@@ -889,6 +896,85 @@
       <div><div class="goalrow"><b>Půlmaraton pod 1:40</b><span>${hm ? "za " + wksToHm + " týdnů · " + hm.toLocaleDateString("cs-CZ", { month: "long", year: "numeric" }) : "—"}</span></div><div class="hint">Tempo 4:44 / km</div></div>`;
   }
 
+  // ---------- KOUČ: připravenost, dnešní plán, hlídač (pevná pravidla, počítá se v telefonu, bez AI) ----------
+  const daysBetween = (a, b) => Math.round((parseKey(b) - parseKey(a)) / 864e5);
+  const fmtHM = h => Math.floor(h) + ":" + String(Math.round((h % 1) * 60)).padStart(2, "0");
+  function readiness(k) {
+    const s = state.settings, d = state.days[k] || {}, h = sleepHours(d.bed, d.wake), e = d.energy, b = bedMin(d.bed);
+    if (h == null && e == null) return null;
+    let load = 0; for (let i = 1; i <= 2; i++) if ((state.days[addDays(k, -i)] || {}).training) load++;
+    const target = s.sleepTarget || 7.5;
+    const sSleep = h != null ? Math.max(0, Math.min(45, 45 * h / target)) : 25;
+    const sReg = b == null ? 8 : b <= SLEEP_WIN[1] ? 15 : Math.max(0, 15 - (b - SLEEP_WIN[1]) / 10);
+    const sEn = e != null ? (e - 1) / 4 * 25 : 15;
+    const sLoad = [15, 10, 5][load];
+    const score = Math.round(Math.min(100, sSleep + sReg + sEn + sLoad));
+    const why = [];
+    if (h != null && h < target - 0.75) why.push("Spal jsi jen " + fmtHM(h) + ".");
+    if (b != null && b > SLEEP_WIN[1] + 30) why.push("Usnul jsi až v " + fmtMin(b) + ".");
+    if (e != null && e <= 2) why.push("Energie je nízko.");
+    if (load === 2) why.push("Máš za sebou 2 tréninky v řadě.");
+    if (!why.length) why.push(h != null && e != null ? "Spánek i energie sedí." : h != null ? "Spánek sedí. Doplň energii." : "Energie sedí. Doplň spánek.");
+    const lvl = score >= 70 ? ["Jeď naplno.", "good"] : score >= 50 ? ["Normální den.", "warn"] : ["Dneska ubrat.", "bad"];
+    return { score, head: lvl[0], cls: lvl[1], why: why.slice(0, 2).join(" "), facts: [["spánek", h != null ? fmtHM(h) : "—"], ["energie", e != null ? e + "/5" : "—"], ["zátěž", ["nízká", "střední", "vysoká"][load]]] };
+  }
+  function coachPlan(k) {
+    const d = state.days[k] || {}, s = state.settings, p = planOf(k), pt = proteinTarget(), out = [];
+    const ww = weekWeight(mondayOf(k), k), wc = weekChange(ww.ch);
+    out.push({ done: d.weight != null, t: "Zvážit se", s: d.weight != null ? nf1.format(d.weight) + " kg" + (ww.ch != null ? " · tento týden " + wc.v : "") : "ráno po záchodě, než se najíš" });
+    if (p.type === "gym") {
+      let tip = ""; for (const id of exIdsFor(k)) { const sg = liftSuggestion(id, k); if (sg) { tip = LIFTS[id] + " zkus " + fmtKg(sg.w) + " kg × " + sg.r; break; } }
+      out.push({ done: !!d.training, t: "Gym · " + p.label, s: tip || "zapiš nejtěžší sérii u každého cviku" });
+    } else out.push({ done: !!d.training, t: (p.optional ? "Volitelně · " : "Běh · ") + p.label, s: d.run ? d.run.split("\n")[0].slice(0, 70) : p.optional ? "jen když se cítíš dobře" : "plán běhu vlož v Tréninku" });
+    const y = state.days[addDays(k, -1)] || {}, miss = y.kcal != null ? s.kcalTarget - y.kcal : null;
+    out.push({ done: d.kcal != null && d.kcal >= s.kcalTarget && (!pt || (d.protein != null && d.protein >= pt)), t: "Sníst " + nf0.format(s.kcalTarget) + " kcal" + (pt ? " a " + pt + " g bílkovin" : ""),
+      s: d.kcal != null ? "zatím " + nf0.format(d.kcal) + " kcal" + (d.protein != null ? " · " + nf0.format(d.protein) + " g" : "") : miss > 150 ? "včera chybělo " + nf0.format(miss) + " kcal, přidej jídlo navíc" : "zapisuj jídla během dne" });
+    weeklyFor(k).forEach(h => { const n = weeklyCount(h, k); if (n < h.perWeek || (d.habits || {})[h.k]) out.push({ done: !!(d.habits || {})[h.k], t: h.t, s: n + "/" + h.perWeek + " tento týden" }); });
+    const lb = bedMin(d.bed);
+    out.push({ done: null, t: "Do postele do 23:30", s: lb != null && lb > SLEEP_WIN[1] ? "Včera jsi usnul v " + fmtMin(lb) + ". Mobil pryč v 21:00." : "Mobil pryč v 21:00." });
+    return out;
+  }
+  function coachWatch(k) {
+    const s = state.settings, probs = [], good = [], pt = proteinTarget(), snooze = s.coachSnooze || {};
+    const lw = Object.keys(state.days).filter(x => x <= k && state.days[x].weight != null).sort().pop();
+    if (lw && daysBetween(lw, k) >= 2) probs.push({ id: "noweigh", lvl: "warn", t: daysBetween(lw, k) + " " + dni(daysBetween(lw, k)) + " bez vážení", s: "Bez vážení nepoznáš, jestli nabíráš. Ráno na váhu." });
+    const r = rateAt(k), sg = v => (v >= 0 ? "+" : "−") + nf1.format(Math.abs(v)) + " kg";
+    if (r != null && r < 0.25) probs.push({ id: "rate-slow", lvl: "warn", t: "Nabíráš pomalu: " + sg(r) + " za týden", s: "Přidej zhruba 200 kcal denně." });
+    else if (r != null && r > 0.5) probs.push({ id: "rate-fast", lvl: "warn", t: "Nabíráš moc rychle: " + sg(r) + " za týden", s: "Uber zhruba 200 kcal, ať nenabíráš tuk." });
+    else if (r != null) good.push({ id: "rate-ok", lvl: "good", t: "Ideální tempo: " + sg(r) + " za týden", s: "Jídlo sedí. Takhle dál." });
+    const d1 = state.days[addDays(k, -1)] || {}, d2 = state.days[addDays(k, -2)] || {};
+    if (d1.kcal != null && d2.kcal != null && d1.kcal < s.kcalTarget && d2.kcal < s.kcalTarget) probs.push({ id: "kcal", lvl: "bad", t: "2 dny pod cílem kalorií", s: "Bez jídla objem nebude. Dnes dotáhni " + nf0.format(s.kcalTarget) + " kcal." });
+    else if (pt && d1.protein != null && d2.protein != null && d1.protein < pt && d2.protein < pt) probs.push({ id: "prot", lvl: "bad", t: "2 dny málo bílkovin", s: "Cíl je " + pt + " g. Přidej tvaroh, maso nebo shake." });
+    let late = 0; for (let i = 0; i < 7; i++) { const b = bedMin((state.days[addDays(k, -i)] || {}).bed); if (b != null && b > SLEEP_WIN[1]) late++; }
+    if (late >= 3) probs.push({ id: "late", lvl: "warn", t: late + "× usnul po 23:30 za týden", s: "Svaly rostou ve spánku. Dnes mobil pryč v 21:00." });
+    const stuck = Object.keys(LIFTS).filter(id => liftStalled(liftHistory(id, addDays(k, 1))));
+    if (stuck.length) probs.push({ id: "stall", lvl: "warn", t: LIFTS[stuck[0]] + " stojí 3 tréninky" + (stuck.length > 1 ? " (a " + (stuck.length - 1) + " další)" : ""), s: "Příště přidej 1 opakování nebo 2,5 kg." });
+    const per = {}; for (let i = 1; i <= 14; i++) { const x = addDays(k, -i), d = state.days[x] || {}; habitsFor(x).forEach(h => { per[h.k] = per[h.k] || { h, n: 0, of: 0 }; per[h.k].of++; if ((d.habits || {})[h.k]) per[h.k].n++; }); }
+    const weak = Object.values(per).filter(x => x.of >= 5 && x.n / x.of < 0.5).sort((a, b) => a.n / a.of - b.n / b.of)[0];
+    if (weak) probs.push({ id: "habit-" + weak.h.k, lvl: "bad", t: (weak.h.s || weak.h.t) + ": " + weak.n + "/" + weak.of + " za 14 dní", s: "Tvoje nejslabší místo. Dnes ho dej jako první." });
+    const left = 7 - ((parseKey(k).getDay() + 6) % 7); // zbývající dny týdne včetně dneška
+    weeklyFor(k).forEach(h => { const n = weeklyCount(h, k), need = h.perWeek - n; if (need > 0 && need >= left) probs.push({ id: "week-" + h.k, lvl: need > left ? "bad" : "warn", t: h.t + ": " + n + "/" + h.perWeek, s: need > left ? "Tento týden už to nedáš. Příští týden začni hned v pondělí." : "Zbývá " + left + " " + dni(left) + " a potřebuješ " + need + "×. Bez výmluv." }); });
+    // pochvaly
+    Object.keys(LIFTS).forEach(id => { const h = liftHistory(id, addDays(k, 1)); if (h.length < 2) return; const recent = h.filter(x => x.k > addDays(k, -3)), older = h.filter(x => x.k <= addDays(k, -3)); if (!recent.length || !older.length) return; const best = recent.reduce((a, x) => x.e > a.e ? x : a), prev = Math.max(...older.map(x => x.e)); if (best.e > prev + 0.01) good.unshift({ id: "pr-" + id + "-" + best.k, lvl: "good", t: "Rekord: " + LIFTS[id] + " " + fmtLift(best), s: "Přesně tohle. Drž to." }); });
+    const sk = streaks(k); if (sk.cur >= 3) good.unshift({ id: "streak-" + k, lvl: "good", t: sk.cur + " " + dni(sk.cur) + " v řadě všechny návyky", s: "Dnes to nepřeruš." });
+    const vis = x => !(snooze[x.id] && snooze[x.id] >= k);
+    const P = probs.filter(vis).sort((a, b) => (a.lvl === "bad" ? 0 : 1) - (b.lvl === "bad" ? 0 : 1)), G = good.filter(vis);
+    return P.slice(0, G.length ? 2 : 3).concat(G.slice(0, 1));
+  }
+  function renderCoach() {
+    const k = state.key, card = $("coachCard");
+    if (state.settings.coachOff || k !== todayKey()) { card.hidden = true; return; }
+    card.hidden = false;
+    const r = readiness(k);
+    $("coachReady").innerHTML = r ? `<svg viewBox="0 0 96 96" width="84" height="84" role="img" aria-label="Připravenost ${r.score} ze 100"><circle cx="48" cy="48" r="40" fill="none" stroke="var(--sage-l)" stroke-width="9"/><circle cx="48" cy="48" r="40" fill="none" stroke="var(--ink)" stroke-width="9" stroke-linecap="round" stroke-dasharray="${(251.3 * r.score / 100).toFixed(1)} 251.3" transform="rotate(-90 48 48)"/><text x="48" y="58" text-anchor="middle" class="rnum">${r.score}</text></svg>
+      <div><p class="lbl">Připravenost</p><b class="rhead ${r.cls}">${r.head}</b><p class="rwhy">${esc(r.why)}</p><div class="facts">${r.facts.map(f => `<span>${f[0]} <b>${f[1]}</b></span>`).join("")}</div></div>`
+      : `<div class="rempty"><p class="lbl">Připravenost</p><p class="rwhy">Zapiš, kdy jsi šel spát a vstal, a jak se cítíš. Kouč pak řekne, jestli dnes jet naplno.</p></div>`;
+    $("coachPlan").innerHTML = coachPlan(k).map(t => `<div class="ctask"><i class="${t.done ? "y" : t.done === null ? "o" : ""}" aria-label="${t.done ? "hotovo" : t.done === null ? "večer" : "zbývá"}"></i><div><b>${esc(t.t)}</b><small>${esc(t.s)}</small></div></div>`).join("");
+    const w = coachWatch(k);
+    $("coachWatchWrap").hidden = !w.length;
+    $("coachWatch").innerHTML = w.map(x => `<div class="calert ${x.lvl}"><div><b>${esc(x.t)}</b><small>${esc(x.s)}</small></div><button type="button" class="linkbtn" data-snooze="${esc(x.id)}">Beru</button></div>`).join("");
+  }
+
   // ---------- jídlo: Ø 7 dní proti cíli ----------
   function renderFood() {
     const s = state.settings, tk = todayKey(), pt = proteinTarget();
@@ -963,9 +1049,13 @@
   // ---------- návyky: tabulka týdne (návyk × den) ----------
   function habitTable(mon) {
     const tk = todayKey(), days = [0, 1, 2, 3, 4, 5, 6].map(i => addDays(mon, i));
-    const hs = HABITS.filter(h => !h.since || h.since <= days[6]);
+    const hs = habitDefs().filter(h => !h.since || h.since <= days[6]);
     const rows = hs.map(h => {
       let n = 0, of = 0;
+      if (h.perWeek) {
+        const cellsW = days.map(k => { if (h.since && k < h.since) return `<td></td>`; const on = !!((state.days[k] || {}).habits || {})[h.k]; if (on) n++; return `<td>${on ? `<i class="c y" title="${fmtShort(k)}: splněno"></i>` : k > tk ? `<i class="c f"></i>` : ""}</td>`; }).join("");
+        return { h, n, of: h.perWeek, cells: cellsW, weekly: true };
+      }
       const cells = days.map(k => {
         if (h.since && k < h.since) return `<td></td>`;
         const on = !!((state.days[k] || {}).habits || {})[h.k];
@@ -975,7 +1065,7 @@
       }).join("");
       return { h, n, of, cells };
     });
-    const weakest = rows.filter(r => r.of && r.n / r.of < 0.5).sort((a, b) => a.n / a.of - b.n / b.of)[0];
+    const weakest = rows.filter(r => !r.weekly && r.of && r.n / r.of < 0.5).sort((a, b) => a.n / a.of - b.n / b.of)[0];
     return `<table class="hab" aria-label="Návyky po dnech tohoto týdne"><thead><tr><th scope="col">Návyk</th>${days.map(k => `<th scope="col"${k === tk ? ' class="now"' : ""}>${DAYS_SHORT[parseKey(k).getDay()]}</th>`).join("")}<th scope="col">Σ</th></tr></thead><tbody>
       ${rows.map(r => `<tr><td title="${esc(r.h.t)}">${esc(r.h.s || r.h.t)}</td>${r.cells}<td${r === weakest ? ' class="bad"' : ""}>${r.of ? r.n + "/" + r.of : "—"}</td></tr>`).join("")}</tbody></table>
       <div class="legend"><span><i class="c y"></i>splněno</span><span><i class="c n"></i>nesplněno</span><span><i class="c f"></i>ještě nebylo</span></div>`;
@@ -1134,6 +1224,9 @@
   // ---------- SETTINGS / EXPORT ----------
   function renderSettings() {
     const s = state.settings;
+    $("coachOff").checked = !s.coachOff;
+    const ch = s.customHabits || [];
+    $("chList").innerHTML = ch.length ? ch.map(h => `<li><span>${esc(h.t)}</span><small>${h.perWeek ? h.perWeek + "× týdně" : "denně"}</small><button type="button" class="linkbtn del${state.chArm === h.k ? " armed" : ""}" data-chdel="${esc(h.k)}">${state.chArm === h.k ? "Opravdu odebrat?" : "Odebrat"}</button></li>`).join("") : `<li class="empty">Zatím žádné vlastní návyky.</li>`;
     if ($("histCard").open) renderHistory();
     $("s-startW").value = s.startWeight ?? ""; $("s-startD").value = s.startDate ?? "";
     $("s-targetW").value = s.targetWeight ?? ""; $("s-kcal").value = s.kcalTarget ?? "";
@@ -1611,6 +1704,23 @@
       const b = e.target.closest("button[data-r]"); if (!b) return;
       state.wRange = b.dataset.r; try { localStorage.setItem("tvt-wrange", b.dataset.r); } catch (er) { /* bez úložiště */ }
       renderWeightCard();
+    });
+    $("coachWatch").addEventListener("click", e => {
+      const b = e.target.closest("[data-snooze]"); if (!b) return;
+      const tk = todayKey(), sn = {}; Object.entries(state.settings.coachSnooze || {}).forEach(([id, until]) => { if (until >= tk) sn[id] = until; });
+      sn[b.dataset.snooze] = addDays(tk, 2); saveSettingsPatch({ coachSnooze: sn });
+    });
+    $("coachOff").addEventListener("change", e => saveSettingsPatch({ coachOff: !e.target.checked }, e.target.checked ? "Kouč zapnutý" : "Kouč vypnutý"));
+    $("chAdd").onclick = () => {
+      const t = $("chName").value.trim(); if (!t) { $("chName").focus(); return; }
+      const pw = Number($("chFreq").value) || null;
+      const list = (state.settings.customHabits || []).concat({ k: "c" + Date.now().toString(36), t: t.slice(0, 60), perWeek: pw, since: todayKey() });
+      $("chName").value = ""; saveSettingsPatch({ customHabits: list }, "Návyk přidán ✓");
+    };
+    $("chList").addEventListener("click", e => {
+      const b = e.target.closest("[data-chdel]"); if (!b) return;
+      if (state.chArm !== b.dataset.chdel) { state.chArm = b.dataset.chdel; renderSettings(); return; }
+      state.chArm = null; saveSettingsPatch({ customHabits: (state.settings.customHabits || []).filter(h => h.k !== b.dataset.chdel) }, "Návyk odebrán");
     });
     bindToday(); bindLifts(); bindWeekBox(); bindFood(); bindSettings(); bindAuth(); bindNotes(); bindTasks();
     $("mapPrev").onclick = () => { state.mapYear = (state.mapYear || Number(todayKey().slice(0, 4))) - 1; renderYearMap(); };

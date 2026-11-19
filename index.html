@@ -558,6 +558,51 @@ details.histcard[open]>summary{margin-bottom:10px}
 .meter .mtrack{height:8px;border-radius:99px;background:var(--sage-l);margin-top:6px;overflow:hidden}
 .meter .mtrack i{display:block;height:100%;border-radius:99px;background:var(--ink)}
 .meter .ms{font-size:12px;color:var(--soft);margin-top:4px}
+/* ---------- Graphite 2: sjednocený vzhled ---------- */
+.card{border:1px solid var(--line);border-radius:14px;padding:16px}
+.sec-t{font-family:var(--f-body);font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--soft);margin:0 0 12px;line-height:1.2}
+.blk-train .sec-t{color:#3A3F44}
+.blk-dark .sec-t{color:var(--soft)}
+.hero h2{font-size:52px}
+.kpi,.panel,.hrow,.banner,.suggest,.rec{border-radius:12px}
+.q{font-size:24px}
+.lbl{font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--soft);margin:0}
+/* kouč */
+.coach{display:block}
+.cready{display:grid;grid-template-columns:84px minmax(0,1fr);gap:14px;align-items:center}
+.cready .rempty{grid-column:1/-1}
+.cready svg text.rnum{font-family:var(--f-display);font-weight:900;font-size:30px;fill:var(--ink)}
+.rhead{display:block;font-size:18px;font-weight:700;margin-top:2px}
+.rhead.good{color:var(--good)}.rhead.warn{color:var(--warn)}.rhead.bad{color:var(--bad)}
+.rwhy{margin:2px 0 0;font-size:13.5px;color:var(--ink)}
+.facts{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.facts span{font-size:11.5px;background:var(--sage-l);border-radius:6px;padding:3px 7px;color:var(--soft)}
+.facts span b{color:var(--ink);font-weight:700}
+.ctask{display:grid;grid-template-columns:22px minmax(0,1fr);gap:10px;padding:10px 0;border-top:1px solid var(--line)}
+.ctask:first-child{border-top:0}
+.ctask i{width:20px;height:20px;border-radius:50%;border:1.5px solid var(--soft);margin-top:1px;position:relative}
+.ctask i.y{background:var(--ink);border-color:var(--ink)}
+.ctask i.y::after{content:"";position:absolute;left:5px;top:5px;width:8px;height:4px;border-left:2px solid var(--bg);border-bottom:2px solid var(--bg);transform:rotate(-45deg)}
+.ctask i.o{border-style:dashed}
+.ctask b{display:block;font-weight:700;font-size:14.5px}
+.ctask small{display:block;color:var(--soft);font-size:12.5px;margin-top:1px}
+.cwatch{display:flex;flex-direction:column;gap:8px}
+.calert{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;background:var(--sage-l);border-radius:10px;padding:10px 12px;border-left:4px solid var(--soft)}
+.calert.warn{border-left-color:var(--warn)}.calert.bad{border-left-color:var(--bad)}.calert.good{border-left-color:var(--good)}
+.calert b{display:block;font-size:14px}
+.calert small{display:block;color:var(--soft);font-size:12.5px;margin-top:1px}
+.calert .linkbtn{color:var(--soft);font-size:12px}
+/* nastavení: kouč a vlastní návyky */
+.switch{display:flex;align-items:center;gap:10px;min-height:44px;font-weight:700;cursor:pointer}
+.switch input{width:22px;height:22px;accent-color:var(--ink)}
+.chlist{list-style:none;margin:0 0 12px;padding:0}
+.chlist li{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:10px;align-items:center;padding:8px 0;border-top:1px solid var(--line)}
+.chlist li span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chlist li small{color:var(--soft);font-size:12px}
+.chlist li.empty{display:block;color:var(--soft);font-size:13px}
+.chlist .del.armed{color:var(--bad)}
+.chadd{display:grid;grid-template-columns:minmax(0,1fr) 130px;gap:10px;align-items:end}
+.chadd .btn{grid-column:1/-1;justify-self:start}
 </style>
 </head>
 <body>
@@ -606,7 +651,13 @@ details.histcard[open]>summary{margin-bottom:10px}
       <div class="herogoal" id="heroGoal"><div class="hg-row"><span id="hgNow">—</span><span id="hgTgt">cesta na 95 kg</span></div><div class="hg-track"><i id="hgBar"></i></div></div>
       </div>
 
-      <div class="banner" id="sumBanner" hidden><span>Neděle večer – mrkni na týdenní souhrn.</span><button type="button" class="btn sm" id="sumBannerBtn">Souhrn týdne</button></div>
+      <div class="card coach" id="coachCard" hidden>
+        <div class="cready" id="coachReady"></div>
+        <p class="lbl" style="margin:14px 0 2px">Dnešní plán</p>
+        <div id="coachPlan"></div>
+        <div id="coachWatchWrap"><p class="lbl" style="margin:14px 0 8px">Kouč hlídá</p><div class="cwatch" id="coachWatch"></div></div>
+      </div>
+      <div class="banner" id="sumBanner" hidden><span>Neděle večer – mrkni, jak ti šel týden.</span><button type="button" class="btn sm" id="sumBannerBtn">Přehled</button></div>
       <div class="card" id="taskCard" hidden><p class="sec-t">Úkoly na dnes</p><ul class="tasklist" id="taskList"></ul></div>
       <div class="banner run" id="runBanner" hidden><span id="runBannerTxt">Vlož běhy na tento týden</span><button type="button" class="btn sm" id="runBannerBtn">Vložit týden</button></div>
 
@@ -863,6 +914,19 @@ details.histcard[open]>summary{margin-bottom:10px}
       </div>
 
       <div class="card">
+        <p class="sec-t">Kouč a návyky</p>
+        <label class="switch"><input type="checkbox" id="coachOff"><span>Kouč na záložce Dnes</span></label>
+        <div class="hint" style="margin:4px 0 14px">Připravenost, dnešní plán a hlídač. Počítá se přímo v telefonu z tvých zápisů, bez AI a bez kreditů.</div>
+        <p class="wsub" style="margin-top:0">Vlastní návyky <small>uložené jen v tvém účtu, v kódu appky nejsou</small></p>
+        <ul class="chlist" id="chList"></ul>
+        <div class="chadd">
+          <div class="field"><label for="chName">Nový návyk</label><input id="chName" type="text" maxlength="60" placeholder="Např. Bez sladkého"></div>
+          <div class="field"><label for="chFreq">Jak často</label><select id="chFreq"><option value="">Denně</option><option value="1">1× týdně</option><option value="2">2× týdně</option><option value="3">3× týdně</option><option value="4">4× týdně</option><option value="5">5× týdně</option></select></div>
+          <button type="button" class="btn" id="chAdd">Přidat</button>
+        </div>
+      </div>
+
+      <div class="card">
         <p class="sec-t">Účet</p>
         <div class="hint" style="margin:0 0 10px">Odhad jídla dělá Gemini (Google). Chráněno reCAPTCHA – platí <a href="https://policies.google.com/privacy" target="_blank" rel="noopener" style="color:var(--clay)">Zásady ochrany soukromí</a> a <a href="https://policies.google.com/terms" target="_blank" rel="noopener" style="color:var(--clay)">Smluvní podmínky</a> Google.</div>
         <div class="hint" id="acctTxt" style="margin-top:0"></div>
@@ -879,7 +943,7 @@ details.histcard[open]>summary{margin-bottom:10px}
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="app.js?v=27"></script>
+<script src="app.js?v=28"></script>
 <script type="module" src="ai.js?v=20"></script>
 </body>
 </html>

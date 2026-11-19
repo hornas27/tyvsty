@@ -27,7 +27,8 @@ Osobní PWA tracker Marka (váha, kcal, bílkoviny, spánek, energie, trénink a
 - `DEMO` = apiKey začíná na "VLOZ" → data v localStorage (`tvt-days`, `tvt-settings`, `tvt-notes`). S reálným configem a nenačteným Firebase → `showFatal()` („Nepřipojeno“), nikdy tiše demo.
 - `PLAN` (týdenní plán po dnech), `planKey(k)` / `planOf(k)` – trénink dne včetně prohození. Vždy používej `planOf(k)`, ne `PLAN[den]`.
 - Prohození: `renderSwap`, `swapPlan(a,b)` (prohodí i `run` text), `resetWeekPlan`. Jen v rámci týdne Po–Ne → počet tréninků v týdnu sedí (6 povinných).
-- `HABITS` (s `since` pro návyky přidané později), `habitsFor(k)`.
+- `HABITS` (s `since` pro návyky přidané později, `perWeek` = X× týdně, např. `rannibeh` 3× týdně), `habitDefs()` = HABITS + `settings.customHabits` (vlastní návyky z Nastavení – soukromé, nikdy je nepiš do kódu, repo je veřejné). `habitsFor(k)` = jen denní (skóre, série, mapa), `weeklyFor(k)` + `weeklyCount` = týdenní.
+- **Kouč** (Dnes, `#coachCard`, jen pro dnešek): `readiness` (0–100 ze spánku, času usnutí, energie a tréninků za 2 dny), `coachPlan` (vážení, trénink s návrhem váhy, jídlo podle včerejška, týdenní návyky, spánek), `coachWatch` (max 3: problémy bad/warn + 1 pochvala; „Beru“ = `settings.coachSnooze[id]` na 2 dny), `renderCoach` volaný z `renderTodayDerived`. Pevná pravidla, bez AI. Vypínač `settings.coachOff`.
 - Ukládání: `patchDay` (debounce 600 ms) + `flushSave` na pagehide/visibility/přepnutí dne, `trackSave` → indikátor synchronizace.
 - Progresivní přetížení: každý cvik v `PLAN` má ID (3. prvek) a zapisuje se nejtěžší série; `LIFTS` (všechny cviky, stejné ID = společná historie, např. `lateral`, `bayes`, `triceps`), `MAIN_LIFTS` (6 hlavních pro zeď rekordů), `LIFT_STEP` (výchozí 2,5), `liftHistory`, `liftSuggestion` (8+ opak. → +krok; 6–7 → stejná váha +1 opak.; 2× pod 6 → −krok), `liftCompare` (víc/stejně/míň než minule), `liftStalled` (3× stejně), e1RM = w·(1+r/30).
 - Cviky dne: `exIdsFor(k)` (pořadí = `day.ex` jen pro tento týden › `settings.planEx[číslo dne plánu]` natrvalo › `PLAN`), `planExIds(dn)`, `EX` (id → název, série). Menu ⋯ u cviku: ↑/↓, přesun na jiný gym den týdne, přepínač Jen tento týden / Natrvalo (`editEx`), „Vrátit původní cviky“.
@@ -41,7 +42,7 @@ Osobní PWA tracker Marka (váha, kcal, bílkoviny, spánek, energie, trénink a
 - `index.html` načítá `config.js?v=N`, `app.js?v=N`, `ai.js?v=N`, ikony `?v=N`. Při změně souboru **zvyš jeho `?v=`** (jinak telefon drží starý JS s novým HTML).
 - `sw.js`: `CACHE = "tvt-vN"` – **zvyš při každém nasazení**. Same-origin network-first, `ignoreSearch` fallback; `LIBS` (`tvt-libs-1`, gstatic firebase) cache-first a zůstává napříč verzemi.
 - `manifest.json` se v `index.html` odkazuje **bez** `?v=` (jinak se rozbije aktualizace WebAPK ikony).
-- Aktuálně: app.js v27, config/ai v20, `CACHE = "tvt-v28"`.
+- Aktuálně: app.js v28, config/ai v20, `CACHE = "tvt-v29"`.
 
 ## Nasazení
 1. Změny + testy (níže) + lint.
@@ -59,7 +60,7 @@ node run.js poznamky     # jen vybrané
 VERBOSE=1 node run.js    # vypíše i JSON výstupy
 npm run lint             # eslint 8 (0 chyb; 2 staré warningy jsou ok)
 ```
-Scénáře: core, navyky-export, ukladani-flush, pretizeni-mapa-rekordy, fatal-vs-demo, poznamky, ukoly-pripominky, google-kalendar, prohozeni-treninku, vaha-cviky, cviky-presun. Jsou to smoke testy (JSON výstup + kontrola chyb stránky), ne přesné asserty – po změně se podívej i na výstup a screenshoty v `tests/out/`.
+Scénáře: core, navyky-export, ukladani-flush, pretizeni-mapa-rekordy, fatal-vs-demo, poznamky, ukoly-pripominky, google-kalendar, prohozeni-treninku, vaha-cviky, cviky-presun, kouc. Jsou to smoke testy (JSON výstup + kontrola chyb stránky), ne přesné asserty – po změně se podívej i na výstup a screenshoty v `tests/out/`.
 Nejdřív vytvoř `.gitignore` s `tests/node_modules/` a `tests/out/`, ať se to necommitne.
 
 ## Design (Graphite, výchozí tmavý)

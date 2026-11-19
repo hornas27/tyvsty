@@ -1297,6 +1297,17 @@
     const fs = folders(); if (!notesUI.folder) { try { notesUI.folder = localStorage.getItem("tvt-notefolder"); } catch (e) {} }
     return fs.find(f => f.id === notesUI.folder) || fs.find(f => f.id === "myslenky") || fs[0];
   }
+  // přidání vlastního návyku odkazem …/#navyk=Název(&tydne=3) – text je jen v odkazu, ne v kódu
+  function habitFromLink() {
+    const m = location.hash.match(/^#navyk=([^&]+)(?:&tydne=([1-6]))?$/);
+    if (!m || !state.settingsLoaded) return;
+    history.replaceState(null, "", location.pathname + location.search);
+    let t = ""; try { t = decodeURIComponent(m[1].replace(/\+/g, " ")).trim().slice(0, 60); } catch (e) { return; }
+    if (!t) return;
+    const list = state.settings.customHabits || [];
+    if (list.some(h => h.t.toLowerCase() === t.toLowerCase())) { showSave("Návyk „" + t + "“ už máš"); return; }
+    saveSettingsPatch({ customHabits: list.concat({ k: "c" + Date.now().toString(36), t, perWeek: Number(m[2]) || null, since: todayKey() }) }, "Návyk „" + t + "“ přidán ✓");
+  }
   function seedKodex() {
     if (!state.settingsLoaded) return;
     if (state.settings.kodexSeeded || !state.notesLoaded) return;
@@ -1734,7 +1745,7 @@
       state.userEmail = user.email && user.email.includes("@") ? user.email : "";
       $("acctTxt").textContent = DEMO ? "Demo režim: data jsou uložená jen v tomto prohlížeči. Po vložení Firebase configu se budou synchronizovat." : "Přihlášen: " + user.email;
       $("logoutBtn").hidden = DEMO;
-      store.watchSettings(s => { state.settings = { ...DEFAULT_SETTINGS, ...s }; state.settingsLoaded = true; seedKodex(); if (state.view !== "settings" && !(state.view === "notes" && document.activeElement && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName))) renderCurrent(); });
+      store.watchSettings(s => { state.settings = { ...DEFAULT_SETTINGS, ...s }; state.settingsLoaded = true; seedKodex(); habitFromLink(); if (state.view !== "settings" && !(state.view === "notes" && document.activeElement && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName))) renderCurrent(); });
       store.watchNotes(ns => { state.notes = ns; state.notesLoaded = true; seedKodex(); checkReminders(); if (state.view === "notes") renderNotes(); else if (state.view === "today") renderTaskBanner(); });
       store.watchDays(days => {
         const editing = state.view === "today" && document.activeElement && /^(INPUT|TEXTAREA)$/.test(document.activeElement.tagName);

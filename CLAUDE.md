@@ -41,7 +41,7 @@ Osobní PWA tracker Marka (váha, kcal, bílkoviny, spánek, energie, trénink a
 - `index.html` načítá `config.js?v=N`, `app.js?v=N`, `ai.js?v=N`, ikony `?v=N`. Při změně souboru **zvyš jeho `?v=`** (jinak telefon drží starý JS s novým HTML).
 - `sw.js`: `CACHE = "tvt-vN"` – **zvyš při každém nasazení**. Same-origin network-first, `ignoreSearch` fallback; `LIBS` (`tvt-libs-1`, gstatic firebase) cache-first a zůstává napříč verzemi.
 - `manifest.json` se v `index.html` odkazuje **bez** `?v=` (jinak se rozbije aktualizace WebAPK ikony).
-- Aktuálně: app.js v24, config/ai v20, `CACHE = "tvt-v24"`.
+- Aktuálně: app.js v25, config/ai v20, `CACHE = "tvt-v25"`.
 
 ## Nasazení
 1. Změny + testy (níže) + lint.
@@ -62,8 +62,8 @@ npm run lint             # eslint 8 (0 chyb; 2 staré warningy jsou ok)
 Scénáře: core, navyky-export, ukladani-flush, pretizeni-mapa-rekordy, fatal-vs-demo, poznamky, ukoly-pripominky, google-kalendar, prohozeni-treninku, vaha-cviky, cviky-presun. Jsou to smoke testy (JSON výstup + kontrola chyb stránky), ne přesné asserty – po změně se podívej i na výstup a screenshoty v `tests/out/`.
 Nejdřív vytvoř `.gitignore` s `tests/node_modules/` a `tests/out/`, ať se to necommitne.
 
-## Design (Barevné bloky, výchozí tmavý)
-- Tokeny v `:root` (světlý) a `html[data-theme="dark"]` (výchozí). Přepínač ukládá `localStorage["tvt-theme2"]`. Cobalt `#1F3BFF`, korál `#FF6B4A`, noc `#141A2E`.
+## Design (Graphite, výchozí tmavý)
+- Paleta **Graphite** (černá, grafit, ocel, křída; barva jen pro stav good/warn/bad). Tokeny v `:root` (světlý) a `html[data-theme="dark"]` (výchozí); jména tokenů (`--cobalt`, `--sage`, `--coral`…) zůstala historická, ale mají šedé/bílé hodnoty. `--hero`, `--train` = hlavička a blok tréninku. Přepínač ukládá `localStorage["tvt-theme2"]`. Náčrt vzhledu v `design/` (necommitovat).
 - Plovoucí pilulková navigace s 5 záložkami (Dnes, Přehled, Historie, Poznámky, Nastavení). Testy hledají záložky přes `data-view`.
 - Logo „Zrcadlo“ (T + korálový odraz) v `icons/`.
 

@@ -41,7 +41,8 @@
     { k: "zapis", s: "Zápis do sešitu", t: "Zápis do sešitu: pocity, práce, sport + časy na zítřek" },
     { k: "budik", s: "1 budík", t: "Vstal jsem na 1 budík", since: "2026-11-10" },
     { k: "kreatin", s: "Kreatin", t: "Kreatin 10–15 g", since: "2026-11-13" },
-    { k: "rannibeh", s: "Ranní běh", t: "Ranní běh 3–5 km", perWeek: 3, since: "2026-11-16" }
+    { k: "rannibeh", s: "Ranní běh", t: "Ranní běh 3–5 km", perWeek: 3, since: "2026-11-16" },
+    { k: "noporn", s: "Bez porna", t: "Nekoukat na porno", since: "2026-11-20" }
   ];
   // vlastní návyky jsou jen v settings.customHabits (soukromě ve Firestore, ne v kódu – repo je veřejné)
   const habitDefs = () => HABITS.concat((state.settings.customHabits || []).map(h => ({ ...h, s: h.t.length > 20 ? h.t.slice(0, 19) + "…" : h.t, custom: true })));

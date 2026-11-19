@@ -512,6 +512,27 @@ details.more[open]{border:0}
 .blk-train .exl li i{color:#0B0C0D}
 .top .mode.ok::before{background:var(--good)}.top .mode.busy::before{background:var(--warn)}.top .mode.off::before{background:var(--bad)}.top .mode.demo::before{background:#8C9299}
 .blk-dark{border:1px solid var(--line)}
+.slp text{font-size:10px;font-family:var(--f-body)}
+.chart text.hi{fill:var(--ink);font-weight:700}
+.legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:8px;font-size:11.5px;color:var(--soft)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.lg-bar{display:inline-block;width:16px;height:6px;border-radius:3px}
+.hab{width:100%;border-collapse:collapse;table-layout:fixed;font-variant-numeric:tabular-nums}
+.hab th{font-size:11px;font-weight:600;color:var(--soft);padding:0 0 6px;text-align:center}
+.hab th.now{color:var(--ink)}
+.hab th:first-child{text-align:left;width:38%}
+.hab th:last-child,.hab td:last-child{width:36px;text-align:right}
+.hab td{padding:5px 0;text-align:center;border-top:1px solid var(--line)}
+.hab td:first-child{text-align:left;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-right:6px}
+.hab td:last-child{font-size:12px;color:var(--soft);font-weight:600}
+.hab td.bad{color:var(--bad)}
+.c{display:inline-grid;place-items:center;width:18px;height:18px;border-radius:5px;vertical-align:middle}
+.c.y{background:var(--ink)}
+.c.y::after{content:"";width:8px;height:4px;border-left:2px solid var(--bg);border-bottom:2px solid var(--bg);transform:rotate(-45deg) translate(1px,-1px)}
+.c.n{border:1.5px solid var(--soft);opacity:.7}
+.c.f{border:1.5px dashed var(--line)}
+.legend .c{width:13px;height:13px;border-radius:4px}
+.legend .c.y::after{width:5px;height:2.5px;border-width:1.5px}
 </style>
 </head>
 <body>
@@ -710,7 +731,7 @@ details.more[open]{border:0}
             <div class="kpi"><div class="l">Všechny návyky v řadě</div><div class="v" id="k-streak">—</div><div class="s" id="k-streakS"></div></div>
             <div class="kpi"><div class="l">Nejslabší návyk</div><div class="v sm" id="k-weak">—</div><div class="s" id="k-weakS"></div></div>
           </div>
-          <div class="weekgrid" id="weekGrid"></div>
+          <p class="wsub">Tento týden po dnech</p><div id="habTable"></div>
         </div>
 
         <!-- 4. SPÁNEK: je stabilní? -->
@@ -720,7 +741,7 @@ details.more[open]{border:0}
             <div class="kpi"><div class="l">Spánek Ø 7 dní</div><div class="v" id="k-sleep">—</div><div class="s" id="k-sleepS"></div></div>
             <div class="kpi"><div class="l">Stabilita</div><div class="v sm" id="k-stab">—</div><div class="s" id="k-stabS"></div></div>
           </div>
-          <div id="sChart" style="margin-top:10px"></div>
+          <p class="wsub">Posledních 7 nocí <small>od usnutí do vstávání · vpravo délka spánku</small></p><div id="sChart"></div>
         </div>
 
         <!-- VÍC DETAILŮ -->
@@ -849,7 +870,7 @@ details.more[open]{border:0}
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="app.js?v=25"></script>
+<script src="app.js?v=26"></script>
 <script type="module" src="ai.js?v=20"></script>
 </body>
 </html>

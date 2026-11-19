@@ -31,7 +31,7 @@ Osobní PWA tracker Marka (váha, kcal, bílkoviny, spánek, energie, trénink a
 - Ukládání: `patchDay` (debounce 600 ms) + `flushSave` na pagehide/visibility/přepnutí dne, `trackSave` → indikátor synchronizace.
 - Progresivní přetížení: každý cvik v `PLAN` má ID (3. prvek) a zapisuje se nejtěžší série; `LIFTS` (všechny cviky, stejné ID = společná historie, např. `lateral`, `bayes`, `triceps`), `MAIN_LIFTS` (6 hlavních pro zeď rekordů), `LIFT_STEP` (výchozí 2,5), `liftHistory`, `liftSuggestion` (8+ opak. → +krok; 6–7 → stejná váha +1 opak.; 2× pod 6 → −krok), `liftCompare` (víc/stejně/míň než minule), `liftStalled` (3× stejně), e1RM = w·(1+r/30).
 - Cviky dne: `exIdsFor(k)` (pořadí = `day.ex` jen pro tento týden › `settings.planEx[číslo dne plánu]` natrvalo › `PLAN`), `planExIds(dn)`, `EX` (id → název, série). Menu ⋯ u cviku: ↑/↓, přesun na jiný gym den týdne, přepínač Jen tento týden / Natrvalo (`editEx`), „Vrátit původní cviky“.
-- Přehled = 4 otázky: Nabírám? (`#wCard`), Zvedám víc? (`#strengthSum` + `renderStrength`), Jsem lepší v návycích?, Mám stabilní spánek? (`renderSleepCard`, stabilita = rozptyl délky a času usínání). Zbytek (souhrn týdne, kalorie, bílkoviny, mapa roku, rekordy, cíle) v `<details id="moreBox">` „Víc detailů“.
+- Přehled = 4 otázky: Nabírám? (`#wCard`), Zvedám víc? (`#strengthSum` + `renderStrength`), Jsem lepší v návycích?, Mám stabilní spánek? (`renderSleepCard`, stabilita = rozptyl délky a času usínání; `sleepTimeline` = 7 nocí jako čáry usnutí→vstávání, cílové okno `SLEEP_WIN` 22:30–23:30; návyky `habitTable` = návyk × den, krátké názvy `HABITS[].s`). Zbytek (souhrn týdne, kalorie, bílkoviny, mapa roku, rekordy, cíle) v `<details id="moreBox">` „Víc detailů“.
 - Váha na Přehledu: `renderWeightCard` (graf `weightChart` s rozsahem 4 týdny/3 měsíce/vše v `localStorage["tvt-wrange"]`, týden po týdnu `weekWeight` + `weekChange` = Ø týdne proti Ø minulého), na Dnes řádek `#weightWeek`.
 - Poznámky/úkoly: `folders()`, `isTasks()`, `renderNotes`, `bindNotes`, `checkReminders` (in-app připomínky, každých 20 s), `renderTaskBanner`.
 - **Google Kalendář** (sekce „Google Kalendář“): GIS token client (`accounts.google.com/gsi/client`), scope `calendar.events`, token jen na klepnutí uživatele (popup), v sessionStorage `tvt-gtok`. `calSync(id)` dorovná událost podle úkolu (vytvořit / PATCH / DELETE při hotovo nebo smazání), chyby → `calPending` + tlačítko „Synchronizovat kalendář“. Režim „cal“ potlačí in-app připomínku.
@@ -41,7 +41,7 @@ Osobní PWA tracker Marka (váha, kcal, bílkoviny, spánek, energie, trénink a
 - `index.html` načítá `config.js?v=N`, `app.js?v=N`, `ai.js?v=N`, ikony `?v=N`. Při změně souboru **zvyš jeho `?v=`** (jinak telefon drží starý JS s novým HTML).
 - `sw.js`: `CACHE = "tvt-vN"` – **zvyš při každém nasazení**. Same-origin network-first, `ignoreSearch` fallback; `LIBS` (`tvt-libs-1`, gstatic firebase) cache-first a zůstává napříč verzemi.
 - `manifest.json` se v `index.html` odkazuje **bez** `?v=` (jinak se rozbije aktualizace WebAPK ikony).
-- Aktuálně: app.js v25, config/ai v20, `CACHE = "tvt-v25"`.
+- Aktuálně: app.js v26, config/ai v20, `CACHE = "tvt-v26"`.
 
 ## Nasazení
 1. Změny + testy (níže) + lint.

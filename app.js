@@ -35,12 +35,12 @@
   const PLAN_AHEAD_DAYS = 14; // dopředu jde vložit běh z Gemini až na 14 dní
   const REQUIRED_PER_WEEK = Object.values(PLAN).filter(p => !p.optional).length; // 6
   const HABITS = [
-    { k: "mobil", t: "Mobil od 21:00 mimo dosah" },
-    { k: "hygiena", t: "Hygiena a pleť" },
-    { k: "gauc", t: "Nespal jsem na gauči" },
-    { k: "zapis", t: "Zápis do sešitu: pocity, práce, sport + časy na zítřek" },
-    { k: "budik", t: "Vstal jsem na 1 budík", since: "2026-11-10" },
-    { k: "kreatin", t: "Kreatin 10–15 g", since: "2026-11-13" }
+    { k: "mobil", s: "Mobil od 21:00", t: "Mobil od 21:00 mimo dosah" },
+    { k: "hygiena", s: "Hygiena a pleť", t: "Hygiena a pleť" },
+    { k: "gauc", s: "Bez gauče", t: "Nespal jsem na gauči" },
+    { k: "zapis", s: "Zápis do sešitu", t: "Zápis do sešitu: pocity, práce, sport + časy na zítřek" },
+    { k: "budik", s: "1 budík", t: "Vstal jsem na 1 budík", since: "2026-11-10" },
+    { k: "kreatin", s: "Kreatin", t: "Kreatin 10–15 g", since: "2026-11-13" }
   ];
   const habitsFor = k => HABITS.filter(h => !h.since || k >= h.since);
   // trénink dne: podle dne v týdnu, nebo prohozený s jiným dnem téhož týdne (day.plan = číslo dne, jehož trénink se dělá)
@@ -843,16 +843,12 @@
 
     // week
     const mon = mondayOf(tk);
-    let done = 0, bonus = 0, hDone = 0, hTotal = 0, grid = "";
+    let done = 0, bonus = 0, hDone = 0, hTotal = 0;
     for (let i = 0; i < 7; i++) {
       const k = addDays(mon, i), d = state.days[k] || {}, p = planOf(k);
       if (d.training) { if (p.optional) bonus++; else done++; }
       const hs = habitsFor(k);
       if (k <= tk) { hTotal += hs.length; hDone += hs.filter(h => (d.habits || {})[h.k]).length; }
-      const parts = hs.filter(h => (d.habits || {})[h.k]).length + (p.optional ? 0 : (d.training ? 1 : 0));
-      const max = hs.length + (p.optional ? 0 : 1);
-      const cls = k > tk ? "" : parts >= max ? "full" : parts > 0 ? "part" : "";
-      grid += `<div class="wg">${DAYS_SHORT[parseKey(k).getDay()]}<i class="${cls} ${k === tk ? "today" : ""}" title="${fmtShort(k)}: ${parts}/${max}"></i></div>`;
     }
     $("k-train").innerHTML = done + "<small>/ " + REQUIRED_PER_WEEK + "</small>";
     $("k-trainS").textContent = bonus ? "+ chill run" : "4 gym + 2 běhy";
@@ -866,7 +862,7 @@
     const weak = Object.values(per).sort((a, b) => a.n / a.of - b.n / b.of)[0];
     $("k-weak").textContent = weak && weak.n < weak.of ? weak.t.split(":")[0] : "—";
     $("k-weakS").textContent = weak && weak.n < weak.of ? weak.n + "/" + weak.of + " za 14 dní" : "všechny drží";
-    $("weekGrid").innerHTML = grid;
+    $("habTable").innerHTML = habitTable(mon);
     const sk = streaks();
     $("k-streak").innerHTML = sk.cur + "<small>" + dni(sk.cur) + "</small>";
     $("k-streakS").textContent = "rekord " + sk.best + " · cíl 30";
@@ -881,7 +877,7 @@
     const k7 = [], p7 = []; for (let i = 0; i < 7; i++) { const d = state.days[addDays(tk, -i)] || {}; if (d.kcal != null) k7.push(d.kcal); if (d.protein != null) p7.push(d.protein); }
     $("kAvg").textContent = k7.length ? "Ø 7 dní: " + nf0.format(avg(k7)) + " kcal (cíl " + nf0.format(s.kcalTarget) + ")" : "";
     $("pAvg").textContent = p7.length ? "Ø 7 dní: " + nf0.format(avg(p7)) + " g (cíl " + pt + " g = " + nf1.format(s.proteinPerKg || 2) + " g/kg)" : "Cíl " + pt + " g = " + nf1.format(s.proteinPerKg || 2) + " g/kg";
-    $("sChart").innerHTML = barChart(last14.map(k => { const d = state.days[k] || {}; return { k, v: sleepHours(d.bed, d.wake) }; }), s.sleepTarget, v => nf1.format(v), "h", $("sChart").clientWidth);
+    $("sChart").innerHTML = sleepTimeline(tk, $("sChart").clientWidth);
 
     // goals
     const hm = s.hmDate ? parseKey(s.hmDate) : null;
@@ -917,6 +913,62 @@
     const lvl = cur.sd <= 0.5 && spread <= 60 ? ["good", "Stabilní"] : cur.sd <= 1 && spread <= 120 ? ["warn", "Kolísá"] : ["bad", "Nestabilní"];
     $("k-stab").innerHTML = `<span class="wchg ${lvl[0]}">${lvl[1]}</span>`;
     $("k-stabS").textContent = "délka ±" + nf1.format(cur.sd) + " h · usínáš " + fmtMin(cur.bedLo) + "–" + fmtMin(cur.bedHi);
+  }
+
+  // ---------- spánek: časová osa nocí (od usnutí do vstávání) ----------
+  const SLEEP_WIN = [22 * 60 + 30, 23 * 60 + 30]; // cílové okno usínání 22:30–23:30
+  const wakeMin = t => { if (!t) return null; const [h, m] = t.split(":").map(Number); const v = h * 60 + m; return v < 18 * 60 ? v + 1440 : v; };
+  function sleepTimeline(endK, W) {
+    W = Math.max(300, Math.min(W || 340, 640));
+    const nights = [];
+    for (let i = 6; i >= 0; i--) {
+      const k = addDays(endK, -i), d = state.days[k] || {}, b = bedMin(d.bed), w = wakeMin(d.wake), h = sleepHours(d.bed, d.wake);
+      nights.push({ k, b, w: b != null && w != null && w > b ? w : null, h });
+    }
+    const have = nights.filter(n => n.b != null && n.w != null);
+    if (!have.length) return `<p class="empty">Zapiš, kdy jsi šel spát a vstal, a tady uvidíš své noci.</p>`;
+    let lo = Math.min(SLEEP_WIN[0], ...have.map(n => n.b)) - 30, hi = Math.max(...have.map(n => n.w)) + 30;
+    lo = Math.floor(lo / 120) * 120; hi = Math.ceil(hi / 120) * 120;
+    const L = 26, R = 38, T = 4, row = 18, H = T + row * 7 + 30;
+    const sx = m => L + (m - lo) / (hi - lo) * (W - L - R);
+    let g = `<rect x="${sx(SLEEP_WIN[0]).toFixed(1)}" y="${T - 2}" width="${(sx(SLEEP_WIN[1]) - sx(SLEEP_WIN[0])).toFixed(1)}" height="${row * 7 + 2}" fill="var(--ink)" opacity=".08"/>`;
+    for (let m = lo; m <= hi; m += 120) {
+      g += `<line x1="${sx(m).toFixed(1)}" x2="${sx(m).toFixed(1)}" y1="${T - 2}" y2="${T + row * 7}" stroke="var(--line)"/><text x="${sx(m).toFixed(1)}" y="${H - 6}" text-anchor="middle">${String(Math.floor(m / 60) % 24).padStart(2, "0")}</text>`;
+    }
+    g += `<text x="${((sx(SLEEP_WIN[0]) + sx(SLEEP_WIN[1])) / 2).toFixed(1)}" y="${T + row * 7 + 11}" text-anchor="middle" class="hi">CÍL</text>`;
+    nights.forEach((n, i) => {
+      const y = T + row * i + row / 2, today = n.k === endK;
+      g += `<text x="0" y="${y + 3}"${today ? ' class="hi"' : ""}>${DAYS_SHORT[parseKey(n.k).getDay()].toUpperCase()}</text>`;
+      if (n.b != null && n.w != null) {
+        const late = n.b > SLEEP_WIN[1];
+        g += `<line x1="${sx(n.b).toFixed(1)}" x2="${sx(n.w).toFixed(1)}" y1="${y}" y2="${y}" stroke="${late ? "var(--warn)" : "var(--ink)"}" stroke-width="8" stroke-linecap="round"><title>${fmtShort(n.k)}: ${fmtMin(n.b)}–${fmtMin(n.w)}</title></line>`;
+        g += `<text x="${W}" y="${y + 3}" text-anchor="end" class="hi">${Math.floor(n.h)}:${String(Math.round((n.h % 1) * 60)).padStart(2, "0")}</text>`;
+      } else g += `<text x="${W}" y="${y + 3}" text-anchor="end">—</text>`;
+    });
+    const lateN = have.filter(n => n.b > SLEEP_WIN[1]).length;
+    return `<svg class="chart slp" viewBox="0 0 ${W} ${H}" role="img" aria-label="Spánek po nocích: kdy jsi usnul a vstal">${g}</svg>
+      <div class="legend"><span><i class="lg-bar" style="background:var(--ink)"></i>usnul do 23:30</span><span><i class="lg-bar" style="background:var(--warn)"></i>pozdě${lateN ? " (" + lateN + "×)" : ""}</span><span><i class="lg-bar" style="background:var(--ink);opacity:.25"></i>cíl 22:30–23:30</span></div>`;
+  }
+
+  // ---------- návyky: tabulka týdne (návyk × den) ----------
+  function habitTable(mon) {
+    const tk = todayKey(), days = [0, 1, 2, 3, 4, 5, 6].map(i => addDays(mon, i));
+    const hs = HABITS.filter(h => !h.since || h.since <= days[6]);
+    const rows = hs.map(h => {
+      let n = 0, of = 0;
+      const cells = days.map(k => {
+        if (h.since && k < h.since) return `<td></td>`;
+        const on = !!((state.days[k] || {}).habits || {})[h.k];
+        if (on) { n++; of++; return `<td><i class="c y" title="${fmtShort(k)}: splněno"></i></td>`; }
+        if (k < tk) { of++; return `<td><i class="c n" title="${fmtShort(k)}: nesplněno"></i></td>`; }
+        return `<td><i class="c f" title="${fmtShort(k)}: ${k === tk ? "dnes ještě ne" : "ještě nebylo"}"></i></td>`;
+      }).join("");
+      return { h, n, of, cells };
+    });
+    const weakest = rows.filter(r => r.of && r.n / r.of < 0.5).sort((a, b) => a.n / a.of - b.n / b.of)[0];
+    return `<table class="hab" aria-label="Návyky po dnech tohoto týdne"><thead><tr><th scope="col">Návyk</th>${days.map(k => `<th scope="col"${k === tk ? ' class="now"' : ""}>${DAYS_SHORT[parseKey(k).getDay()]}</th>`).join("")}<th scope="col">Σ</th></tr></thead><tbody>
+      ${rows.map(r => `<tr><td title="${esc(r.h.t)}">${esc(r.h.s || r.h.t)}</td>${r.cells}<td${r === weakest ? ' class="bad"' : ""}>${r.of ? r.n + "/" + r.of : "—"}</td></tr>`).join("")}</tbody></table>
+      <div class="legend"><span><i class="c y"></i>splněno</span><span><i class="c n"></i>nesplněno</span><span><i class="c f"></i>ještě nebylo</span></div>`;
   }
 
   // ---------- skóre dne (návyky + trénink) ----------

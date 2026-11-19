@@ -603,6 +603,25 @@ details.histcard[open]>summary{margin-bottom:10px}
 .chlist .del.armed{color:var(--bad)}
 .chadd{display:grid;grid-template-columns:minmax(0,1fr) 130px;gap:10px;align-items:end}
 .chadd .btn{grid-column:1/-1;justify-self:start}
+/* bilance týdne */
+.rvopen{display:flex;justify-content:space-between;align-items:center;width:100%;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin:0 0 14px;cursor:pointer;text-align:left;color:var(--ink);font-size:22px}
+.rvopen b{display:block;font-size:15px}
+.rvopen small{display:block;color:var(--soft);font-size:12.5px}
+#v-review{padding-top:16px}
+.rvrow{padding:12px 0;border-top:1px solid var(--line)}
+.rvrow:first-child{border-top:0}
+.rvh{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.rvv{display:block;font-family:var(--f-display);font-weight:900;font-size:24px;margin-top:4px;font-variant-numeric:tabular-nums}
+.rvrow p{margin:2px 0 0;font-size:13.5px;color:var(--soft)}
+.rvgoal{background:var(--sage-l);border-radius:10px;padding:10px 12px;margin-bottom:14px;border-left:4px solid var(--soft)}
+.rvgoal.good{border-left-color:var(--good)}.rvgoal.bad{border-left-color:var(--bad)}
+.rvgoal b{display:block;margin-top:2px}
+.rvgoal small{color:var(--soft);font-size:12.5px}
+.rvset{margin:0 0 10px;font-size:14px}
+.rvsug{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}
+.rvsug .btn.on{background:var(--ink);color:var(--bg)}
+.rvown{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}
+.rvown input{width:100%;border:1px solid var(--line);background:var(--bg);border-radius:12px;padding:10px 12px;font-size:15px;outline:none;color:var(--ink)}
 </style>
 </head>
 <body>
@@ -657,7 +676,7 @@ details.histcard[open]>summary{margin-bottom:10px}
         <div id="coachPlan"></div>
         <div id="coachWatchWrap"><p class="lbl" style="margin:14px 0 8px">Kouč hlídá</p><div class="cwatch" id="coachWatch"></div></div>
       </div>
-      <div class="banner" id="sumBanner" hidden><span>Neděle večer – mrkni, jak ti šel týden.</span><button type="button" class="btn sm" id="sumBannerBtn">Přehled</button></div>
+      <div class="banner" id="sumBanner" hidden><span>Uzavři týden a dej si cíl na další.</span><button type="button" class="btn sm" id="sumBannerBtn">Bilance týdne</button></div>
       <div class="card" id="taskCard" hidden><p class="sec-t">Úkoly na dnes</p><ul class="tasklist" id="taskList"></ul></div>
       <div class="banner run" id="runBanner" hidden><span id="runBannerTxt">Vlož běhy na tento týden</span><button type="button" class="btn sm" id="runBannerBtn">Vložit týden</button></div>
 
@@ -766,6 +785,7 @@ details.histcard[open]>summary{margin-bottom:10px}
 
     <!-- OVERVIEW -->
     <section id="v-overview" hidden>
+      <button type="button" class="rvopen" id="openReview"><span><b>Bilance týdne</b><small>jak šel týden a cíl na další</small></span><span aria-hidden="true">›</span></button>
       <div class="ov">
         <!-- VÁHA -->
         <div class="card span2" id="wCard">
@@ -859,6 +879,24 @@ details.histcard[open]>summary{margin-bottom:10px}
 
     <!-- SETTINGS -->
     <!-- POZNÁMKY -->
+    <section id="v-review" class="narrow stack" hidden>
+      <div class="card">
+        <div class="sumhead">
+          <button class="iconbtn" id="rvPrev" aria-label="Předchozí týden"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button>
+          <div><p class="q" style="margin:0">Bilance týdne</p><small class="hint" id="rvTitle" style="margin:0"></small></div>
+          <button class="iconbtn" id="rvNext" aria-label="Další týden"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>
+        </div>
+        <div id="rvRows"></div>
+      </div>
+      <div class="card">
+        <div id="rvHad"></div>
+        <p class="sec-t">Cíl na týden <span id="rvGoalWk"></span></p>
+        <p class="hint" style="margin:-4px 0 10px">Jeden cíl. Kouč ho celý týden hlídá na záložce Dnes.</p>
+        <div id="rvGoal"></div>
+      </div>
+      <button type="button" class="btn ghost" id="rvBack">Zpět na Přehled</button>
+    </section>
+
     <section id="v-notes" class="narrow stack" hidden>
       <div class="card">
         <div class="notes-head"><p class="sec-t" style="margin:0">Poznámky</p><button type="button" class="linkbtn" id="folderEdit">Upravit složky</button></div>
@@ -943,7 +981,7 @@ details.histcard[open]>summary{margin-bottom:10px}
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="app.js?v=30"></script>
+<script src="app.js?v=31"></script>
 <script type="module" src="ai.js?v=20"></script>
 </body>
 </html>

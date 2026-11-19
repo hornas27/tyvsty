@@ -59,8 +59,7 @@ const SP = process.env.OUT;
   await p.click('nav.tabs button:nth-child(2)'); await p.waitForTimeout(400);
   console.log('kcalSuggest visible:', await p.isVisible('#kcalSuggest'), await p.textContent('#ksTxt'), await p.textContent('#ksApply'));
   await p.screenshot({ path: SP + '/m4_overview.png', fullPage: true });
-  await p.click('#moreBox summary'); await p.waitForTimeout(300); await p.click('#sumPrev'); await p.waitForTimeout(200);
-  console.log('sum prev title:', await p.textContent('#sumTitle'), '| ins:', await p.textContent('#sumIns'));
+  console.log('food:', (await p.textContent('#foodSum')).replace(/\s+/g, ' ').trim(), '| status:', await p.textContent('#foodStatus'));
   // settings PDF
   await p.click('nav.tabs button[data-view="settings"]'); await p.waitForTimeout(300);
   await p.selectOption('#exRange', '30');
@@ -70,7 +69,8 @@ const SP = process.env.OUT;
   await p.selectOption('#exRange', '7');
   const [dl2] = await Promise.all([p.waitForEvent('download', { timeout: 15000 }), p.click('#pdfBtn')]);
   await dl2.saveAs(SP + '/report7.pdf');
-  await p.click('nav.tabs button:nth-child(3)'); await p.waitForTimeout(300);
+  await p.click('#histCard summary'); await p.waitForTimeout(300);
+  console.log('history rows:', await p.$$eval('#histList .hrow', e => e.length));
   await p.screenshot({ path: SP + '/m5_hist.png' });
   // desktop
   await p.setViewportSize({ width: 1280, height: 900 });
@@ -83,7 +83,7 @@ const SP = process.env.OUT;
   await p2.goto(process.env.DEMO_URL); await p2.waitForTimeout(800);
   console.log('sunday banner:', await p2.isVisible('#sumBanner'), 'runBanner:', await p2.isVisible('#runBanner'));
   await p2.click('#sumBannerBtn'); await p2.waitForTimeout(400);
-  console.log('after click', await p2.textContent('#sumLabel'), await p2.textContent('#sumTitle'));
+  console.log('after click view overview:', await p2.isVisible('#v-overview'));
   console.log('ERRORS:', errs.filter(e => !/TUNNEL/.test(e)));
   await b.close();
 })();

@@ -1,6 +1,6 @@
 // Ty vs. Ty – PDF report (jsPDF, načítá se až při exportu).
 (function () {
-  const C = { ink: [20, 26, 46], soft: [86, 96, 121], line: [220, 225, 235], bg: [238, 241, 246], clay: [255, 107, 74], clayL: [255, 231, 224], sage: [31, 59, 255], sageL: [228, 233, 255], good: [17, 128, 74], bad: [194, 52, 26] };
+  const C = { ink: [11, 12, 13], soft: [94, 100, 107], line: [218, 220, 223], bg: [241, 241, 239], clay: [120, 126, 133], clayL: [230, 231, 228], sage: [11, 12, 13], sageL: [230, 231, 228], good: [46, 107, 43], bad: [168, 67, 44] }; // Graphite
   const W = 210, H = 297, M = 14, CW = W - 2 * M;
   const nf = (v, d) => v == null || !isFinite(v) ? "—" : Number(v).toLocaleString("cs-CZ", { minimumFractionDigits: d || 0, maximumFractionDigits: d || 0 });
 

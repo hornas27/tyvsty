@@ -288,11 +288,6 @@
 
 
   // ---------- cviky + váhy hlavních cviků ----------
-  function lastLift(id, beforeK) {
-    const ks = Object.keys(state.days).filter(k => k < beforeK && state.days[k].lifts && state.days[k].lifts[id] && state.days[k].lifts[id].w != null).sort();
-    if (!ks.length) return null;
-    const k = ks[ks.length - 1]; return { k, ...state.days[k].lifts[id] };
-  }
   const fmtLift = l => l ? nf1.format(l.w).replace(/,0$/, "") + " kg" + (l.r ? " × " + l.r : "") : "";
   const dni = n => n === 1 ? "den" : n >= 2 && n <= 4 ? "dny" : "dní";
   const fmtKg = w => nf1.format(w).replace(/,0$/, "");
@@ -500,7 +495,7 @@
       RUN_DAYS.forEach((wd, i) => { const v = $("wb-" + wd).value.trim(); patchDay({ run: v || null }, true, keys[i]); });
       $("weekBox").hidden = true; state.formKey = null; renderToday(); showSave("Běhy na týden uloženy ✓");
     };
-    $("sumBannerBtn").onclick = () => { state.sumWeek = weekOf(todayKey()); show("overview"); setTimeout(() => $("sumCard").scrollIntoView({ behavior: "smooth" }), 50); };
+    $("sumBannerBtn").onclick = () => show("overview");
   }
 
   // ---------- JÍDLO (foto / text → AI odhad → seznam jídel) ----------
@@ -825,7 +820,7 @@
     }
     $("rateStatus").innerHTML = st;
     renderKcalSuggest();
-    renderSummary();
+    renderFood();
     renderYearMap();
     renderStrength();
     renderRecords();
@@ -892,6 +887,21 @@
       <div><div class="goalrow"><b>Návyky 30 dní v řadě</b><span>${Math.min(sk.cur, 30)} / 30</span></div>${bar(sk.cur, 30)}</div>
       <div><div class="goalrow"><b>Návyky 90 dní v řadě</b><span>${Math.min(sk.cur, 90)} / 90</span></div>${bar(sk.cur, 90)}</div>
       <div><div class="goalrow"><b>Půlmaraton pod 1:40</b><span>${hm ? "za " + wksToHm + " týdnů · " + hm.toLocaleDateString("cs-CZ", { month: "long", year: "numeric" }) : "—"}</span></div><div class="hint">Tempo 4:44 / km</div></div>`;
+  }
+
+  // ---------- jídlo: Ø 7 dní proti cíli ----------
+  function renderFood() {
+    const s = state.settings, tk = todayKey(), pt = proteinTarget();
+    const ks = [], kp = []; let kHit = 0, pHit = 0;
+    for (let i = 1; i <= 7; i++) { const d = state.days[addDays(tk, -i)] || {}; if (d.kcal != null) { ks.push(d.kcal); if (d.kcal >= s.kcalTarget) kHit++; } if (d.protein != null) { kp.push(d.protein); if (pt && d.protein >= pt) pHit++; } }
+    const ak = avg(ks), ap = avg(kp);
+    const meter = (l, v, t, unit, hit, n) => `<div class="meter"><div class="mrow2"><span class="l" style="font-size:13px;color:var(--soft)">${l}</span><b>${v != null ? nf0.format(v) : "—"}<small>/ ${t ? nf0.format(t) : "?"} ${unit}</small></b></div>
+      <div class="mtrack"><i style="width:${v != null && t ? Math.min(100, v / t * 100).toFixed(1) : 0}%"></i></div><div class="ms">${n ? "cíl splněn " + hit + " z " + n + " dní" : "zatím bez zápisu"}</div></div>`;
+    $("foodSum").innerHTML = `<div class="meters">${meter("Kalorie · Ø 7 dní", ak, s.kcalTarget, "kcal", kHit, ks.length)}${meter("Bílkoviny · Ø 7 dní", ap, pt, "g", pHit, kp.length)}</div>`;
+    const pk = ak != null ? ak / s.kcalTarget : null, pp = ap != null && pt ? ap / pt : null;
+    const worst = [pk, pp].filter(v => v != null);
+    const lo = worst.length ? Math.min(...worst) : null;
+    $("foodStatus").innerHTML = lo == null ? '<span class="status none">Sbírám data</span>' : lo >= 0.97 ? '<span class="status good">Plníš cíl</span>' : lo >= 0.85 ? '<span class="status warn">Lehce pod cílem</span>' : '<span class="status bad">Pod cílem</span>';
   }
 
   // ---------- spánek: průměr + stabilita ----------
@@ -1045,8 +1055,16 @@
       if (old === last) return; of++; if (last.e > old.e * 1.005) up++;
       if (liftStalled(h)) stuck.push(LIFTS[id]);
     });
+    const moves = Object.keys(LIFTS).map(id => {
+      const h = liftHistory(id); if (h.length < 2) return null;
+      const old = h.filter(x => x.k <= addDays(tk, -28)).pop() || h[0], last = h[h.length - 1];
+      if (old === last) return null;
+      const dw = last.w - old.w, dr = last.r != null && old.r != null ? last.r - old.r : 0;
+      return { id, last, pct: (last.e - old.e) / old.e, amt: dw ? (dw > 0 ? "+" : "−") + fmtKg(Math.abs(dw)) + " kg" : dr ? (dr > 0 ? "+" : "−") + Math.abs(dr) + " opak." : "=" };
+    }).filter(Boolean).sort((a, b) => b.pct - a.pct).slice(0, 3);
+    const top = moves.length ? `<ul class="toplifts">${moves.map(m => `<li><span>${esc(LIFTS[m.id])}</span><b>${fmtLift(m.last)}</b><em class="cmp ${m.pct > 0.005 ? "up" : m.pct < -0.005 ? "down" : "eq"}">${m.pct > 0.005 ? "▲ " : m.pct < -0.005 ? "▼ " : ""}${m.amt}</em></li>`).join("")}</ul>` : "";
     $("strengthSum").innerHTML = of ? `<div class="verdict ${up / of >= 0.6 ? "good" : up / of >= 0.3 ? "warn" : "bad"}"><b>Silnější v ${up} z ${of} cviků</b> za poslední 4 týdny</div>` +
-      (stuck.length ? `<div class="hint" style="margin:6px 0 0">Stojí na místě (3× stejně): <b>${stuck.map(esc).join(", ")}</b> – přidej opakování nebo váhu.</div>` : "") : `<div class="hint" style="margin:0">Srovnání se ukáže po 2 trénincích u cviku.</div>`;
+      (stuck.length ? `<div class="hint" style="margin:6px 0 0">Stojí na místě (3× stejně): <b>${stuck.map(esc).join(", ")}</b> – přidej opakování nebo váhu.</div>` : "") + top : `<div class="hint" style="margin:0">Srovnání se ukáže po 2 trénincích u cviku.</div>`;
     box.innerHTML = rows || `<p class="empty">Zatím žádné zapsané váhy. U každého cviku zapisuj váhu × opakování nejtěžší série a tady uvidíš, jak síla roste.</p>`;
   }
 
@@ -1100,72 +1118,6 @@
     renderCurrent();
   }
 
-  // ---------- týdenní souhrn ----------
-  function weekStats(mon) {
-    const tk = todayKey(), s = state.settings, end = addDays(mon, 6);
-    const ks = []; for (let i = 0; i < 7; i++) ks.push(addDays(mon, i));
-    const ds = ks.map(k => state.days[k] || {});
-    const vals = f => ds.map(f).filter(v => v != null);
-    const w = vals(d => d.weight), kc = vals(d => d.kcal), pr = vals(d => d.protein), en = vals(d => d.energy);
-    const sl = ds.map(d => sleepHours(d.bed, d.wake)).filter(v => v != null);
-    let done = 0, bonus = 0, hDone = 0, hTot = 0; const per = {};
-    ks.forEach((k, i) => {
-      const d = ds[i], p = planOf(k);
-      if (d.training) { if (p.optional) bonus++; else done++; }
-      if (k <= tk) habitsFor(k).forEach(h => { hTot++; const on = !!(d.habits || {})[h.k]; if (on) hDone++; if (k < tk || on) { per[h.k] = per[h.k] || { t: h.t, n: 0, of: 0 }; per[h.k].of++; if (on) per[h.k].n++; } });
-    });
-    const prevW = weightsBetween(addDays(mon, -7), addDays(mon, -1));
-    const pt = proteinTarget();
-    const lifts = Object.keys(LIFTS).map(id => {
-      const best = ks.map(k => ((state.days[k] || {}).lifts || {})[id]).filter(l => l && l.w != null).sort((a, b) => (b.w * (1 + (b.r || 1) / 30)) - (a.w * (1 + (a.r || 1) / 30)))[0];
-      if (!best) return null;
-      const prev = lastLift(id, mon);
-      return { id, name: LIFTS[id], best, prev };
-    }).filter(Boolean);
-    return { mon, end, w: avg(w), wN: w.length, wPrev: avg(prevW), kc: avg(kc), kcN: kc.length, kcHit: kc.filter(v => v >= s.kcalTarget).length,
-      pr: avg(pr), prN: pr.length, prHit: pt ? pr.filter(v => v >= pt).length : 0, pt, sl: avg(sl), slLow: sl.filter(v => v < s.sleepTarget).length, slN: sl.length,
-      en: avg(en), done, bonus, habPct: hTot ? Math.round(hDone / hTot * 100) : null, per, lifts, streak: streaks(end < tk ? end : tk) };
-  }
-  function summaryInsights(st) {
-    const out = [], s = state.settings;
-    if (st.w != null && st.wPrev != null && st.wN >= 3) {
-      const ch = st.w - st.wPrev;
-      out.push(ch < 0.25 ? "Váha +" + nf1.format(ch) + " kg – pod tempem. Přidej jídlo, hlavně večer." : ch <= 0.5 ? "Váha +" + nf1.format(ch) + " kg – ideální tempo, drž to." : "Váha +" + nf1.format(ch) + " kg – moc rychle, uber ~200 kcal.");
-    }
-    if (st.kcN) out.push("Kalorický cíl splněn " + st.kcHit + " z " + st.kcN + " zapsaných dní.");
-    if (st.pt && st.prN && st.prHit < st.prN) out.push("Bílkoviny pod cílem " + (st.prN - st.prHit) + "× z " + st.prN + " dní.");
-    if (st.slLow) out.push("Spánek pod " + nf1.format(s.sleepTarget) + " h: " + st.slLow + "×.");
-    const weak = Object.values(st.per).filter(h => h.of).sort((a, b) => a.n / a.of - b.n / b.of)[0];
-    if (weak && weak.n < weak.of) out.push("Nejslabší návyk: " + weak.t + " (" + weak.n + "/" + weak.of + ").");
-    return out.slice(0, 4);
-  }
-  function renderSummary() {
-    const tk = todayKey();
-    const mon = state.sumWeek || weekOf(tk), st = weekStats(mon);
-    $("sumTitle").textContent = fmtShort(mon) + " – " + fmtShort(st.end);
-    $("sumLabel").textContent = mon === weekOf(tk) ? "Týdenní souhrn · tento týden" : mon === addDays(weekOf(tk), -7) ? "Týdenní souhrn · minulý týden" : "Týdenní souhrn";
-    $("sumNext").disabled = mon >= weekOf(tk);
-    const kpi = (l, v, sub) => `<div class="kpi"><div class="l">${l}</div><div class="v">${v}</div><div class="s">${sub || ""}</div></div>`;
-    const dash = "—";
-    const wCh = st.w != null && st.wPrev != null ? (st.w - st.wPrev >= 0 ? "+" : "") + nf1.format(st.w - st.wPrev) + " kg vs. minulý týden" : st.wN + "× vážení";
-    $("sumKpis").innerHTML =
-      kpi("Váha Ø", st.w != null ? nf1.format(st.w) + "<small>kg</small>" : dash, wCh) +
-      kpi("Kalorie Ø", st.kc != null ? nf0.format(st.kc) + "<small>kcal</small>" : dash, st.kcN ? "cíl splněn " + st.kcHit + "/" + st.kcN : "") +
-      kpi("Bílkoviny Ø", st.pr != null ? nf0.format(st.pr) + "<small>g</small>" : dash, st.pt ? "cíl " + st.pt + " g" : "") +
-      kpi("Spánek Ø", st.sl != null ? nf1.format(st.sl) + "<small>h</small>" : dash, st.slN ? "pod cílem " + st.slLow + "×" : "") +
-      kpi("Tréninky", st.done + "<small>/ " + REQUIRED_PER_WEEK + "</small>", st.bonus ? "+ chill run" : "4 gym + 2 běhy") +
-      kpi("Návyky", st.habPct != null ? st.habPct + "<small>%</small>" : dash, "série " + st.streak.cur + " " + dni(st.streak.cur)) +
-      kpi("Energie Ø", st.en != null ? nf1.format(st.en) + "<small>/ 5</small>" : dash, "") +
-      kpi("Rekord série", st.streak.best + "<small>" + dni(st.streak.best) + "</small>", "cíl 30");
-    $("sumLifts").innerHTML = st.lifts.length ? st.lifts.map(l => {
-      const e = x => x.w * (1 + (x.r || 1) / 30), diff = l.prev ? e(l.best) - e(l.prev) : null;
-      const tag = diff == null ? "" : diff > 0.5 ? `<span class="up">▲ silnější</span>` : diff < -0.5 ? `<span class="down">▼ slabší</span>` : `<span class="eq">= stejně</span>`;
-      return `<li><span>${esc(l.name)}</span><b>${fmtLift(l.best)}</b>${tag}</li>`;
-    }).join("") : `<li class="empty">Tento týden bez zapsaných vah.</li>`;
-    const ins = summaryInsights(st);
-    $("sumIns").innerHTML = ins.length ? ins.map(t => `<li>${esc(t)}</li>`).join("") : `<li class="empty">Málo dat na hodnocení – zapisuj a v neděli tu bude souhrn.</li>`;
-  }
-
   // ---------- HISTORY ----------
   function renderHistory() {
     const keys = Object.keys(state.days).sort().reverse();
@@ -1173,8 +1125,8 @@
     $("histList").innerHTML = keys.map(k => {
       const d = state.days[k], h = sleepHours(d.bed, d.wake), p = planOf(k);
       const vals = [d.weight != null ? "<b>" + nf1.format(d.weight) + "</b> kg" : null, d.kcal != null ? "<b>" + nf0.format(d.kcal) + "</b> kcal" : null, d.protein != null ? "<b>" + nf0.format(d.protein) + "</b> g B" : null, h != null ? "<b>" + nf1.format(h) + "</b> h" : null].filter(Boolean).join(" · ") || "—";
-      const runTxt = d.run ? `<br><small style="color:var(--sage)">🏃 ${esc(d.run.split("\n")[0].slice(0, 60))}</small>` : "";
-      const dots = `<i class="tr ${d.training ? "on" : ""}" title="${esc(p.label)}"></i>` + habitsFor(k).map(x => `<i class="${(d.habits || {})[x.k] ? "on" : ""}"></i>`).join("") + (d.energy ? `<em class="hen">⚡${d.energy}</em>` : "");
+      const runTxt = d.run ? `<br><small style="color:var(--soft)">Běh: ${esc(d.run.split("\n")[0].slice(0, 60))}</small>` : "";
+      const dots = `<i class="tr ${d.training ? "on" : ""}" title="${esc(p.label)}"></i>` + habitsFor(k).map(x => `<i class="${(d.habits || {})[x.k] ? "on" : ""}"></i>`).join("") + (d.energy ? `<em class="hen" title="Energie">E${d.energy}</em>` : "");
       return `<button class="hrow" data-k="${k}"><span class="dt"><b>${fmtShort(k)}</b><small>${DAYS_CS[parseKey(k).getDay()]}</small></span><span class="vals">${vals}${runTxt}</span><span class="dots">${dots}</span></button>`;
     }).join("");
   }
@@ -1182,6 +1134,7 @@
   // ---------- SETTINGS / EXPORT ----------
   function renderSettings() {
     const s = state.settings;
+    if ($("histCard").open) renderHistory();
     $("s-startW").value = s.startWeight ?? ""; $("s-startD").value = s.startDate ?? "";
     $("s-targetW").value = s.targetWeight ?? ""; $("s-kcal").value = s.kcalTarget ?? "";
     $("s-sleep").value = s.sleepTarget ?? ""; $("s-hm").value = s.hmDate ?? ""; $("s-protkg").value = s.proteinPerKg ?? 2;
@@ -1225,11 +1178,11 @@
     };
     $("logoutBtn").onclick = () => store.signOut();
     const names = { dark: "tmavý", light: "světlý" };
-    // vzhled barevné bloky: výchozí tmavý, světlý na přepnutí v Nastavení
+    // vzhled Graphite: výchozí tmavý, světlý na přepnutí v Nastavení
     const applyTheme = t => {
       if (t === "dark") document.documentElement.setAttribute("data-theme", "dark"); else document.documentElement.removeAttribute("data-theme");
       $("themeBtn").textContent = "Motiv: " + names[t];
-      const m = document.querySelector('meta[name="theme-color"]'); if (m) m.setAttribute("content", t === "dark" ? "#2A45FF" : "#1F3BFF");
+      const m = document.querySelector('meta[name="theme-color"]'); if (m) m.setAttribute("content", t === "dark" ? "#000000" : "#F1F1EF");
     };
     let th = "dark"; try { th = localStorage.getItem("tvt-theme2") === "light" ? "light" : "dark"; } catch (e) {}
     applyTheme(th);
@@ -1294,8 +1247,8 @@
       if (task && n.done) metaParts.push("Splněno " + fmtNoteDate(n.doneAt));
       else if (task && n.remindAt) metaParts.push((overdue ? "⏰ Mělo být " : "⏰ ") + fmtRemind(n.remindAt));
       else if (!(fo && fo.numbered)) metaParts.push(fmtNoteDate(n.createdAt));
-      if (task && !n.done && n.calPending) metaParts.push("📅 čeká na kalendář");
-      else if (task && !n.done && n.calEventId) metaParts.push(n.calMode === "cal" ? "📅 jen v kalendáři" : "📅 v kalendáři");
+      if (task && !n.done && n.calPending) metaParts.push("Kalendář: čeká");
+      else if (task && !n.done && n.calEventId) metaParts.push(n.calMode === "cal" ? "Jen v kalendáři" : "V kalendáři");
       const meta = metaParts.join(" · ");
       return `<li class="note${n.id === notesUI.editId ? " editing" : ""}${notesUI.open === n.id ? " open" : ""}${task ? " task" : ""}${n.done ? " done" : ""}${overdue ? " overdue" : ""}" data-id="${esc(n.id)}">
         ${task ? `<button type="button" class="tchk" data-act="toggle" aria-label="${n.done ? "Označit jako nesplněné" : "Označit jako splněné"}" aria-pressed="${!!n.done}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg></button>` : ""}
@@ -1588,7 +1541,7 @@
     btn.disabled = true; msg.textContent = "Připravuji PDF…"; $("pdfShare").hidden = true;
     try {
       await loadScript("vendor/jspdf.umd.min.js?v=2.5.1");
-      await loadScript("pdf.js?v=19");
+      await loadScript("pdf.js?v=20");
       const data = reportData();
       if (!data.days.length) throw new Error("Za zvolené období nejsou žádná data.");
       const blob = await window.TVT_PDF.build(data);
@@ -1611,7 +1564,7 @@
   // ---------- views ----------
   function show(view) {
     state.view = view;
-    ["today", "overview", "history", "notes", "settings"].forEach(v => { $("v-" + v).hidden = v !== view; });
+    ["today", "overview", "notes", "settings"].forEach(v => { $("v-" + v).hidden = v !== view; });
     document.querySelectorAll("#tabs button").forEach(b => b.setAttribute("aria-current", b.dataset.view === view ? "true" : "false"));
     renderCurrent();
     window.scrollTo(0, 0);
@@ -1619,7 +1572,6 @@
   function renderCurrent() {
     if (state.view === "today") renderToday();
     else if (state.view === "overview") renderOverview();
-    else if (state.view === "history") renderHistory();
     else if (state.view === "notes") renderNotes();
     else renderSettings();
   }
@@ -1653,7 +1605,8 @@
     catch (e) { return showFatal("Připojení k účtu se nepodařilo spustit: " + (e.code || e.message)); }
     renderSync();
     window.addEventListener("online", renderSync); window.addEventListener("offline", renderSync);
-    $("moreBox").addEventListener("toggle", () => { if ($("moreBox").open) renderOverview(); });
+    document.querySelectorAll("#v-overview details.det").forEach(el => el.addEventListener("toggle", () => { if (el.open) renderOverview(); }));
+    $("histCard").addEventListener("toggle", () => { if ($("histCard").open) renderHistory(); });
     $("wRange").addEventListener("click", e => {
       const b = e.target.closest("button[data-r]"); if (!b) return;
       state.wRange = b.dataset.r; try { localStorage.setItem("tvt-wrange", b.dataset.r); } catch (er) { /* bez úložiště */ }
@@ -1662,8 +1615,6 @@
     bindToday(); bindLifts(); bindWeekBox(); bindFood(); bindSettings(); bindAuth(); bindNotes(); bindTasks();
     $("mapPrev").onclick = () => { state.mapYear = (state.mapYear || Number(todayKey().slice(0, 4))) - 1; renderYearMap(); };
     $("mapNext").onclick = () => { state.mapYear = (state.mapYear || Number(todayKey().slice(0, 4))) + 1; renderYearMap(); };
-    $("sumPrev").onclick = () => { state.sumWeek = addDays(state.sumWeek || weekOf(todayKey()), -7); renderSummary(); };
-    $("sumNext").onclick = () => { const n = addDays(state.sumWeek || weekOf(todayKey()), 7); if (n <= weekOf(todayKey())) { state.sumWeek = n; renderSummary(); } };
     $("tabs").addEventListener("click", e => { const b = e.target.closest("button[data-view]"); if (b) show(b.dataset.view); });
     $("histList").addEventListener("click", e => { const b = e.target.closest(".hrow"); if (b) { flushSave(); state.key = b.dataset.k; state.formKey = null; show("today"); } });
 

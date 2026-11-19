@@ -7,11 +7,11 @@
 <meta name="theme-color" content="#000000">
 <link rel="manifest" href="manifest.json">
 <script>try{if(localStorage.getItem("tvt-theme2")==="light")document.documentElement.removeAttribute("data-theme")}catch(e){}</script>
-<link rel="icon" href="icons/icon-192.png?v=19">
-<link rel="apple-touch-icon" href="icons/icon-192.png?v=19">
+<link rel="icon" href="icons/icon-192.png?v=20">
+<link rel="apple-touch-icon" href="icons/icon-192.png?v=20">
 <style>
 /* Layout: one column (max 560px) on phone, two-column overview on desktop; bottom tab bar on phone, top nav on desktop */
-/* Vzhled „Barevné bloky“ (návrh 5): světlý podklad, kobaltová + korálová, výrazné bloky. Výchozí tmavý (data-theme="dark"), světlý na přepnutí v Nastavení. */
+/* Vzhled „Graphite“: černá, grafit, ocel, křída; barva jen pro stav (good/warn/bad). Výchozí tmavý (data-theme="dark"), světlý na přepnutí v Nastavení. */
 @font-face{font-family:"Big Shoulders Display";font-style:normal;font-weight:800;font-display:swap;src:url(fonts/big-shoulders-display-latin-800-normal.woff2) format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
 @font-face{font-family:"Big Shoulders Display";font-style:normal;font-weight:800;font-display:swap;src:url(fonts/big-shoulders-display-latin-ext-800-normal.woff2) format("woff2");unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}
 @font-face{font-family:"Big Shoulders Display";font-style:normal;font-weight:900;font-display:swap;src:url(fonts/big-shoulders-display-latin-900-normal.woff2) format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
@@ -58,7 +58,7 @@ button,input,textarea,select{font:inherit;color:inherit}
 
 /* nav */
 nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--card);border-top:1px solid var(--line);
-  display:grid;grid-template-columns:repeat(5,1fr);
+  display:grid;grid-template-columns:repeat(4,1fr);
   padding:6px max(8px,env(safe-area-inset-right,0px)) calc(6px + env(safe-area-inset-bottom,0px)) max(8px,env(safe-area-inset-left,0px))}
 nav.tabs button{background:none;border:0;padding:8px 4px;border-radius:12px;font-size:12px;color:var(--soft);display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer}
 nav.tabs button svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.7}
@@ -251,13 +251,13 @@ html,body{overflow-x:clip}
 .brand{font-family:var(--f-display);font-weight:900;font-size:26px;letter-spacing:.01em;text-transform:uppercase;line-height:1}
 .brand em{font-style:normal;color:#8C9299}
 .top .mode{color:rgba(255,255,255,.85);letter-spacing:.04em;text-transform:none;font-size:12px;margin-top:4px}
-.top .mode.ok::before{background:#7CF0B0}.top .mode.busy::before{background:#FFD25E}.top .mode.off{color:#FFD9CF}.top .mode.off::before{background:#FF9C86}.top .mode.demo::before{background:#C9D2FF}
+.top .mode.off{color:var(--bad)}
 .top .save{color:rgba(255,255,255,.85)}
 h2{font-family:var(--f-display);font-weight:800;font-size:28px;line-height:1;letter-spacing:.005em}
 .sec-t{font-family:var(--f-display);font-weight:800;font-size:26px;letter-spacing:.005em;text-transform:none;color:var(--ink);margin:0 0 12px;line-height:1}
 .card{border:0;border-radius:22px;padding:18px}
 .stack{gap:12px}
-#v-overview,#v-history,#v-settings{padding-top:16px}
+#v-overview,#v-settings{padding-top:16px}
 .btn,.btn.ghost{border-radius:999px;min-height:46px}
 .btn{background:var(--cobalt);color:var(--on-cobalt)}
 .btn.ghost{background:var(--bg);border:0;color:var(--ink)}
@@ -333,7 +333,7 @@ nav.tabs button{font-size:11px}
 .rtoast{position:fixed;left:12px;right:12px;top:calc(12px + env(safe-area-inset-top,0px));z-index:50;max-width:520px;margin:0 auto;background:#F0F0EC;color:#0B0C0D;border-radius:20px;padding:14px 16px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
 .rtoast b{display:block;font-size:13px}
 .rtoast p{margin:4px 0 10px;font-size:17px;font-weight:700;white-space:pre-wrap}
-.rtoast .btn{background:#141A2E;color:#fff} .rtoast .btn.ghost{background:rgba(255,255,255,.45);color:#141A2E}
+.rtoast .btn{background:#0B0C0D;color:#fff} .rtoast .btn.ghost{background:rgba(255,255,255,.45);color:#0B0C0D}
 /* oblíbená jídla */
 .favs{margin-top:14px}
 .favs-h{display:flex;justify-content:space-between;align-items:center;font-size:13px;color:var(--soft);margin-bottom:8px}
@@ -384,7 +384,7 @@ nav.tabs button{font-size:11px}
 .rec .rl{font-size:12px;color:var(--soft)}
 .rec .rv{font-family:var(--f-display);font-weight:900;font-size:26px;line-height:1.1;margin-top:4px}
 .rec .rs{font-size:12px;color:var(--soft);margin-top:2px}
-/* hero: modrý blok s dnem a cestou na cílovou váhu */
+/* hero: grafitový blok s dnem a cestou na cílovou váhu */
 .hero{background:var(--hero);color:var(--hero-ink);border:1px solid var(--line);border-top:0;border-radius:0 0 26px 26px;margin:0 -16px;padding:6px 18px 20px}
 .hero .dayhead .d{text-align:left}
 .hero h2{font-family:var(--f-display);font-weight:900;font-size:76px;line-height:.86;text-transform:uppercase;letter-spacing:0}
@@ -398,41 +398,41 @@ nav.tabs button{font-size:11px}
 .hg-track{height:10px;border-radius:999px;background:rgba(255,255,255,.25);margin-top:6px;overflow:hidden}
 .hg-track i{display:block;height:100%;width:0;border-radius:999px;background:#fff;transition:width .4s}
 
-/* korálový blok tréninku */
-.blk-train{background:var(--train);color:#141A2E}
-.blk-train .sec-t{color:#141A2E}
+/* světlý blok tréninku */
+.blk-train{background:var(--train);color:#0B0C0D}
+.blk-train .sec-t{color:#0B0C0D}
 .blk-train .chk{background:rgba(255,255,255,.4)}
-.blk-train .chk .tx small,.blk-train .pill.opt{color:#3B2620}
-.blk-train .chk .box{border-color:rgba(20,26,46,.45)}
-.blk-train .chk.train[aria-checked="true"]{background:#141A2E;color:#fff}
-.blk-train .chk.train[aria-checked="true"] .tx small{color:#C9D0E4}
+.blk-train .chk .tx small,.blk-train .pill.opt{color:#3A3F44}
+.blk-train .chk .box{border-color:rgba(11,12,13,.45)}
+.blk-train .chk.train[aria-checked="true"]{background:#0B0C0D;color:#fff}
+.blk-train .chk.train[aria-checked="true"] .tx small{color:#C4C7C9}
 .blk-train .chk.train[aria-checked="true"] .box{background:var(--coral);border-color:var(--coral)}
-.blk-train .pill.gym,.blk-train .pill.run{background:#141A2E;color:#fff}
-.blk-train .pill.opt{border-color:rgba(20,26,46,.4)}
-.blk-train .exl li{border-bottom:1px solid rgba(20,26,46,.18);font-size:15px}
-.blk-train .exl li i{color:#141A2E;font-style:normal;font-weight:900;font-size:17px}
-.blk-train .exl li b{color:#141A2E;opacity:.85}
-.blk-train .exl li.exnote{color:#141A2E;opacity:.85;font-weight:500}
-.blk-train .lift input{background:#fff;color:#141A2E}
-.blk-train .lift small,.blk-train .lift .x,.blk-train .lift .unit span{color:#3B2620}
-.blk-train .field label{color:#3B2620}
-.blk-train .field textarea{background:rgba(255,255,255,.7);color:#141A2E}
-.blk-train .todaylink{color:#141A2E}
+.blk-train .pill.gym,.blk-train .pill.run{background:#0B0C0D;color:#fff}
+.blk-train .pill.opt{border-color:rgba(11,12,13,.4)}
+.blk-train .exl li{border-bottom:1px solid rgba(11,12,13,.18);font-size:15px}
+.blk-train .exl li i{color:#0B0C0D;font-style:normal;font-weight:900;font-size:17px}
+.blk-train .exl li b{color:#0B0C0D;opacity:.85}
+.blk-train .exl li.exnote{color:#0B0C0D;opacity:.85;font-weight:500}
+.blk-train .lift input{background:#fff;color:#0B0C0D}
+.blk-train .lift small,.blk-train .lift .x,.blk-train .lift .unit span{color:#3A3F44}
+.blk-train .field label{color:#3A3F44}
+.blk-train .field textarea{background:rgba(255,255,255,.7);color:#0B0C0D}
+.blk-train .todaylink{color:#0B0C0D}
 .swaprow{display:flex;gap:10px;align-items:center;margin-top:10px}
-.swaprow select{flex:1;min-width:0;min-height:44px;border:0;border-radius:999px;padding:0 14px;font-size:14px;font-weight:700;background:rgba(255,255,255,.4);color:#141A2E;cursor:pointer}
-.swaprow .linkbtn{color:#141A2E;flex:none;min-height:44px}
+.swaprow select{flex:1;min-width:0;min-height:44px;border:0;border-radius:999px;padding:0 14px;font-size:14px;font-weight:700;background:rgba(255,255,255,.4);color:#0B0C0D;cursor:pointer}
+.swaprow .linkbtn{color:#0B0C0D;flex:none;min-height:44px}
 
 /* tmavý blok návyků */
 .blk-dark{background:var(--night);color:#fff}
 .blk-dark .sec-t{color:#fff}
-.blk-dark .chk{background:var(--night-2);color:#DDE2F0}
-.blk-dark .chk .box{border-color:#5A6488}
+.blk-dark .chk{background:var(--night-2);color:#D6D8DA}
+.blk-dark .chk .box{border-color:#5A6067}
 .blk-dark .chk[aria-checked="true"]{background:var(--ink);color:var(--bg)}
 .blk-dark .chk[aria-checked="true"] .box{background:var(--bg);border-color:var(--bg)}
 .blk-dark .chk[aria-checked="true"] .box svg{stroke:var(--ink)}
 
 /* plovoucí spodní menu */
-nav.tabs{left:12px;right:12px;bottom:calc(10px + env(safe-area-inset-bottom,0px));border:0;border-radius:999px;padding:5px;background:var(--card);box-shadow:0 8px 24px rgba(20,26,46,.22)}
+nav.tabs{left:12px;right:12px;bottom:calc(10px + env(safe-area-inset-bottom,0px));border:0;border-radius:999px;padding:5px;background:var(--card);box-shadow:0 8px 24px rgba(11,12,13,.22)}
 nav.tabs button{border-radius:999px;font-weight:700;padding:6px 4px}
 nav.tabs button[aria-current="true"]{background:var(--cobalt);color:var(--on-cobalt)}
 @media (min-width:600px){
@@ -446,7 +446,7 @@ nav.tabs button[aria-current="true"]{background:var(--cobalt);color:var(--on-cob
 .lift-day{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--clay);font-weight:700;margin:14px 0 2px}
 .lift-day:first-child{margin-top:0}
 .cmp{font-weight:700}.cmp.up{color:var(--good)}.cmp.down{color:var(--bad)}.cmp.eq{color:var(--soft)}
-.blk-train .cmp.up{color:#0B5E35}.blk-train .cmp.down{color:#8E1F0B}.blk-train .cmp.eq{color:#3B2620}
+.blk-train .cmp.up{color:#2E6B2B}.blk-train .cmp.down{color:#A8432C}.blk-train .cmp.eq{color:#3A3F44}
 .whead{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:8px}
 .wnow{font-family:var(--f-display);font-weight:900;font-size:40px;line-height:1;font-variant-numeric:tabular-nums}
 .wnow small{font-family:var(--f-body);font-weight:500;font-size:13px;color:var(--soft);margin-left:6px}
@@ -491,18 +491,18 @@ details.more>summary small{font-weight:400;font-size:12px;color:var(--soft)}
 details.more>.ov{padding:0 0 4px}
 details.more[open]{border:0}
 .exl .exr{display:flex;align-items:center;gap:6px}
-.exmenu{border:0;background:rgba(20,26,46,.12);color:#141A2E;border-radius:10px;min-width:36px;min-height:32px;font-size:18px;font-weight:800;line-height:1;cursor:pointer}
+.exmenu{border:0;background:rgba(11,12,13,.12);color:#0B0C0D;border-radius:10px;min-width:36px;min-height:32px;font-size:18px;font-weight:800;line-height:1;cursor:pointer}
 .exmenu[aria-expanded="true"]{background:#0B0C0D;color:#F0F0EC}
 .exmove{grid-column:2/4;margin-top:8px;padding:10px;border-radius:12px;background:rgba(255,255,255,.45);display:flex;flex-direction:column;gap:8px}
-.exmove .seg{align-self:flex-start;background:rgba(255,255,255,.6);border-color:rgba(20,26,46,.2)}
-.exmove .seg button{color:#3B2620;min-height:32px;padding:5px 10px}
-.exmove .seg button[aria-pressed="true"]{background:#141A2E;color:#fff}
+.exmove .seg{align-self:flex-start;background:rgba(255,255,255,.6);border-color:rgba(11,12,13,.2)}
+.exmove .seg button{color:#3A3F44;min-height:32px;padding:5px 10px}
+.exmove .seg button[aria-pressed="true"]{background:#0B0C0D;color:#fff}
 .exbtns{display:flex;gap:6px;flex-wrap:wrap}
-.exbtns .btn{background:#fff;color:#141A2E;border-color:rgba(20,26,46,.25)}
+.exbtns .btn{background:#fff;color:#0B0C0D;border-color:rgba(11,12,13,.25)}
 .exbtns .btn[disabled]{opacity:.4}
-.exbtns select{flex:1;min-width:150px;border:1px solid rgba(20,26,46,.25);background:#fff;color:#141A2E;border-radius:10px;padding:6px 8px;font:inherit;font-size:14px;min-height:36px}
-.blk-train .exnote .linkbtn{color:#141A2E;text-decoration:underline}
-/* Graphite: světlé plochy uvnitř tréninku (místo průsvitné bílé na korálu) */
+.exbtns select{flex:1;min-width:150px;border:1px solid rgba(11,12,13,.25);background:#fff;color:#0B0C0D;border-radius:10px;padding:6px 8px;font:inherit;font-size:14px;min-height:36px}
+.blk-train .exnote .linkbtn{color:#0B0C0D;text-decoration:underline}
+/* Graphite: světlé plochy uvnitř tréninku (plné šedé místo průsvitné bílé) */
 .blk-train{border:1px solid var(--line)}
 .blk-train .chk,.swaprow select,.exmove,.exmove .seg{background:var(--train-2)}
 .blk-train .lift input,.exbtns .btn,.exbtns select{background:#fff;border:1px solid #C4C7C9}
@@ -533,6 +533,29 @@ details.more[open]{border:0}
 .c.f{border:1.5px dashed var(--line)}
 .legend .c{width:13px;height:13px;border-radius:4px}
 .legend .c.y::after{width:5px;height:2.5px;border-width:1.5px}
+.th{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:6px}
+.th .q{margin:0}
+details.det{border-top:1px solid var(--line);margin-top:14px}
+details.det>summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;min-height:44px;padding:10px 0 4px;font-weight:700;font-size:14px}
+details.det>summary::-webkit-details-marker{display:none}
+details.det>summary small{font-size:12px;font-weight:600;color:var(--soft)}
+details.det>summary small::after{content:" ›";display:inline-block;transition:transform .2s}
+details.det[open]>summary small::after{transform:rotate(90deg)}
+details.histcard{margin-top:0;border-top:1px solid var(--line)}
+details.histcard>summary{padding:0}
+details.histcard[open]>summary{margin-bottom:10px}
+.toplifts{list-style:none;margin:10px 0 0;padding:0}
+.toplifts li{display:grid;grid-template-columns:minmax(0,1fr) auto 78px;gap:10px;align-items:baseline;padding:8px 0;border-top:1px solid var(--line)}
+.toplifts li span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.toplifts li b{font-family:var(--f-display);font-weight:900;font-size:19px;font-variant-numeric:tabular-nums}
+.toplifts li em{font-style:normal;font-size:12px;font-weight:700;text-align:right}
+.meters{display:flex;flex-direction:column;gap:12px;margin-top:6px}
+.meter .mrow2{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.meter .mrow2 b{font-family:var(--f-display);font-weight:900;font-size:26px;font-variant-numeric:tabular-nums}
+.meter .mrow2 b small{font-family:var(--f-body);font-weight:500;font-size:13px;color:var(--soft);margin-left:3px}
+.meter .mtrack{height:8px;border-radius:99px;background:var(--sage-l);margin-top:6px;overflow:hidden}
+.meter .mtrack i{display:block;height:100%;border-radius:99px;background:var(--ink)}
+.meter .ms{font-size:12px;color:var(--soft);margin-top:4px}
 </style>
 </head>
 <body>
@@ -565,7 +588,6 @@ details.more[open]{border:0}
     <nav class="tabs" id="tabs">
       <button data-view="today" aria-current="true"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="3"/><path d="M4 10h16M9 3v4M15 3v4"/></svg>Dnes</button>
       <button data-view="overview"><svg viewBox="0 0 24 24"><path d="M4 19V9M10 19V5M16 19v-7M22 19H2"/></svg>Přehled</button>
-      <button data-view="history"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg>Historie</button>
       <button data-view="notes"><svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5M9 13h7M9 17h5"/></svg>Poznámky</button>
       <button data-view="settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg>Nastavení</button>
     </nav>
@@ -636,11 +658,11 @@ details.more[open]{border:0}
           <div class="fav-chips" id="favChips"></div>
         </div>
         <div class="foodbtns">
-          <label class="btn" for="f-photo" role="button">📷 Vyfotit</label>
+          <label class="btn" for="f-photo" role="button">Vyfotit</label>
           <input id="f-photo" type="file" accept="image/*" capture="environment" hidden>
-          <label class="btn ghost" for="f-gallery" role="button">🖼️ Z galerie</label>
+          <label class="btn ghost" for="f-gallery" role="button">Z galerie</label>
           <input id="f-gallery" type="file" accept="image/*" hidden>
-          <button type="button" class="btn ghost" id="btnText">✍️ Popsat</button>
+          <button type="button" class="btn ghost" id="btnText">Popsat</button>
           <button type="button" class="btn ghost" id="btnManual">+ Ručně</button>
         </div>
 
@@ -692,15 +714,14 @@ details.more[open]{border:0}
     <!-- OVERVIEW -->
     <section id="v-overview" hidden>
       <div class="ov">
-        <!-- 1. VÁHA: nabírám? jak rychle? kolik? -->
+        <!-- VÁHA -->
         <div class="card span2" id="wCard">
-          <p class="q">Nabírám?</p>
+          <div class="th"><p class="q">Váha</p><div id="rateStatus"></div></div>
           <div class="whead">
             <div><div class="wnow" id="wNow">—</div><div class="hint" id="wNowS" style="margin-top:4px"></div></div>
             <div class="seg" id="wRange" role="group" aria-label="Rozsah grafu"><button type="button" data-r="28">4 týdny</button><button type="button" data-r="90">3 měsíce</button><button type="button" data-r="all">Vše</button></div>
           </div>
           <div class="wstats" id="wStats"></div>
-          <div id="rateStatus"></div>
           <div class="suggest" id="kcalSuggest" hidden>
             <p id="ksTxt"></p>
             <div class="row"><button type="button" class="btn sm" id="ksApply">Zvýšit cíl</button><button type="button" class="btn ghost sm" id="ksLater">Teď ne</button></div>
@@ -711,32 +732,39 @@ details.more[open]{border:0}
             <div class="bar-track"><div class="bar-fill" id="goalBar" style="width:0%"></div></div>
             <div class="hint" id="etaTxt"></div>
           </div>
-          <p class="wsub">Týden po týdnu <small>Ø týdne proti minulému · ideál +0,25–0,5 kg</small></p>
-          <ul class="wweeks" id="wWeeks"></ul>
+          <details class="det">
+            <summary><span>Týden po týdnu</span><small>Detail</small></summary>
+            <p class="hint" style="margin:0 0 6px">Ø týdne proti minulému · ideál +0,25–0,5 kg</p>
+            <ul class="wweeks" id="wWeeks"></ul>
+          </details>
         </div>
 
-        <!-- 2. SÍLA: zvedám víc? o kolik? -->
+        <!-- SÍLA -->
         <div class="card span2">
-          <p class="q">Zvedám víc?</p>
+          <div class="th"><p class="q">Síla</p></div>
           <div id="strengthSum"></div>
-          <div id="strengthBox"></div>
+          <details class="det">
+            <summary><span>Všechny cviky a rekordy</span><small>Detail</small></summary>
+            <div id="strengthBox"></div>
+            <p class="wsub">Rekordy</p>
+            <div class="recs" id="recordsBox"></div>
+          </details>
         </div>
 
-        <!-- 3. NÁVYKY: jsem lepší? -->
-        <div class="card">
-          <p class="q">Jsem lepší v návycích?</p>
-          <div class="kpis">
-            <div class="kpi"><div class="l">Návyky tento týden</div><div class="v" id="k-hab">—</div><div class="s" id="k-habS"></div></div>
-            <div class="kpi"><div class="l">Tréninky</div><div class="v" id="k-train">—</div><div class="s" id="k-trainS"></div></div>
-            <div class="kpi"><div class="l">Všechny návyky v řadě</div><div class="v" id="k-streak">—</div><div class="s" id="k-streakS"></div></div>
-            <div class="kpi"><div class="l">Nejslabší návyk</div><div class="v sm" id="k-weak">—</div><div class="s" id="k-weakS"></div></div>
-          </div>
-          <p class="wsub">Tento týden po dnech</p><div id="habTable"></div>
+        <!-- JÍDLO -->
+        <div class="card span2">
+          <div class="th"><p class="q">Jídlo</p><div id="foodStatus"></div></div>
+          <div id="foodSum"></div>
+          <details class="det">
+            <summary><span>Posledních 14 dní</span><small>Detail</small></summary>
+            <p class="wsub">Kalorie</p><div id="kChart"></div><div class="hint" id="kAvg"></div>
+            <p class="wsub">Bílkoviny</p><div id="pChart"></div><div class="hint" id="pAvg"></div>
+          </details>
         </div>
 
-        <!-- 4. SPÁNEK: je stabilní? -->
+        <!-- SPÁNEK -->
         <div class="card">
-          <p class="q">Mám stabilní spánek?</p>
+          <div class="th"><p class="q">Spánek</p></div>
           <div class="kpis">
             <div class="kpi"><div class="l">Spánek Ø 7 dní</div><div class="v" id="k-sleep">—</div><div class="s" id="k-sleepS"></div></div>
             <div class="kpi"><div class="l">Stabilita</div><div class="v sm" id="k-stab">—</div><div class="s" id="k-stabS"></div></div>
@@ -744,62 +772,37 @@ details.more[open]{border:0}
           <p class="wsub">Posledních 7 nocí <small>od usnutí do vstávání · vpravo délka spánku</small></p><div id="sChart"></div>
         </div>
 
-        <!-- VÍC DETAILŮ -->
-        <details class="more span2" id="moreBox">
-          <summary>Víc detailů <small>souhrn týdne, jídlo, mapa roku, rekordy, cíle</small></summary>
-          <div class="ov">
-            <div class="card span2" id="sumCard">
-              <div class="sumhead">
-                <button class="iconbtn" id="sumPrev" aria-label="Předchozí týden"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button>
-                <div><p class="sec-t" style="margin:0" id="sumLabel">Týdenní souhrn</p><h2 id="sumTitle" style="font-size:20px">—</h2></div>
-                <button class="iconbtn" id="sumNext" aria-label="Další týden"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>
-              </div>
-              <div class="kpis k4" id="sumKpis"></div>
-              <div class="sumcols">
-                <div><p class="wsub">Cviky · nejlepší série týdne</p><ul class="lifts" id="sumLifts"></ul></div>
-                <div><p class="wsub">Co z toho plyne</p><ul class="ins" id="sumIns"></ul></div>
-              </div>
-            </div>
-            <div class="card">
-              <p class="sec-t">Kalorie · 14 dní</p>
-              <div id="kChart"></div>
-              <div class="hint" id="kAvg"></div>
-            </div>
-            <div class="card">
-              <p class="sec-t">Bílkoviny · 14 dní</p>
-              <div id="pChart"></div>
-              <div class="hint" id="pAvg"></div>
-            </div>
-            <div class="card span2" id="mapCard">
-              <div class="sumhead" style="margin-bottom:10px">
-                <button class="iconbtn" id="mapPrev" aria-label="Předchozí rok"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button>
-                <div><h2 id="mapTitle" style="font-size:28px">Mapa roku</h2><p class="hint" style="margin:2px 0 0">každý den = návyky + trénink</p></div>
-                <button class="iconbtn" id="mapNext" aria-label="Další rok"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>
-              </div>
-              <div class="map-scroll" id="mapScroll">
-                <div class="map-months" id="mapMonths"></div>
-                <div class="map-wrap"><div class="map-days" aria-hidden="true"><span>Po</span><span></span><span>St</span><span></span><span>Pá</span><span></span><span>Ne</span></div><div class="map-grid" id="mapGrid"></div></div>
-              </div>
-              <div class="map-legend"><span>méně</span><i class="l0"></i><i class="l1"></i><i class="l2"></i><i class="l3"></i><span>celý den</span></div>
-              <div class="hint" id="mapStats"></div>
-            </div>
-            <div class="card span2">
-              <p class="sec-t">Zeď rekordů</p>
-              <div class="recs" id="recordsBox"></div>
-            </div>
-            <div class="card span2">
-              <p class="sec-t">Cíle</p>
-              <div class="stack" id="goalsBox"></div>
-            </div>
+        <!-- NÁVYKY -->
+        <div class="card">
+          <div class="th"><p class="q">Návyky</p></div>
+          <div class="kpis">
+            <div class="kpi"><div class="l">Návyky tento týden</div><div class="v" id="k-hab">—</div><div class="s" id="k-habS"></div></div>
+            <div class="kpi"><div class="l">Tréninky</div><div class="v" id="k-train">—</div><div class="s" id="k-trainS"></div></div>
+            <div class="kpi"><div class="l">Všechny návyky v řadě</div><div class="v" id="k-streak">—</div><div class="s" id="k-streakS"></div></div>
+            <div class="kpi"><div class="l">Nejslabší návyk</div><div class="v sm" id="k-weak">—</div><div class="s" id="k-weakS"></div></div>
           </div>
-        </details>
+          <p class="wsub">Tento týden po dnech</p><div id="habTable"></div>
+          <details class="det">
+            <summary><span>Mapa roku a cíle</span><small>Detail</small></summary>
+            <div class="sumhead" style="margin:6px 0 10px">
+              <button class="iconbtn" id="mapPrev" aria-label="Předchozí rok"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button>
+              <div><h2 id="mapTitle" style="font-size:24px">Mapa roku</h2><p class="hint" style="margin:2px 0 0">každý den = návyky + trénink</p></div>
+              <button class="iconbtn" id="mapNext" aria-label="Další rok"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>
+            </div>
+            <div class="map-scroll" id="mapScroll">
+              <div class="map-months" id="mapMonths"></div>
+              <div class="map-wrap"><div class="map-days" aria-hidden="true"><span>Po</span><span></span><span>St</span><span></span><span>Pá</span><span></span><span>Ne</span></div><div class="map-grid" id="mapGrid"></div></div>
+            </div>
+            <div class="map-legend"><span>méně</span><i class="l0"></i><i class="l1"></i><i class="l2"></i><i class="l3"></i><span>celý den</span></div>
+            <div class="hint" id="mapStats"></div>
+            <p class="wsub">Cíle</p>
+            <div class="stack" id="goalsBox"></div>
+          </details>
+        </div>
       </div>
     </section>
 
     <!-- HISTORY -->
-    <section id="v-history" class="narrow" hidden>
-      <div class="hist" id="histList"></div>
-    </section>
 
     <!-- SETTINGS -->
     <!-- POZNÁMKY -->
@@ -827,6 +830,10 @@ details.more[open]{border:0}
     </section>
 
     <section id="v-settings" class="narrow stack" hidden>
+      <details class="card det histcard" id="histCard">
+        <summary><span class="sec-t" style="margin:0">Historie dní</span><small>Otevřít</small></summary>
+        <div class="hist" id="histList"></div>
+      </details>
       <div class="card">
         <p class="sec-t">Cíle a start</p>
         <div class="fields">
@@ -870,7 +877,7 @@ details.more[open]{border:0}
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="app.js?v=26"></script>
+<script src="app.js?v=27"></script>
 <script type="module" src="ai.js?v=20"></script>
 </body>
 </html>

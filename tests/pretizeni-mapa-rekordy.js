@@ -29,6 +29,7 @@ const { chromium } = require('playwright'); const SP = process.env.OUT;
   const mealsAfter = await p.$$eval('#mealList .meal-n', e => e.map(x => x.textContent)); const kcal = await p.textContent('#mKcal');
   await p.screenshot({ path: SP + '/f1_today.png', fullPage: true });
   await p.click('nav.tabs button:nth-child(2)'); await p.waitForTimeout(700);
+  await p.evaluate(() => document.querySelectorAll('#v-overview details.det').forEach(d => { d.open = true; })); await p.waitForTimeout(400);
   const map = await p.evaluate(() => ({ title: document.getElementById('mapTitle').textContent, cells: document.querySelectorAll('#mapGrid i:not(.out)').length, l3: document.querySelectorAll('#mapGrid i.l3').length, months: document.querySelectorAll('#mapMonths span').length, stats: document.getElementById('mapStats').textContent, todayVisible: (() => { const s = document.getElementById('mapScroll'), t = s.querySelector('.today'); return t ? (t.offsetLeft >= s.scrollLeft && t.offsetLeft <= s.scrollLeft + s.clientWidth) : false; })() }));
   const str = await p.$$eval('.lift-card summary', e => e.map(x => x.textContent.replace(/\s+/g, ' ').trim()));
   await p.click('.lift-card summary'); await p.waitForTimeout(200);

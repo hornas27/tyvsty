@@ -8,7 +8,7 @@ const { chromium } = require('playwright'); const SP = process.env.OUT;
   const saved = await p.evaluate(() => { const d = JSON.parse(localStorage.getItem('tvt-days')); const k = Object.keys(d).sort().pop(); return k + ' ' + JSON.stringify(d[k].habits); });
   await p.click('#prevDay'); await p.waitForTimeout(200);
   const yest = await p.$$eval('#habitBox .chk', e => e.length);
-  await p.click('nav.tabs button:nth-child(3)'); await p.waitForTimeout(300);
+  await p.click('nav.tabs button[data-view="settings"]'); await p.waitForTimeout(300); await p.click('#histCard summary'); await p.waitForTimeout(300);
   const dots = await p.$$eval('.hrow .dots', e => e.slice(0, 3).map(x => x.querySelectorAll('i').length));
   await p.click('nav.tabs button[data-view="settings"]'); await p.waitForTimeout(300);
   const ex = (await p.inputValue('#exText')).split('\n').filter(l => /^2026-11-1[0-2]/.test(l) || /^datum/.test(l)).map(l => l.split(';').slice(11, 19).join(';'));

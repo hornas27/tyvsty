@@ -36,7 +36,7 @@ const { chromium } = require('playwright'); const SP = process.env.OUT;
   const recs = await p.$$eval('.rec .rl', e => e.map(x => x.textContent.trim()));
   await p.screenshot({ path: SP + '/v0_overview.png', fullPage: true });
   await p.locator('#wCard').screenshot({ path: SP + '/v2_weight_90.png' });
-  await p.click('#moreBox summary'); await p.waitForTimeout(400); await p.screenshot({ path: SP + '/v0b_more.png', fullPage: true }); await p.click('#moreBox summary');
+  await p.evaluate(() => document.querySelectorAll('#v-overview details.det').forEach(d => { d.open = true; })); await p.waitForTimeout(400); await p.screenshot({ path: SP + '/v0b_more.png', fullPage: true });
   await p.click('#wRange button[data-r="28"]'); await p.waitForTimeout(200); await p.locator('#wCard').screenshot({ path: SP + '/v3_weight_28.png' });
   await p.click('#wRange button[data-r="all"]'); await p.waitForTimeout(200); await p.locator('#wCard').screenshot({ path: SP + '/v4_weight_all.png' });
   const stored = await p.evaluate(() => localStorage.getItem('tvt-wrange'));

@@ -622,13 +622,38 @@ details.histcard[open]>summary{margin-bottom:10px}
 .rvsug .btn.on{background:var(--ink);color:var(--bg)}
 .rvown{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}
 .rvown input{width:100%;border:1px solid var(--line);background:var(--bg);border-radius:12px;padding:10px 12px;font-size:15px;outline:none;color:var(--ink)}
+/* tmavý trénink (tmavý režim): grafitová karta místo bílého panelu */
+:root[data-theme="dark"] .blk-train{background:var(--card);color:var(--ink);border:1px solid var(--line);border-left:3px solid var(--soft)}
+:root[data-theme="dark"] .blk-train .sec-t{color:var(--soft)}
+:root[data-theme="dark"] .blk-train .chk{background:var(--night-2);color:var(--ink)}
+:root[data-theme="dark"] .blk-train .chk .tx small,:root[data-theme="dark"] .blk-train .pill.opt{color:var(--soft)}
+:root[data-theme="dark"] .blk-train .chk .box{border-color:#5A6067}
+:root[data-theme="dark"] .blk-train .chk.train[aria-checked="true"]{background:#2A2E32;color:var(--ink)}
+:root[data-theme="dark"] .blk-train .chk.train[aria-checked="true"] .tx small{color:var(--soft)}
+:root[data-theme="dark"] .blk-train .chk.train[aria-checked="true"] .box{background:var(--ink);border-color:var(--ink)}
+:root[data-theme="dark"] .blk-train .chk.train[aria-checked="true"] .box svg{stroke:var(--bg)}
+:root[data-theme="dark"] .blk-train .pill.gym,:root[data-theme="dark"] .blk-train .pill.run{background:var(--ink);color:var(--bg)}
+:root[data-theme="dark"] .blk-train .pill.opt{border-color:var(--line)}
+:root[data-theme="dark"] .blk-train .exl li{border-bottom-color:var(--line)}
+:root[data-theme="dark"] .blk-train .exl li i,:root[data-theme="dark"] .blk-train .exl li b,:root[data-theme="dark"] .blk-train .exl li.exnote,:root[data-theme="dark"] .blk-train .todaylink,:root[data-theme="dark"] .blk-train .exnote .linkbtn,:root[data-theme="dark"] .blk-train .swaprow .linkbtn{color:var(--ink)}
+:root[data-theme="dark"] .blk-train .lift input,:root[data-theme="dark"] .blk-train .field textarea,:root[data-theme="dark"] .blk-train .swaprow select,:root[data-theme="dark"] .blk-train .exbtns .btn,:root[data-theme="dark"] .blk-train .exbtns select{background:var(--night-2);color:var(--ink);border:1px solid var(--line)}
+:root[data-theme="dark"] .blk-train .lift input:focus{border-color:var(--soft)}
+:root[data-theme="dark"] .blk-train .lift small,:root[data-theme="dark"] .blk-train .lift .x,:root[data-theme="dark"] .blk-train .lift .unit span,:root[data-theme="dark"] .blk-train .field label{color:var(--soft)}
+:root[data-theme="dark"] .blk-train .cmp.up{color:var(--good)}:root[data-theme="dark"] .blk-train .cmp.down{color:var(--bad)}:root[data-theme="dark"] .blk-train .cmp.eq{color:var(--soft)}
+:root[data-theme="dark"] .blk-train .pr{background:var(--ink);color:var(--bg)}
+:root[data-theme="dark"] .blk-train .exmove{background:var(--night-2)}
+:root[data-theme="dark"] .blk-train .exmove .seg{background:var(--card);border-color:var(--line)}
+:root[data-theme="dark"] .blk-train .exmove .seg button{color:var(--soft)}
+:root[data-theme="dark"] .blk-train .exmove .seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+:root[data-theme="dark"] .blk-train .exmenu{background:rgba(255,255,255,.08);color:var(--ink)}
+:root[data-theme="dark"] .blk-train .exmenu[aria-expanded="true"]{background:var(--ink);color:var(--bg)}
 </style>
 </head>
 <body>
 <div class="wrap">
   <header class="top">
     <div>
-      <div class="brand"><svg class="mark" viewBox="10 20 76 56" aria-hidden="true"><path d="M12 28h28v10h-9v30H21V38h-9z" fill="currentColor"/><path d="M56 28h28v10h-9v30H65V38h-9z" fill="var(--soft)"/><path d="M52 22L44 74" stroke="currentColor" stroke-width="4"/></svg><span>Ty <em>vs.</em> Ty</span></div>
+      <div class="brand"><span>Ty <em>vs.</em> Ty</span></div>
       <div class="mode" id="mode"></div>
     </div>
     <div class="save" id="saveState" aria-live="polite"></div>

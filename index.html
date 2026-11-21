@@ -700,6 +700,15 @@ details.histcard[open]>summary{margin-bottom:10px}
 :root[data-theme="dark"] .blk-train .coachout small,:root[data-theme="dark"] .blk-train .rlfeel small{color:var(--soft)}
 :root[data-theme="dark"] .blk-train .rlfeel .en{background:var(--night-2);color:var(--ink);border:1px solid var(--line)}
 :root[data-theme="dark"] .blk-train .rlfeel .en.on{background:var(--ink);color:var(--bg)}
+.planwarn{margin:10px 0;padding:10px 12px;border-radius:10px;border-left:3px solid var(--warn);background:var(--bg);font-size:13.5px}
+.planwarn ul{margin:4px 0 0;padding-left:18px}
+.blk-train .planwarn,#weekBox .planwarn{background:var(--bg)}
+.wbreport{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:10px}
+.runlist{list-style:none;margin:0;padding:0}
+.runlist li{display:grid;grid-template-columns:86px 64px minmax(0,1fr);gap:8px;padding:8px 0;border-top:1px dashed var(--line);font-size:13.5px;align-items:baseline}
+.runlist li span:last-child{color:var(--soft);font-size:12.5px}
+.runlist li.empty{display:block;color:var(--soft)}
+#runChart text{font-size:10px;fill:var(--soft)}
 </style>
 </head>
 <body>
@@ -764,6 +773,7 @@ details.histcard[open]>summary{margin-bottom:10px}
           <div class="coachrow"><button type="button" class="btn" id="wbCoach">Navrhne trenér</button><span class="hint" id="wbCoachMsg"></span></div>
           <p class="orline"><span>nebo vlož plán z Gemini</span></p>
           <div class="field"><label for="wbText">Vlož celý týdenní plán běhů z Gemini</label><textarea id="wbText" rows="7" placeholder="Pondělí: 10 min rozklus, 6× 800 m…&#10;Čtvrtek: 30 min volně…&#10;Sobota: 14 km klidně…"></textarea></div>
+          <div class="wbreport"><button type="button" class="btn ghost sm" id="wbReport">Zkopírovat report pro Gemini</button><span class="hint" id="wbReportMsg" style="margin:0"></span></div>
           <div class="row" style="margin-top:10px"><button type="button" class="btn ghost" id="wbSplit">Rozdělit do dnů</button><button type="button" class="btn ghost" id="wbCancel">Zrušit</button></div>
         </div>
         <div id="wbPreview" hidden>
@@ -917,6 +927,18 @@ details.histcard[open]>summary{margin-bottom:10px}
             <div id="strengthBox"></div>
             <p class="wsub">Rekordy</p>
             <div class="recs" id="recordsBox"></div>
+          </details>
+        </div>
+
+        <!-- BĚH -->
+        <div class="card span2" id="runCard">
+          <div class="th"><p class="q">Běh</p><div id="runStatus"></div></div>
+          <div class="kpis k4" id="runStats"></div>
+          <p class="wsub">Km po týdnech <small>posledních 8 týdnů · tmavý = tento týden</small></p><div id="runChart"></div>
+          <details class="det">
+            <summary><span>Rekordy a poslední běhy</span><small>Detail</small></summary>
+            <div class="recs" id="runRecs"></div>
+            <p class="wsub">Poslední běhy</p><ul class="runlist" id="runList"></ul>
           </details>
         </div>
 
@@ -1085,7 +1107,7 @@ details.histcard[open]>summary{margin-bottom:10px}
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="app.js?v=34"></script>
+<script src="app.js?v=35"></script>
 <script type="module" src="ai.js?v=22"></script>
 </body>
 </html>

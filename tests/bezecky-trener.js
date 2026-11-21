@@ -32,4 +32,10 @@ const { chromium } = require('playwright'); const SP = process.env.OUT;
   // gym den nemá zápis běhu
   await p.click('#goToday'); await p.waitForTimeout(300);
   const gymHasLog = await p.isVisible('#runLog');
-  console.log(JSON.stringify({ preview, planned, logVisible, pace, review, applied, answer, gymHasLog, errs }, null, 1)); await b.close(); })();
+  // 4) čtvrtek 12. 11.: běh ze screenshotu (demo AI přečte hodnoty)
+  for (let i = 0; i < 3; i++) { await p.click('#prevDay'); await p.waitForTimeout(200); }
+  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
+  await p.setInputFiles('#rl-photo', { name: 'beh.png', mimeType: 'image/png', buffer: png }); await p.waitForTimeout(900);
+  const photo = await p.evaluate(() => ({ km: document.getElementById('rl-km').value, time: document.getElementById('rl-time').value, hr: document.getElementById('rl-hr').value, msg: document.getElementById('rlMsg').textContent, extra: document.getElementById('rlExtra').textContent, pace: document.getElementById('rlPace').textContent }));
+  await p.locator('#runLog').screenshot({ path: SP + '/t4_photo.png' });
+  console.log(JSON.stringify({ preview, planned, logVisible, pace, review, applied, answer, gymHasLog, photo, errs }, null, 1)); await b.close(); })();

@@ -613,7 +613,7 @@
   }
   function runLogOut(l) {
     if (!l || !(l.km || l.sec || l.hr || l.feel || l.note)) return null;
-    return { km: l.km || null, cas: fmtDur(l.sec) || null, tempo: fmtPace(paceOf(l)) || null, tep: l.hr || null, pocit: FEEL[l.feel] || null, poznamka: l.note || null };
+    return { km: l.km || null, cas: fmtDur(l.sec) || null, tempo: fmtPace(paceOf(l)) || null, tep: l.hr || null, pocit: FEEL[l.feel] || null, poznamka: l.note || null, z_hodinek: l.extra || null };
   }
   // kontext pro trenéra: profil + běhy 8 týdnů + regenerace 7 dní + gym dny
   function coachCtx(extra) {
@@ -657,6 +657,7 @@
   function fillRunLog() {
     const l = currentDay().runLog || {};
     $("rl-km").value = l.km ?? ""; $("rl-time").value = fmtDur(l.sec); $("rl-hr").value = l.hr ?? ""; $("rl-note").value = l.note ?? "";
+    if (state.rlKey !== state.key) { state.rlKey = state.key; $("rlAnswer").hidden = true; $("rlMsg").textContent = ""; }
   }
   function renderRunLog(k) {
     const d = state.days[k] || {}, p = planOf(k), l = d.runLog || {};
@@ -665,6 +666,7 @@
     $("rlFeel").innerHTML = [1, 2, 3, 4, 5].map(n => `<button type="button" class="en${l.feel === n ? " on" : ""}" data-feel="${n}" aria-pressed="${l.feel === n}">${n}</button>`).join("");
     $("rlFeelTxt").textContent = l.feel ? FEEL[l.feel] : "1 = lehké, 5 = na doraz";
     const pace = paceOf(l); $("rlPace").textContent = pace ? "Tempo " + fmtPace(pace) : "";
+    $("rlExtra").hidden = !l.extra; $("rlExtra").textContent = l.extra ? "Z hodinek: " + l.extra : "";
     const rv = l.review;
     $("rlOut").hidden = !rv;
     if (rv) {
@@ -706,8 +708,29 @@
     } catch (e) { $("rlAnswer").textContent = coachErrText(e); }
     finally { $("rlAskBtn").disabled = false; }
   }
+  // screenshot / fotka běhu → AI přečte km, čas, tep… a vyplní zápis
+  async function runFromPhoto(files) {
+    const ai = coachAI(); if (!ai || !ai.runFromImages) { $("rlMsg").textContent = coachErrText(); return; }
+    const list = Array.from(files || []).slice(0, 3); if (!list.length) return;
+    $("rlPhotoBtn").disabled = true; $("rlMsg").textContent = "Čtu běh z " + (list.length > 1 ? list.length + " obrázků…" : "obrázku…");
+    try {
+      const imgs = []; for (const f of list) imgs.push(await compressImage(f, 1600));
+      const r = await ai.runFromImages(imgs);
+      if (!r.isRun || !(r.km || r.time)) { $("rlMsg").textContent = "Na obrázku jsem nenašel záznam běhu. Zkus jiný screenshot, nebo hodnoty zapiš ručně."; return; }
+      const extra = [r.hrMax && "max tep " + r.hrMax, r.pace && "tempo " + r.pace, r.cadence && "kadence " + r.cadence, r.elevation && "převýšení " + r.elevation + " m", r.calories && r.calories + " kcal", r.splits && "úseky: " + r.splits, r.other].filter(Boolean).join(" · ");
+      const patch = { extra: extra || null, fromPhoto: true };
+      if (r.km) patch.km = Math.round(r.km * 100) / 100;
+      const sec = parseDur(r.time); if (sec) patch.sec = sec;
+      if (r.hr) patch.hr = Math.round(r.hr);
+      saveRunLog(patch); fillRunLog();
+      $("rlMsg").textContent = "Načteno ze screenshotu ✓ Zkontroluj hodnoty, doplň pocit a dej rozbor." + (r.date && r.date !== state.key ? " Pozor: na obrázku je datum " + fmtShort(r.date) + "." : "");
+    } catch (e) { $("rlMsg").textContent = coachErrText(e); }
+    finally { $("rlPhotoBtn").disabled = false; $("rl-photo").value = ""; }
+  }
   function bindRunCoach() {
     $("wbCoach").onclick = coachPlanWeek;
+    $("rlPhotoBtn").onclick = () => $("rl-photo").click();
+    $("rl-photo").addEventListener("change", e => runFromPhoto(e.target.files));
     $("rl-km").addEventListener("input", e => saveRunLog({ km: num(e.target.value) }));
     $("rl-hr").addEventListener("input", e => saveRunLog({ hr: num(e.target.value) }));
     $("rl-time").addEventListener("change", e => { const sec = parseDur(e.target.value); saveRunLog({ sec }); e.target.value = fmtDur(sec); });
@@ -814,11 +837,11 @@
       food.busy = false; $("aiRedo").disabled = $("aiAdd").disabled = false;
     }
   }
-  async function compressImage(file) {
+  async function compressImage(file, max = 1024) {
     const url = URL.createObjectURL(file);
     try {
       const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = url; });
-      const max = 1024, sc = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+      const sc = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
       const w = Math.round(img.naturalWidth * sc), h = Math.round(img.naturalHeight * sc);
       const c = document.createElement("canvas"); c.width = w; c.height = h;
       c.getContext("2d").drawImage(img, 0, 0, w, h);
@@ -830,7 +853,8 @@
   const demoAI = { estimate: () => new Promise(r => setTimeout(() => r({ name: "Kuře s rýží (demo)", items: [{ name: "rýže", grams: 200, kcal: 260, protein: 5, carbs: 57, fat: 1 }, { name: "kuřecí prsa", grams: 150, kcal: 250, protein: 46, carbs: 0, fat: 6 }, { name: "olej", grams: 10, kcal: 90, protein: 0, carbs: 0, fat: 10 }], kcal: 600, protein: 51, carbs: 57, fat: 17, confidence: "střední", note: "Demo odhad – v appce s Firebase odhaduje Gemini." }), 700)),
     runPlan: ctx => new Promise(r => setTimeout(() => r({ intro: "Demo plán: stavíme objem, jeden kvalitní trénink.", tip: "Long run drž v konverzačním tempu.", days: ctx.data.planovany_tyden.bezecke_dny.map((d, i) => ({ key: d.datum, title: ["Intervaly 6× 800 m", "Lehký běh", "Long run"][i], km: [9, 6, 14][i], text: ["15 min rozklus\n6× 800 m v 4:30/km, pauza 2 min klus\n10 min výklus", "6 km lehce, zóna 2", "14 km v 6:00–6:15/km"][i] })) }), 300)),
     runReview: ctx => new Promise(r => setTimeout(() => { const nx = ctx.data.dalsi_naplanovane_behy[0]; r({ verdict: "good", head: "Dobrý běh, tempo sedí", text: "Demo rozbor: tempo i tep odpovídají plánu. Příště můžeš přidat 1 km.", next: nx ? { key: nx.datum, text: "Demo úprava: 7 km lehce, zóna 2" } : null }); }, 300)),
-    runAsk: (ctx, q) => new Promise(r => setTimeout(() => r({ answer: "Demo odpověď trenéra na: " + q }), 300)) };
+    runAsk: (ctx, q) => new Promise(r => setTimeout(() => r({ answer: "Demo odpověď trenéra na: " + q }), 300)),
+    runFromImages: () => new Promise(r => setTimeout(() => r({ isRun: true, km: 10.05, time: "52:40", hr: 148, hrMax: 171, pace: "5:14/km", cadence: 168, elevation: 42, calories: 720, date: null, splits: "5:20, 5:15, 5:12…", other: "Tréninkový efekt aerobní 3,2." }), 300)) };
 
   function bindFood() {
     const onPhoto = async e => {

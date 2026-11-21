@@ -129,4 +129,18 @@ async function runAsk(ctx, question) {
   return { answer: txt(j.answer, 1500), model: r.model };
 }
 
-window.TVT_AI = { estimate, runPlan, runReview, runAsk };
+// přečtení běhu ze screenshotu / fotky (hodinky, Samsung Health, Strava…)
+const SHOT_TASK = `Na obrázcích je záznam jednoho běhu (screenshot z hodinek nebo aplikace, případně víc obrazovek téhož běhu).
+Přečti hodnoty přesně tak, jak jsou na obrázku. Nic neodhaduj ani nedopočítávej; co tam není, dej null.
+Vrať POUZE JSON:
+{"km":0,"time":"h:mm:ss nebo mm:ss","hr":0,"hrMax":0,"pace":"m:ss/km","cadence":0,"elevation":0,"calories":0,"date":"YYYY-MM-DD nebo null","splits":"krátce tempa po km, pokud jsou vidět, jinak null","other":"další užitečné údaje (zóny, VO2max, trénink. efekt…) v 1 větě, nebo null","isRun":true}
+Když to není záznam běhu, dej "isRun": false.`;
+async function runFromImages(images) {
+  const parts = [SHOT_TASK, ...images.map(im => ({ inlineData: { data: im.data, mimeType: im.mime } }))];
+  const r = await runModels(parts, 0);
+  const j = JSON.parse(String(r.text).trim().replace(/^```(?:json)?/i, "").replace(/```$/, "").trim());
+  const pos = v => { const x = Number(String(v == null ? "" : v).replace(",", ".")); return isFinite(x) && x > 0 ? x : null; };
+  return { isRun: j.isRun !== false, km: pos(j.km), time: j.time ? txt(j.time, 12) : null, hr: pos(j.hr), hrMax: pos(j.hrMax), pace: j.pace ? txt(j.pace, 12) : null, cadence: pos(j.cadence), elevation: pos(j.elevation), calories: pos(j.calories), date: /^\d{4}-\d{2}-\d{2}$/.test(j.date || "") ? j.date : null, splits: j.splits ? txt(j.splits, 300) : null, other: j.other ? txt(j.other, 300) : null, model: r.model };
+}
+
+window.TVT_AI = { estimate, runPlan, runReview, runAsk, runFromImages };

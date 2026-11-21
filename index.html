@@ -673,6 +673,9 @@ details.histcard[open]>summary{margin-bottom:10px}
 .orline::before,.orline::after{content:"";flex:1;height:1px;background:var(--line)}
 .runlog{margin-top:16px;padding-top:12px;border-top:1px solid var(--line)}
 .runlog .wsub{margin-top:0}
+.rlhead{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px}
+.rlhead .wsub{margin:0}
+#rlExtra{margin:0 0 10px}
 .fields3{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:10px}
 .fields3 .field input{font-size:16px;padding:9px 10px}
 .rlfeel{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}
@@ -793,7 +796,8 @@ details.histcard[open]>summary{margin-bottom:10px}
         <div class="field" id="runField" hidden style="margin-top:12px"><label for="f-run">Plán běhu (od trenéra nebo z Gemini)</label><textarea id="f-run" placeholder="Např. 10 min rozklus, 6× 2 min rychle / 2 min klus, 10 min výklus"></textarea>
           <button type="button" class="todaylink" id="weekLink" style="margin:8px 0 0">Naplánovat celý týden (trenér nebo Gemini)</button></div>
         <div class="runlog" id="runLog" hidden>
-          <p class="wsub">Jak to dopadlo</p>
+          <div class="rlhead"><p class="wsub">Jak to dopadlo</p><button type="button" class="btn ghost sm" id="rlPhotoBtn">Ze screenshotu</button><input id="rl-photo" type="file" accept="image/*" multiple hidden></div>
+          <div class="hint" id="rlExtra" hidden></div>
           <div class="fields fields3">
             <div class="field"><label for="rl-km">Km</label><input id="rl-km" type="number" inputmode="decimal" step="0.01" min="0" placeholder="—"></div>
             <div class="field"><label for="rl-time">Čas</label><input id="rl-time" type="text" inputmode="numeric" placeholder="45:30"></div>
@@ -1081,7 +1085,7 @@ details.histcard[open]>summary{margin-bottom:10px}
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="app.js?v=33"></script>
-<script type="module" src="ai.js?v=21"></script>
+<script src="app.js?v=34"></script>
+<script type="module" src="ai.js?v=22"></script>
 </body>
 </html>

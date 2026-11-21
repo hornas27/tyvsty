@@ -196,6 +196,7 @@
   }
 
   function renderToday() {
+    syncEx();
     const k = state.key, tk = todayKey();
     const wd = parseKey(k).getDay();
     $("dayTitle").textContent = k === tk ? "Dnes" : k === addDays(tk, -1) ? "Včera" : k === addDays(tk, 1) ? "Zítra" : DAYS_CS[wd][0].toUpperCase() + DAYS_CS[wd].slice(1);
@@ -348,6 +349,18 @@
   }
   // ---------- cviky dne: pořadí a přesuny (jen tento týden = day.ex, natrvalo = settings.planEx[číslo dne plánu]) ----------
   const EX = {}; Object.values(PLAN).forEach(p => (p.ex || []).forEach(e => { if (e[2] && !EX[e[2]]) EX[e[2]] = { name: e[0], sets: e[1] }; }));
+  // vlastní a přejmenované cviky: settings.exDefs = {id: {name, sets, custom?}} (jen ve Firestore, ne v kódu); stejné ID = společná historie
+  const BASE_EX = JSON.parse(JSON.stringify(EX)), BASE_LIFTS = { ...LIFTS };
+  let exDefsRef = null;
+  function syncEx() {
+    const defs = state.settings.exDefs || {};
+    if (defs === exDefsRef) return;
+    exDefsRef = defs;
+    Object.keys(EX).forEach(id => delete EX[id]); Object.keys(LIFTS).forEach(id => delete LIFTS[id]);
+    Object.assign(EX, JSON.parse(JSON.stringify(BASE_EX))); Object.assign(LIFTS, BASE_LIFTS);
+    Object.entries(defs).forEach(([id, d]) => { if (d && d.name) { EX[id] = { name: d.name, sets: d.sets || S2 }; LIFTS[id] = d.name; } });
+  }
+  const exByName = n => { const t = n.trim().toLowerCase(); return Object.keys(EX).find(id => EX[id].name.toLowerCase() === t) || Object.keys(LIFTS).find(id => LIFTS[id].toLowerCase() === t) || null; };
   const planExIds = dn => { const pe = (state.settings.planEx || {})[dn]; return Array.isArray(pe) ? pe.filter(id => EX[id]) : (PLAN[dn].ex || []).map(e => e[2]); };
   const exIdsFor = k => { const d = state.days[k] || {}; return Array.isArray(d.ex) ? d.ex.filter(id => EX[id]) : planExIds(planKey(k)); };
   const exOverridden = k => Array.isArray((state.days[k] || {}).ex) || Array.isArray((state.settings.planEx || {})[planKey(k)]);
@@ -369,10 +382,61 @@
           <div class="seg sm" role="group" aria-label="Platnost změny"><button type="button" data-scope="week" aria-pressed="${scope === "week"}">Jen tento týden</button><button type="button" data-scope="perm" aria-pressed="${scope === "perm"}">Natrvalo</button></div>
           <div class="exbtns"><button type="button" class="btn ghost sm" data-mv="up" ${i === 0 ? "disabled" : ""}>↑ Výš</button><button type="button" class="btn ghost sm" data-mv="down" ${i === ids.length - 1 ? "disabled" : ""}>↓ Níž</button>
           <select data-mv="to" aria-label="Přesunout na jiný den"><option value="">Přesunout na…</option>${targets.map(x => `<option value="${x}">${DAYS_SHORT[parseKey(x).getDay()]} ${fmtShort(x)} · ${esc(planOf(x).label)}</option>`).join("")}</select></div>
+          <div class="exbtns"><button type="button" class="btn ghost sm" data-mv="edit" aria-pressed="${state.exEditId === id}">Upravit</button><button type="button" class="btn ghost sm${state.exDelArm === id ? " armed" : ""}" data-mv="del">${state.exDelArm === id ? "Opravdu odebrat?" : "Odebrat"}</button></div>
+          ${state.exEditId === id ? `<div class="exform">
+            <div class="field"><label for="edName">Název</label><input id="edName" type="text" maxlength="60" data-ed="name" value="${esc(e.name)}"></div>
+            <div class="field"><label for="edSets">Série</label><input id="edSets" type="text" maxlength="40" data-ed="sets" value="${esc(e.sets)}"></div>
+            <div class="exbtns"><button type="button" class="btn sm" data-mv="editsave">Uložit</button><button type="button" class="btn ghost sm" data-mv="editcancel">Zrušit</button></div>
+            <small>Změna platí všude, kde cvik máš. Historie a rekordy zůstanou.</small></div>` : ""}
+          <small class="exscope">${scope === "perm" ? "Přesun a odebrání platí natrvalo." : "Přesun a odebrání platí jen tento týden."} Odebraný cvik si nechá historii.</small>
         </div>` : "";
       return `<li class="haslift" data-ex="${id}"><i>${i + 1}</i><span>${esc(e.name)}</span><span class="exr"><b>${esc(e.sets)}</b><button type="button" class="exmenu" data-menu="${id}" aria-expanded="${open === id}" aria-label="Pořadí a přesun: ${esc(e.name)}">⋯</button></span>${lift}${panel}</li>`;
-    }).join("") + (exOverridden(k) ? `<li class="exnote"><button type="button" class="linkbtn" data-mv="reset">Vrátit původní cviky tohohle dne</button></li>` : "")
-      + (ids.length ? "" : `<li class="exnote">Žádné cviky – všechny jsou přesunuté jinam.</li>`);
+    }).join("") + (ids.length ? "" : `<li class="exnote">Žádné cviky – všechny jsou přesunuté jinam.</li>`)
+      + (state.exAdd ? addExForm(ids) : `<li class="exnote exaddrow"><button type="button" class="btn ghost sm" data-mv="add">+ Přidat cvik</button></li>`)
+      + (exOverridden(k) ? `<li class="exnote"><button type="button" class="linkbtn" data-mv="reset">Vrátit původní cviky tohohle dne</button></li>` : "");
+  }
+  function addExForm(ids) {
+    const dr = state.exDraft || {}, scope = state.exScope || "week";
+    const opts = Object.keys(EX).filter(id => !ids.includes(id)).map(id => EX[id].name).sort((a, b) => a.localeCompare(b, "cs"));
+    return `<li class="exform exadd">
+      <b class="exform-t">Nový cvik</b>
+      <div class="field"><label for="adName">Název</label><input id="adName" type="text" maxlength="60" data-ad="name" list="adList" placeholder="Napiš nový, nebo vyber ze seznamu" value="${esc(dr.name || "")}" autocomplete="off"><datalist id="adList">${opts.map(n => `<option value="${esc(n)}"></option>`).join("")}</datalist></div>
+      <div class="field"><label for="adSets">Série</label><input id="adSets" type="text" maxlength="40" data-ad="sets" value="${esc(dr.sets ?? S2)}"></div>
+      <div class="seg sm" role="group" aria-label="Platnost"><button type="button" data-scope="week" aria-pressed="${scope === "week"}">Jen tento týden</button><button type="button" data-scope="perm" aria-pressed="${scope === "perm"}">Natrvalo</button></div>
+      <div class="exbtns"><button type="button" class="btn sm" data-mv="addsave">Přidat</button><button type="button" class="btn ghost sm" data-mv="addcancel">Zrušit</button></div>
+      <small>Cvik ze seznamu má společnou historii. Nový název = nový cvik, počítá se od prvního zápisu.</small></li>`;
+  }
+  function keepExDraft() {
+    const n = $("adName"), st = $("adSets");
+    if (n && st) state.exDraft = { name: n.value, sets: st.value };
+  }
+  function addExercise(k) {
+    keepExDraft();
+    const dr = state.exDraft || {}, name = (dr.name || "").trim().replace(/\s+/g, " ").slice(0, 60), sets = (dr.sets || "").trim().slice(0, 40) || S2;
+    if (!name) { const i = $("adName"); if (i) i.focus(); return; }
+    let id = exByName(name);
+    if (id && exIdsFor(k).includes(id)) { showSave("„" + EX[id].name + "“ už dnes máš"); return; }
+    if (!id) {
+      id = "x" + Date.now().toString(36);
+      state.settings = { ...state.settings, exDefs: { ...(state.settings.exDefs || {}), [id]: { name, sets, custom: true, since: k } } };
+      syncEx();
+      if ((state.exScope || "week") !== "perm") trackSave(store.saveSettings(state.settings)).catch(e => showSave("Chyba: " + (e.code || e.message)));
+    }
+    state.exAdd = false; state.exDraft = null; state.exOpen = null;
+    const perm = (state.exScope || "week") === "perm";
+    editEx(k, l => l.includes(id) ? l : l.concat(id));
+    showSave((perm ? "Přidáno natrvalo: " : "Přidáno jen tento týden: ") + EX[id].name);
+  }
+  function saveExEdit(id) {
+    const name = (($("edName") || {}).value || "").trim().replace(/\s+/g, " ").slice(0, 60), sets = (($("edSets") || {}).value || "").trim().slice(0, 40) || S2;
+    if (!name) { const i = $("edName"); if (i) i.focus(); return; }
+    const other = exByName(name);
+    if (other && other !== id) { showSave("Cvik „" + name + "“ už existuje – zvol jiný název"); return; }
+    const defs = { ...(state.settings.exDefs || {}) };
+    defs[id] = { ...(defs[id] || {}), name, sets };
+    if (BASE_EX[id] && BASE_EX[id].name === name && BASE_EX[id].sets === sets && !defs[id].custom) delete defs[id];
+    state.exEditId = null; state.exKey = null;
+    saveSettingsPatch({ exDefs: defs }, "Cvik upraven ✓");
   }
   // úprava seznamu cviků: na dni (jen tento týden) nebo v plánu (natrvalo)
   function editEx(k, fn, k2, fn2) {
@@ -404,9 +468,25 @@
       const m = e.target.closest("[data-menu]");
       if (m) { state.exOpen = state.exOpen === m.dataset.menu ? null : m.dataset.menu; state.exKey = null; renderExList(state.key); return; }
       const sc = e.target.closest("[data-scope]");
-      if (sc) { state.exScope = sc.dataset.scope; state.exKey = null; renderExList(state.key); return; }
+      if (sc) { keepExDraft(); state.exScope = sc.dataset.scope; state.exKey = null; renderExList(state.key); return; }
       const mv = e.target.closest("button[data-mv]"); if (!mv) return;
-      const k = state.key;
+      const k = state.key, act = mv.dataset.mv;
+      const rerender = () => { state.exKey = null; renderExList(k); };
+      if (act === "add") { state.exAdd = true; state.exOpen = null; state.exDraft = {}; rerender(); const i = $("adName"); if (i) i.focus(); return; }
+      if (act === "addcancel") { state.exAdd = false; state.exDraft = null; rerender(); return; }
+      if (act === "addsave") { addExercise(k); return; }
+      if (act === "edit") { const id = mv.closest("[data-ex]").dataset.ex; state.exEditId = state.exEditId === id ? null : id; state.exDelArm = null; rerender(); return; }
+      if (act === "editcancel") { state.exEditId = null; rerender(); return; }
+      if (act === "editsave") { saveExEdit(mv.closest("[data-ex]").dataset.ex); return; }
+      if (act === "del") {
+        const id = mv.closest("[data-ex]").dataset.ex;
+        if (state.exDelArm !== id) { state.exDelArm = id; rerender(); return; }
+        state.exDelArm = null; state.exOpen = null; state.exEditId = null;
+        const perm = (state.exScope || "week") === "perm";
+        editEx(k, l => l.filter(x => x !== id));
+        showSave((perm ? "Odebráno natrvalo: " : "Odebráno jen tento týden: ") + EX[id].name);
+        return;
+      }
       if (mv.dataset.mv === "reset") {
         flushSave();
         if (Array.isArray((state.days[k] || {}).ex)) patchDay({ ex: null }, true, k);
@@ -416,6 +496,11 @@
       }
       const id = mv.closest("[data-ex]").dataset.ex, dir = mv.dataset.mv === "up" ? -1 : 1;
       editEx(k, l => { const i = l.indexOf(id), j = i + dir; if (i < 0 || j < 0 || j >= l.length) return l; [l[i], l[j]] = [l[j], l[i]]; return l; });
+    });
+    box.addEventListener("keydown", e => {
+      if (e.key !== "Enter") return;
+      if (e.target.closest("[data-ad]")) { e.preventDefault(); addExercise(state.key); }
+      else if (e.target.closest("[data-ed]")) { e.preventDefault(); saveExEdit(e.target.closest("[data-ex]").dataset.ex); }
     });
     box.addEventListener("change", e => {
       const sel = e.target.closest("select[data-mv]"); if (!sel || !sel.value) return;
@@ -1237,7 +1322,10 @@
     const rows = GYM_DAYS.map(dn => {
       const cards = planExIds(dn).filter(id => id && !seen.has(id) && seen.add(id)).map(card).join("");
       return cards ? `<p class="lift-day">${DAYS_CS[dn][0].toUpperCase() + DAYS_CS[dn].slice(1)} · ${esc(PLAN[dn].label)}</p>${cards}` : "";
-    }).join("");
+    }).join("") + (() => { // cviky mimo trvalý plán (jen tento týden, odebrané, vlastní)
+      const cards = Object.keys(LIFTS).filter(id => !seen.has(id) && seen.add(id)).map(card).join("");
+      return cards ? `<p class="lift-day">Další cviky</p>${cards}` : "";
+    })();
     // shrnutí: za 4 týdny silnější v X z Y cviků + co stojí
     const tk = todayKey(); let up = 0, of = 0; const stuck = [];
     Object.keys(LIFTS).forEach(id => {
@@ -1322,12 +1410,46 @@
     }).join("");
   }
 
+  // ---------- běžecký trenér: profil běžce (settings.runProfile, jen ve Firestore) ----------
+  const RUN_PROFILE_PROMPT = `Trénuješ mě v běhu už zhruba půl roku. Plány mi teď bude dělat trenér v mé aplikaci a potřebuju mu předat všechno, co o mně víš.
+Napiš můj kompletní profil běžce. Česky, v bodech, maximálně 900 slov. Co nevíš, napiš „nevím“ a nic si nedomýšlej.
+
+1. Základ: věk, výška, váha, jak dlouho běhám, další sport (posilovna 4× týdně).
+2. Cíle a závody: hlavní cíl, datum závodu a cílový čas, další závody.
+3. Aktuální forma: osobní rekordy (5 km, 10 km, půlmaraton…), poslední testy, nejdelší běh za poslední měsíc.
+4. Tempa a tepy: maximální a klidový tep, tepové zóny, tempo pro lehký běh, tempový běh, intervaly a dlouhý běh.
+5. Objem: kolik km a běhů týdně jsem dával posledních 8 týdnů a jaký byl můj nejvyšší týden.
+6. Zranění a omezení: co mě bolelo, co pomáhalo, čemu se vyhnout.
+7. Co fungovalo a co ne: typy tréninků, na které reaguju dobře a špatně, regenerace, vliv spánku a posilovny.
+8. Kde teď v přípravě jsme: fáze, co mělo přijít v dalších týdnech.
+9. Tvoje doporučení pro dalšího trenéra.
+
+Na konec přidej tabulku mých posledních 10 běhů: datum, typ, km, čas, průměrné tempo, průměrný tep, pocit.`;
+  function renderRunProfile() {
+    const s = state.settings, t = $("rpText");
+    if (document.activeElement !== t) t.value = s.runProfile || "";
+    $("rpInfo").textContent = s.runProfile ? "Uloženo " + (s.runProfileAt ? fmtShort(s.runProfileAt) + " · " : "") + nf0.format(s.runProfile.length) + " znaků" : "Zatím prázdné";
+  }
+  function bindRunProfile() {
+    $("rpPrompt").onclick = () => {
+      const ok = () => { $("rpMsg").textContent = "Zkopírováno ✓ Vlož do Gemini."; setTimeout(() => { $("rpMsg").textContent = ""; }, 4000); };
+      const fallback = () => { const ta = document.createElement("textarea"); ta.value = RUN_PROFILE_PROMPT; document.body.appendChild(ta); ta.select(); try { document.execCommand("copy"); ok(); } catch (e) { $("rpMsg").textContent = "Kopírování nejde, zkus to znovu."; } ta.remove(); };
+      if (navigator.clipboard) navigator.clipboard.writeText(RUN_PROFILE_PROMPT).then(ok).catch(fallback); else fallback();
+    };
+    $("rpSave").onclick = () => {
+      const t = $("rpText").value.trim();
+      saveSettingsPatch({ runProfile: t || null, runProfileAt: t ? todayKey() : null }, t ? "Profil běžce uložen ✓" : "Profil běžce smazán");
+      renderRunProfile();
+    };
+  }
+
   // ---------- SETTINGS / EXPORT ----------
   function renderSettings() {
     const s = state.settings;
     $("coachOff").checked = !s.coachOff;
     const ch = s.customHabits || [];
     $("chList").innerHTML = ch.length ? ch.map(h => `<li><span>${esc(h.t)}</span><small>${h.perWeek ? h.perWeek + "× týdně" : "denně"}</small><button type="button" class="linkbtn del${state.chArm === h.k ? " armed" : ""}" data-chdel="${esc(h.k)}">${state.chArm === h.k ? "Opravdu odebrat?" : "Odebrat"}</button></li>`).join("") : `<li class="empty">Zatím žádné vlastní návyky.</li>`;
+    renderRunProfile();
     if ($("histCard").open) renderHistory();
     $("s-startW").value = s.startWeight ?? ""; $("s-startD").value = s.startDate ?? "";
     $("s-targetW").value = s.targetWeight ?? ""; $("s-kcal").value = s.kcalTarget ?? "";
@@ -1775,6 +1897,7 @@
     window.scrollTo(0, 0);
   }
   function renderCurrent() {
+    syncEx();
     if (state.view === "today") renderToday();
     else if (state.view === "overview") renderOverview();
     else if (state.view === "review") renderReview();
@@ -1843,7 +1966,7 @@
       const b = e.target.closest("[data-sug]"); if (b) { saveWeekGoal(state.rvSug[Number(b.dataset.sug)]); return; }
       if (e.target.closest("#rvSave")) { const t = $("rvText").value.trim(); if (!t) { $("rvText").focus(); return; } saveWeekGoal({ type: "text", t: t.slice(0, 80) }); }
     });
-    bindToday(); bindLifts(); bindWeekBox(); bindFood(); bindSettings(); bindAuth(); bindNotes(); bindTasks();
+    bindToday(); bindLifts(); bindWeekBox(); bindFood(); bindSettings(); bindRunProfile(); bindAuth(); bindNotes(); bindTasks();
     $("mapPrev").onclick = () => { state.mapYear = (state.mapYear || Number(todayKey().slice(0, 4))) - 1; renderYearMap(); };
     $("mapNext").onclick = () => { state.mapYear = (state.mapYear || Number(todayKey().slice(0, 4))) + 1; renderYearMap(); };
     $("tabs").addEventListener("click", e => { const b = e.target.closest("button[data-view]"); if (b) show(b.dataset.view); });

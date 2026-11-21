@@ -31,6 +31,8 @@ Osobní PWA tracker Marka (váha, kcal, bílkoviny, spánek, energie, trénink a
 - **Kouč** (Dnes, `#coachCard`, jen pro dnešek): `readiness` (0–100 ze spánku, času usnutí, energie a tréninků za 2 dny), `coachPlan` (vážení, trénink s návrhem váhy, jídlo podle včerejška, týdenní návyky, spánek), `coachWatch` (max 3: problémy bad/warn + 1 pochvala; „Beru“ = `settings.coachSnooze[id]` na 2 dny), `renderCoach` volaný z `renderTodayDerived`. Pevná pravidla, bez AI. Vypínač `settings.coachOff`.
 - Ukládání: `patchDay` (debounce 600 ms) + `flushSave` na pagehide/visibility/přepnutí dne, `trackSave` → indikátor synchronizace.
 - Progresivní přetížení: každý cvik v `PLAN` má ID (3. prvek) a zapisuje se nejtěžší série; `LIFTS` (všechny cviky, stejné ID = společná historie, např. `lateral`, `bayes`, `triceps`), `MAIN_LIFTS` (6 hlavních pro zeď rekordů), `LIFT_STEP` (výchozí 2,5), `liftHistory`, `liftSuggestion` (8+ opak. → +krok; 6–7 → stejná váha +1 opak.; 2× pod 6 → −krok), `liftCompare` (víc/stejně/míň než minule), `liftStalled` (3× stejně), e1RM = w·(1+r/30).
+- Vlastní / přejmenované cviky: `settings.exDefs = {id: {name, sets, custom?, since}}` (jen Firestore), `syncEx()` je promítne do `EX` a `LIFTS` (volá se v `renderToday`/`renderCurrent`). V tréninku „+ Přidat cvik“ (název ze seznamu = existující ID, společná historie; nový = `x…` ID), v menu ⋯ „Upravit“ (název, série) a „Odebrat“ (podle Jen tento týden / Natrvalo, historie zůstává). Síla v Přehledu má skupinu „Další cviky“ pro cviky mimo trvalý plán.
+- Běžecký trenér (rozpracováno, části 1–2 hotové): profil běžce `settings.runProfile` (+ `runProfileAt`) v Nastavení `#rpCard`, prompt pro Gemini `RUN_PROFILE_PROMPT`. Další části: návrh týdne v appce (Gemini zdarma + profil + historie + pravidla), náhled a „Rozložit do dní“, zápis běhu a rozbor, hlídání pravidly, import/export pro placené Gemini.
 - Cviky dne: `exIdsFor(k)` (pořadí = `day.ex` jen pro tento týden › `settings.planEx[číslo dne plánu]` natrvalo › `PLAN`), `planExIds(dn)`, `EX` (id → název, série). Menu ⋯ u cviku: ↑/↓, přesun na jiný gym den týdne, přepínač Jen tento týden / Natrvalo (`editEx`), „Vrátit původní cviky“.
 - Přehled = sekce Váha (`#wCard`), Síla (`#strengthSum` + top 3 změny, detail `renderStrength` + rekordy), Jídlo (`renderFood`), Spánek, Návyky (detail mapa roku + cíle); každá sekce má vlastní `<details class="det">`, žádný společný „Víc detailů“. Historie dní je v Nastavení (`#histCard`), záložky jsou 4: Dnes, Přehled, Poznámky, Nastavení. Týdenní souhrn zrušen. Spánek: (`renderSleepCard`, stabilita = rozptyl délky a času usínání; `sleepTimeline` = 7 nocí jako čáry usnutí→vstávání, cílové okno `SLEEP_WIN` 22:30–23:30; návyky `habitTable` = návyk × den, krátké názvy `HABITS[].s`).
 - **Bilance týdne** (`#v-review`, mimo záložky; otevře se z Přehledu `#openReview` nebo bannerem v neděli od 17 h / v pondělí bez cíle): `reviewStats`/`reviewRows` (váha, síla, tréninky, jídlo, spánek, návyky) a cíl na týden `settings.weekGoals[pondělí] = {type: habit|kcal|bed|text, k, n, t}`, `goalProgress`, `goalSuggestions`. Kouč dává cíl do plánu a hlídá ho.
@@ -44,7 +46,7 @@ Osobní PWA tracker Marka (váha, kcal, bílkoviny, spánek, energie, trénink a
 - `index.html` načítá `config.js?v=N`, `app.js?v=N`, `ai.js?v=N`, ikony `?v=N`. Při změně souboru **zvyš jeho `?v=`** (jinak telefon drží starý JS s novým HTML).
 - `sw.js`: `CACHE = "tvt-vN"` – **zvyš při každém nasazení**. Same-origin network-first, `ignoreSearch` fallback; `LIBS` (`tvt-libs-1`, gstatic firebase) cache-first a zůstává napříč verzemi.
 - `manifest.json` se v `index.html` odkazuje **bez** `?v=` (jinak se rozbije aktualizace WebAPK ikony).
-- Aktuálně: app.js v31, config/ai v20, `CACHE = "tvt-v33"`.
+- Aktuálně: app.js v32, config/ai v20, `CACHE = "tvt-v34"`.
 
 ## Nasazení
 1. Změny + testy (níže) + lint.
@@ -62,7 +64,7 @@ node run.js poznamky     # jen vybrané
 VERBOSE=1 node run.js    # vypíše i JSON výstupy
 npm run lint             # eslint 8 (0 chyb; 2 staré warningy jsou ok)
 ```
-Scénáře: core, navyky-export, ukladani-flush, pretizeni-mapa-rekordy, fatal-vs-demo, poznamky, ukoly-pripominky, google-kalendar, prohozeni-treninku, vaha-cviky, cviky-presun, kouc, bilance. Jsou to smoke testy (JSON výstup + kontrola chyb stránky), ne přesné asserty – po změně se podívej i na výstup a screenshoty v `tests/out/`.
+Scénáře: core, navyky-export, ukladani-flush, pretizeni-mapa-rekordy, fatal-vs-demo, poznamky, ukoly-pripominky, google-kalendar, prohozeni-treninku, vaha-cviky, cviky-presun, kouc, bilance, cviky-upravy. Jsou to smoke testy (JSON výstup + kontrola chyb stránky), ne přesné asserty – po změně se podívej i na výstup a screenshoty v `tests/out/`.
 Nejdřív vytvoř `.gitignore` s `tests/node_modules/` a `tests/out/`, ať se to necommitne.
 
 ## Design (Graphite, výchozí tmavý)

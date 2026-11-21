@@ -647,6 +647,26 @@ details.histcard[open]>summary{margin-bottom:10px}
 :root[data-theme="dark"] .blk-train .exmove .seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
 :root[data-theme="dark"] .blk-train .exmenu{background:rgba(255,255,255,.08);color:var(--ink)}
 :root[data-theme="dark"] .blk-train .exmenu[aria-expanded="true"]{background:var(--ink);color:var(--bg)}
+/* cviky: přidání a úprava */
+.exl li.exadd{display:flex;flex-direction:column;align-items:stretch;gap:10px;padding:12px;border-radius:12px;background:var(--train-2);border:0;margin-top:10px}
+.exl li.exaddrow{padding-top:12px;border-bottom:0}
+.exl li b.exform-t{font-size:14px;font-weight:700;white-space:normal;opacity:1}
+.exform{display:flex;flex-direction:column;gap:8px}
+.exmove .exform{padding-top:4px}
+.exform .field input{font-size:15px;padding:9px 11px;background:#fff;color:#0B0C0D;border:1px solid #C4C7C9;border-radius:10px}
+.exform .seg{align-self:flex-start}
+.exform small,.exmove .exscope{font-size:12px;color:#3A3F44;line-height:1.35}
+.btn.armed{color:var(--bad)!important;border-color:var(--bad)!important}
+.rpinfo{margin:0}
+.blk-train .exbtns .btn:not(.ghost){background:#0B0C0D;color:#F0F0EC;border-color:#0B0C0D}
+:root[data-theme="dark"] .blk-train .exbtns .btn:not(.ghost){background:var(--ink);color:var(--bg);border-color:var(--ink)}
+:root[data-theme="dark"] .blk-train .exl li.exadd{background:var(--night-2)}
+:root[data-theme="dark"] .blk-train .exform .field input{background:var(--card);color:var(--ink);border-color:var(--line)}
+:root[data-theme="dark"] .blk-train .exform .field label{color:var(--soft)}
+:root[data-theme="dark"] .blk-train .exform small,:root[data-theme="dark"] .blk-train .exmove .exscope{color:var(--soft)}
+:root[data-theme="dark"] .blk-train .exform .seg{background:var(--card);border-color:var(--line)}
+:root[data-theme="dark"] .blk-train .exform .seg button{color:var(--soft)}
+:root[data-theme="dark"] .blk-train .exform .seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
 </style>
 </head>
 <body>
@@ -989,6 +1009,14 @@ details.histcard[open]>summary{margin-bottom:10px}
         </div>
       </div>
 
+      <div class="card" id="rpCard">
+        <p class="sec-t">Běžecký trenér</p>
+        <div class="hint" style="margin:0 0 12px">Profil běžce pro trenéra v appce. Zkopíruj prompt a pošli ho do Gemini, které tě trénuje. Jeho odpověď vlož sem. Uloží se jen do tvého účtu, v kódu appky nebude.</div>
+        <div class="row" style="margin-bottom:12px"><button type="button" class="btn ghost" id="rpPrompt">Zkopírovat prompt pro Gemini</button><span class="hint rpinfo" id="rpMsg"></span></div>
+        <div class="field"><label for="rpText">Profil běžce</label><textarea id="rpText" rows="10" maxlength="30000" placeholder="Sem vlož shrnutí z Gemini…"></textarea></div>
+        <div class="row" style="margin-top:10px"><button type="button" class="btn" id="rpSave">Uložit profil</button><span class="hint rpinfo" id="rpInfo"></span></div>
+      </div>
+
       <div class="card">
         <p class="sec-t">Účet</p>
         <div class="hint" style="margin:0 0 10px">Odhad jídla dělá Gemini (Google). Chráněno reCAPTCHA – platí <a href="https://policies.google.com/privacy" target="_blank" rel="noopener" style="color:var(--clay)">Zásady ochrany soukromí</a> a <a href="https://policies.google.com/terms" target="_blank" rel="noopener" style="color:var(--clay)">Smluvní podmínky</a> Google.</div>
@@ -1006,7 +1034,7 @@ details.histcard[open]>summary{margin-bottom:10px}
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="app.js?v=31"></script>
+<script src="app.js?v=32"></script>
 <script type="module" src="ai.js?v=20"></script>
 </body>
 </html>

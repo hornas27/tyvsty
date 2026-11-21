@@ -192,6 +192,7 @@
     $("f-prot").value = d.protein ?? "";
     $("f-note").value = d.note ?? "";
     $("f-run").value = d.run ?? "";
+    fillRunLog();
     state.formKey = state.key; state.exKey = null;
   }
 
@@ -212,6 +213,7 @@
     $("exList").hidden = p.type !== "gym";
     $("runField").hidden = p.type !== "run";
     if (p.type === "gym") renderExList(k);
+    renderRunLog(k);
     $("habitBox").innerHTML = habitsFor(k).map(h => chkHtml("h-" + h.k, h.t, "", !!(d.habits || {})[h.k])).join("") +
       weeklyFor(k).map(h => chkHtml("h-" + h.k, h.t, weeklyCount(h, k) + "/" + h.perWeek + " tento týden · " + h.perWeek + "× týdně", !!(d.habits || {})[h.k])).join("");
     renderEnergy(d);
@@ -554,7 +556,7 @@
     state.weekMon = mon || weekOf(state.key);
     const [a, b] = [state.weekMon, addDays(state.weekMon, 6)];
     $("wbTitle").textContent = "Běhy na týden " + fmtShort(a) + " – " + fmtShort(b);
-    $("wbText").value = ""; $("wbPreview").hidden = true; $("wbStep1").hidden = false; $("wbMsg").textContent = "";
+    $("wbText").value = ""; $("wbPreview").hidden = true; $("wbStep1").hidden = false; $("wbMsg").textContent = ""; $("wbCoachMsg").textContent = state.settings.runProfile ? "" : "Tip: bez profilu běžce (Nastavení) bude trenér opatrný.";
     $("weekBox").hidden = false; $("runBanner").hidden = true; $("weekBox").scrollIntoView({ behavior: "smooth", block: "start" }); $("wbText").focus();
   }
   function renderBanners() {
@@ -590,6 +592,137 @@
       $("weekBox").hidden = true; state.formKey = null; renderToday(); showSave("Běhy na týden uloženy ✓");
     };
     $("sumBannerBtn").onclick = () => { state.rvWeek = null; show("review"); };
+  }
+
+  // ---------- běžecký trenér: návrh týdne, zápis běhu, rozbor, dotaz (Gemini přes ai.js; v demu demoAI) ----------
+  const FEEL = ["", "Lehké", "Pohoda", "Akorát", "Těžké", "Na doraz"];
+  const parseDur = t => { const m = String(t || "").trim().match(/^(?:(\d{1,2}):)?(\d{1,3}):(\d{2})$/); if (!m) { const x = Number(String(t || "").replace(",", ".")); return isFinite(x) && x > 0 ? Math.round(x * 60) : null; } return (Number(m[1] || 0) * 3600) + Number(m[2]) * 60 + Number(m[3]); };
+  const fmtDur = sec => { if (!sec) return ""; const h = Math.floor(sec / 3600), m = Math.floor(sec % 3600 / 60), s = sec % 60; return (h ? h + ":" + String(m).padStart(2, "0") : m) + ":" + String(s).padStart(2, "0"); };
+  const paceOf = l => l && l.km > 0 && l.sec > 0 ? l.sec / l.km : null;
+  const fmtPace = sp => { if (!sp) return ""; const t = Math.round(sp); return Math.floor(t / 60) + ":" + String(t % 60).padStart(2, "0") + "/km"; };
+  const coachAI = () => DEMO ? demoAI : window.TVT_AI;
+  function coachErrText(e) {
+    const m = String((e && (e.message || e.code)) || e);
+    if (!coachAI() || !coachAI().runPlan) return "Trenér se ještě načítá. Zkus to za chvíli.";
+    if (/app.?check|attestation|unauthenticated|401/i.test(m)) return "AI blokuje ochrana App Check. Zkus to později.";
+    if (/high demand|overloaded|unavailable|try again later|\[50[0-4]/i.test(m)) return "Gemini je teď přetížený. Zkus to za pár minut.";
+    if (/quota|\[429|resource.?exhausted|rate.?limit/i.test(m)) return "Denní limit AI je vyčerpaný. Zítra to pojede.";
+    if (/network|failed to fetch|offline/i.test(m) || !navigator.onLine) return "Chybí internet.";
+    if (/JSON|Unexpected token/i.test(m)) return "Trenér vrátil nečitelnou odpověď. Zkus to znovu.";
+    return "Nepovedlo se: " + m.slice(0, 140);
+  }
+  function runLogOut(l) {
+    if (!l || !(l.km || l.sec || l.hr || l.feel || l.note)) return null;
+    return { km: l.km || null, cas: fmtDur(l.sec) || null, tempo: fmtPace(paceOf(l)) || null, tep: l.hr || null, pocit: FEEL[l.feel] || null, poznamka: l.note || null };
+  }
+  // kontext pro trenéra: profil + běhy 8 týdnů + regenerace 7 dní + gym dny
+  function coachCtx(extra) {
+    const tk = todayKey(), s = state.settings, runs = [], weeks = {};
+    for (let i = 56; i >= -PLAN_AHEAD_DAYS; i--) {
+      const k = addDays(tk, -i), d = state.days[k] || {}, p = planOf(k), res = runLogOut(d.runLog);
+      if (p.type === "run" && (d.run || res) || res) runs.push({ datum: k, den: DAYS_SHORT[parseKey(k).getDay()], role: p.type === "run" ? p.label : "navíc", plan: d.run ? d.run.slice(0, 400) : null, vysledek: res, odbehnuto: !!d.training && p.type === "run" });
+      if (i >= 0 && d.runLog && d.runLog.km) { const w = mondayOf(k); weeks[w] = Math.round(((weeks[w] || 0) + d.runLog.km) * 10) / 10; }
+      if (i >= 0 && (d.habits || {}).rannibeh) { const w = mondayOf(k); weeks["ranni-" + w] = (weeks["ranni-" + w] || 0) + 1; }
+    }
+    const recovery = [];
+    for (let i = 6; i >= 0; i--) { const k = addDays(tk, -i), d = state.days[k] || {}, h = sleepHours(d.bed, d.wake), p = planOf(k); recovery.push({ datum: k, spanek_h: h != null ? Math.round(h * 10) / 10 : null, usnul: d.bed || null, energie: d.energy || null, trenink: (p.type === "gym" ? "gym " : "běh ") + p.label + (d.training ? " (splněno)" : "") }); }
+    const gym = []; for (let i = -3; i <= PLAN_AHEAD_DAYS; i++) { const k = addDays(tk, i), p = planOf(k); if (p.type === "gym") gym.push({ datum: k, den: DAYS_SHORT[parseKey(k).getDay()], co: p.label }); }
+    const r = readiness(tk);
+    return { profile: s.runProfile || "", data: { dnes: tk, cil_pulmaraton: s.hmDate || null, vaha: lastWeight(), pripravenost_dnes: r ? r.score + "/100 – " + r.why : null, beh_km_po_tydnech: weeks, ranni_behy: "Marek běhá ráno 3–5 km lehce 3× týdně (návyk), to je navíc k plánu.", behy: runs, regenerace: recovery, gym_dny: gym, ...extra } };
+  }
+  // návrh týdne → náhled v okně „Běhy na týden“ → Rozložit do dní
+  async function coachPlanWeek() {
+    const ai = coachAI(); if (!ai || !ai.runPlan) { $("wbCoachMsg").textContent = coachErrText(); return; }
+    const mon = state.weekMon, keys = runKeys(mon);
+    const week = keys.map((k, i) => ({ datum: k, den: DAYS_CS[parseKey(k).getDay()], role: PLAN[RUN_DAYS[i]].label + (PLAN[RUN_DAYS[i]].optional ? " (volitelný, lehký)" : "") }));
+    const gymWeek = [0, 1, 2, 3, 4, 5, 6].map(i => addDays(mon, i)).filter(k => planOf(k).type === "gym").map(k => ({ datum: k, den: DAYS_CS[parseKey(k).getDay()], co: planOf(k).label }));
+    $("wbCoach").disabled = true; $("wbCoachMsg").textContent = "Trenér plánuje týden…";
+    try {
+      const res = await ai.runPlan(coachCtx({ planovany_tyden: { od: mon, do: addDays(mon, 6), bezecke_dny: week, gym_v_tydnu: gymWeek } }));
+      const byKey = {}; res.days.forEach(d => { byKey[d.key] = d; });
+      let n = 0;
+      RUN_DAYS.forEach((wd, i) => {
+        const d = byKey[keys[i]];
+        $("wb-" + wd).value = d ? (d.title + (d.km ? " · " + nf1.format(d.km) + " km" : "") + "\n" + d.text).trim() : ((state.days[keys[i]] || {}).run || "");
+        if (d) n++;
+        const dn = DAYS_CS[parseKey(keys[i]).getDay()]; $("wbl-" + wd).textContent = dn[0].toUpperCase() + dn.slice(1) + " " + fmtShort(keys[i]) + " · " + PLAN[wd].label;
+      });
+      const kmSum = res.days.reduce((a, d) => a + (d.km || 0), 0);
+      $("wbMsg").innerHTML = `<b>Trenér:</b> ${esc(res.intro)}${kmSum ? " <b>Celkem " + nf1.format(kmSum) + " km.</b>" : ""}${res.tip ? "<br>" + esc(res.tip) : ""}${n < keys.length ? "<br>Některé dny trenér nevyplnil, doplň je ručně." : ""}<br><small>Uprav, co chceš, a klepni na Rozložit do dní.</small>`;
+      $("wbCoachMsg").textContent = ""; $("wbStep1").hidden = true; $("wbPreview").hidden = false;
+    } catch (e) { $("wbCoachMsg").textContent = coachErrText(e); }
+    finally { $("wbCoach").disabled = false; }
+  }
+  // zápis běhu na běžecký den
+  function fillRunLog() {
+    const l = currentDay().runLog || {};
+    $("rl-km").value = l.km ?? ""; $("rl-time").value = fmtDur(l.sec); $("rl-hr").value = l.hr ?? ""; $("rl-note").value = l.note ?? "";
+  }
+  function renderRunLog(k) {
+    const d = state.days[k] || {}, p = planOf(k), l = d.runLog || {};
+    const show = k <= todayKey() && (p.type === "run" || !!runLogOut(l));
+    $("runLog").hidden = !show; if (!show) return;
+    $("rlFeel").innerHTML = [1, 2, 3, 4, 5].map(n => `<button type="button" class="en${l.feel === n ? " on" : ""}" data-feel="${n}" aria-pressed="${l.feel === n}">${n}</button>`).join("");
+    $("rlFeelTxt").textContent = l.feel ? FEEL[l.feel] : "1 = lehké, 5 = na doraz";
+    const pace = paceOf(l); $("rlPace").textContent = pace ? "Tempo " + fmtPace(pace) : "";
+    const rv = l.review;
+    $("rlOut").hidden = !rv;
+    if (rv) {
+      const nx = rv.next, nxd = nx && state.days[nx.key];
+      $("rlOut").className = "coachout " + (rv.verdict || "ok");
+      $("rlOut").innerHTML = `<b>${esc(rv.head || "Rozbor")}</b><p>${esc(rv.text)}</p>` + (nx ? `<div class="coachnext"><small>Úprava běhu ${DAYS_SHORT[parseKey(nx.key).getDay()]} ${fmtShort(nx.key)}:</small><p>${esc(nx.text).replace(/\n/g, "<br>")}</p>${rv.nextApplied || (nxd && nxd.run === nx.text) ? `<small>Použito ✓</small>` : `<button type="button" class="btn sm" id="rlApply">Použít úpravu</button>`}</div>` : "");
+    }
+    $("rlReview").textContent = rv ? "Nový rozbor" : "Rozbor od trenéra";
+  }
+  function saveRunLog(patch) {
+    const l = { ...(currentDay().runLog || {}), ...patch };
+    patchDay({ runLog: l }, "review" in patch);
+    renderRunLog(state.key);
+  }
+  async function coachReview() {
+    const k = state.key, d = currentDay(), l = d.runLog || {};
+    if (!l.km && !l.sec) { $("rlMsg").textContent = "Zapiš aspoň km nebo čas."; return; }
+    const ai = coachAI(); if (!ai || !ai.runReview) { $("rlMsg").textContent = coachErrText(); return; }
+    flushSave();
+    const upcoming = []; for (let i = 1; i <= 7; i++) { const x = addDays(k, i), dx = state.days[x] || {}; if (planOf(x).type === "run") upcoming.push({ datum: x, den: DAYS_SHORT[parseKey(x).getDay()], role: planOf(x).label, plan: dx.run || null }); }
+    $("rlReview").disabled = true; $("rlMsg").textContent = "Trenér se dívá na běh…";
+    try {
+      const res = await ai.runReview(coachCtx({ tento_beh: { datum: k, role: planOf(k).label, plan: d.run || null, vysledek: runLogOut(l) }, dalsi_naplanovane_behy: upcoming }));
+      if (res.next && !upcoming.some(u => u.datum === res.next.key)) res.next = null;
+      saveRunLog({ review: { verdict: res.verdict, head: res.head, text: res.text, next: res.next, nextApplied: false, at: Date.now() } });
+      $("rlMsg").textContent = "";
+    } catch (e) { $("rlMsg").textContent = coachErrText(e); }
+    finally { $("rlReview").disabled = false; }
+  }
+  async function coachAsk() {
+    const q = $("rlAsk").value.trim(); if (!q) { $("rlAsk").focus(); return; }
+    const ai = coachAI(); if (!ai || !ai.runAsk) { $("rlAnswer").hidden = false; $("rlAnswer").textContent = coachErrText(); return; }
+    flushSave();
+    $("rlAskBtn").disabled = true; $("rlAnswer").hidden = false; $("rlAnswer").textContent = "Trenér přemýšlí…";
+    try {
+      const d = currentDay();
+      const res = await ai.runAsk(coachCtx({ otazka_ke_dni: { datum: state.key, role: planOf(state.key).label, plan: d.run || null, vysledek: runLogOut(d.runLog) } }), q);
+      $("rlAnswer").innerHTML = `<small>Ty: ${esc(q)}</small><p>${esc(res.answer).replace(/\n/g, "<br>")}</p>`; $("rlAsk").value = "";
+    } catch (e) { $("rlAnswer").textContent = coachErrText(e); }
+    finally { $("rlAskBtn").disabled = false; }
+  }
+  function bindRunCoach() {
+    $("wbCoach").onclick = coachPlanWeek;
+    $("rl-km").addEventListener("input", e => saveRunLog({ km: num(e.target.value) }));
+    $("rl-hr").addEventListener("input", e => saveRunLog({ hr: num(e.target.value) }));
+    $("rl-time").addEventListener("change", e => { const sec = parseDur(e.target.value); saveRunLog({ sec }); e.target.value = fmtDur(sec); });
+    $("rl-note").addEventListener("input", e => saveRunLog({ note: e.target.value.slice(0, 500) || null }));
+    $("rlFeel").addEventListener("click", e => { const b = e.target.closest("[data-feel]"); if (!b) return; const n = Number(b.dataset.feel); saveRunLog({ feel: (currentDay().runLog || {}).feel === n ? null : n }); });
+    $("rlReview").onclick = coachReview;
+    $("rlOut").addEventListener("click", e => {
+      if (!e.target.closest("#rlApply")) return;
+      const rv = (currentDay().runLog || {}).review; if (!rv || !rv.next) return;
+      patchDay({ run: rv.next.text }, true, rv.next.key);
+      saveRunLog({ review: { ...rv, nextApplied: true } });
+      showSave("Běh " + DAYS_SHORT[parseKey(rv.next.key).getDay()] + " " + fmtShort(rv.next.key) + " upraven ✓");
+    });
+    $("rlAskBtn").onclick = coachAsk;
+    $("rlAsk").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); coachAsk(); } });
   }
 
   // ---------- JÍDLO (foto / text → AI odhad → seznam jídel) ----------
@@ -694,7 +827,10 @@
     } finally { URL.revokeObjectURL(url); }
   }
   // demo odhad (jen bez Firebase – kvůli zkoušení vzhledu)
-  const demoAI = { estimate: () => new Promise(r => setTimeout(() => r({ name: "Kuře s rýží (demo)", items: [{ name: "rýže", grams: 200, kcal: 260, protein: 5, carbs: 57, fat: 1 }, { name: "kuřecí prsa", grams: 150, kcal: 250, protein: 46, carbs: 0, fat: 6 }, { name: "olej", grams: 10, kcal: 90, protein: 0, carbs: 0, fat: 10 }], kcal: 600, protein: 51, carbs: 57, fat: 17, confidence: "střední", note: "Demo odhad – v appce s Firebase odhaduje Gemini." }), 700)) };
+  const demoAI = { estimate: () => new Promise(r => setTimeout(() => r({ name: "Kuře s rýží (demo)", items: [{ name: "rýže", grams: 200, kcal: 260, protein: 5, carbs: 57, fat: 1 }, { name: "kuřecí prsa", grams: 150, kcal: 250, protein: 46, carbs: 0, fat: 6 }, { name: "olej", grams: 10, kcal: 90, protein: 0, carbs: 0, fat: 10 }], kcal: 600, protein: 51, carbs: 57, fat: 17, confidence: "střední", note: "Demo odhad – v appce s Firebase odhaduje Gemini." }), 700)),
+    runPlan: ctx => new Promise(r => setTimeout(() => r({ intro: "Demo plán: stavíme objem, jeden kvalitní trénink.", tip: "Long run drž v konverzačním tempu.", days: ctx.data.planovany_tyden.bezecke_dny.map((d, i) => ({ key: d.datum, title: ["Intervaly 6× 800 m", "Lehký běh", "Long run"][i], km: [9, 6, 14][i], text: ["15 min rozklus\n6× 800 m v 4:30/km, pauza 2 min klus\n10 min výklus", "6 km lehce, zóna 2", "14 km v 6:00–6:15/km"][i] })) }), 300)),
+    runReview: ctx => new Promise(r => setTimeout(() => { const nx = ctx.data.dalsi_naplanovane_behy[0]; r({ verdict: "good", head: "Dobrý běh, tempo sedí", text: "Demo rozbor: tempo i tep odpovídají plánu. Příště můžeš přidat 1 km.", next: nx ? { key: nx.datum, text: "Demo úprava: 7 km lehce, zóna 2" } : null }); }, 300)),
+    runAsk: (ctx, q) => new Promise(r => setTimeout(() => r({ answer: "Demo odpověď trenéra na: " + q }), 300)) };
 
   function bindFood() {
     const onPhoto = async e => {
@@ -1966,7 +2102,7 @@ Na konec přidej tabulku mých posledních 10 běhů: datum, typ, km, čas, prů
       const b = e.target.closest("[data-sug]"); if (b) { saveWeekGoal(state.rvSug[Number(b.dataset.sug)]); return; }
       if (e.target.closest("#rvSave")) { const t = $("rvText").value.trim(); if (!t) { $("rvText").focus(); return; } saveWeekGoal({ type: "text", t: t.slice(0, 80) }); }
     });
-    bindToday(); bindLifts(); bindWeekBox(); bindFood(); bindSettings(); bindRunProfile(); bindAuth(); bindNotes(); bindTasks();
+    bindToday(); bindLifts(); bindWeekBox(); bindFood(); bindSettings(); bindRunProfile(); bindRunCoach(); bindAuth(); bindNotes(); bindTasks();
     $("mapPrev").onclick = () => { state.mapYear = (state.mapYear || Number(todayKey().slice(0, 4))) - 1; renderYearMap(); };
     $("mapNext").onclick = () => { state.mapYear = (state.mapYear || Number(todayKey().slice(0, 4))) + 1; renderYearMap(); };
     $("tabs").addEventListener("click", e => { const b = e.target.closest("button[data-view]"); if (b) show(b.dataset.view); });

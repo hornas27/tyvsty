@@ -47,17 +47,14 @@ function parse(text) {
   };
 }
 
-async function estimate({ image, text, hint }) {
-  const parts = [PROMPT];
-  if (text) parts.push("Popis jídla od uživatele: " + text);
-  if (hint) parts.push("Upřesnění od uživatele (má přednost): " + hint);
-  if (image) parts.push({ inlineData: { data: image.data, mimeType: image.mime } });
+// zkouší modely postupně; při přetížení / limitu jde na další
+async function runModels(parts, temperature) {
   let lastErr;
   for (let i = modelIdx; i < MODELS.length; i++) {
     try {
-      const model = getGenerativeModel(getAi(), { model: MODELS[i], generationConfig: { responseMimeType: "application/json", temperature: 0.2 } });
+      const model = getGenerativeModel(getAi(), { model: MODELS[i], generationConfig: { responseMimeType: "application/json", temperature } });
       const res = await model.generateContent(parts);
-      return { ...parse(res.response.text()), model: MODELS[i] };
+      return { text: res.response.text(), model: MODELS[i] };
     } catch (e) {
       lastErr = e;
       const msg = String((e && (e.message || e.code)) || e);
@@ -70,4 +67,66 @@ async function estimate({ image, text, hint }) {
   throw lastErr;
 }
 
-window.TVT_AI = { estimate };
+async function estimate({ image, text, hint }) {
+  const parts = [PROMPT];
+  if (text) parts.push("Popis jídla od uživatele: " + text);
+  if (hint) parts.push("Upřesnění od uživatele (má přednost): " + hint);
+  if (image) parts.push({ inlineData: { data: image.data, mimeType: image.mime } });
+  const r = await runModels(parts, 0.2);
+  return { ...parse(r.text), model: r.model };
+}
+
+// ---------- běžecký trenér ----------
+const COACH = `Jsi zkušený osobní běžecký trenér Marka. Mluvíš česky, krátce, věcně, tykáš mu.
+Marek kromě běhu chodí 4× týdně do posilovny (plán dnů dostaneš). Pravidla, která vždy dodržuješ:
+- Cca 80 % objemu lehce (konverzační tempo / zóna 2), max 20 % kvalitně (tempo, intervaly).
+- Týdenní objem běhu zvyšuj nejvýš o 10 % proti průměru posledních 3 týdnů; každý 4. týden odlehčení (−20 až −30 %).
+- Žádné intervaly ani tempo den po posilování nohou; dlouhý běh nedávej den před nohama.
+- Když málo spal, má nízkou energii nebo hlásí bolest, uber intenzitu. Zranění z profilu ber vážně.
+- Drž se jeho tep. zón a temp z profilu. Když něco nevíš, buď konzervativní.
+- Tréninky piš konkrétně: rozklus, hlavní část (vzdálenost/čas, tempo min/km nebo tep. zóna), výklus.
+- Nic si nevymýšlej o jeho minulosti – vycházej jen z profilu a dat.`;
+
+const PLAN_TASK = `Úkol: naplánuj běhy na zadaný týden. Běžecké dny a jejich role máš v datech (dny a datumy přesně dodrž, nic nepřidávej).
+Vrať POUZE JSON:
+{"intro":"1–2 věty: cíl týdne a proč","days":[{"key":"YYYY-MM-DD","title":"krátký název, např. Intervaly 6× 800 m","km":0,"text":"celý trénink, řádky oddělené \n"}],"tip":"1 věta: na co si dát pozor"}
+km = celkové km tréninku včetně rozklusu (číslo).`;
+
+const REVIEW_TASK = `Úkol: rozbor běhu, který Marek právě zapsal (plán vs. skutečnost, tempo, tep, pocit, poznámka) v kontextu posledních týdnů.
+Když je potřeba, uprav NEJBLIŽŠÍ další naplánovaný běh (key a nový celý text). Když úprava není potřeba, dej "next": null.
+Vrať POUZE JSON:
+{"verdict":"good|ok|warn","head":"krátké shrnutí do 8 slov","text":"2–4 věty rozboru","next":{"key":"YYYY-MM-DD","text":"nový celý trénink"} }`;
+
+const ASK_TASK = `Úkol: odpověz na Markovu otázku. Max 6 vět, konkrétně podle jeho dat.
+Vrať POUZE JSON: {"answer":"odpověď"}`;
+
+function coachParts(task, ctx, extra) {
+  const parts = [COACH, task];
+  parts.push("PROFIL BĚŽCE (od jeho dosavadního trenéra):\n" + (ctx.profile || "(profil zatím chybí – buď konzervativní)"));
+  parts.push("DATA Z APLIKACE:\n" + JSON.stringify(ctx.data));
+  if (extra) parts.push(extra);
+  return parts;
+}
+const txt = (v, m) => String(v == null ? "" : v).slice(0, m);
+
+async function runPlan(ctx) {
+  const r = await runModels(coachParts(PLAN_TASK, ctx), 0.4);
+  const j = JSON.parse(String(r.text).trim().replace(/^```(?:json)?/i, "").replace(/```$/, "").trim());
+  return {
+    intro: txt(j.intro, 400), tip: txt(j.tip, 300), model: r.model,
+    days: (Array.isArray(j.days) ? j.days : []).map(d => ({ key: txt(d.key, 10), title: txt(d.title, 80), km: Number(d.km) > 0 ? Math.round(Number(d.km) * 10) / 10 : null, text: txt(d.text, 1200) })).filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d.key))
+  };
+}
+async function runReview(ctx) {
+  const r = await runModels(coachParts(REVIEW_TASK, ctx), 0.3);
+  const j = JSON.parse(String(r.text).trim().replace(/^```(?:json)?/i, "").replace(/```$/, "").trim());
+  const nx = j.next && /^\d{4}-\d{2}-\d{2}$/.test(j.next.key) && j.next.text ? { key: j.next.key, text: txt(j.next.text, 1200) } : null;
+  return { verdict: ["good", "ok", "warn"].includes(j.verdict) ? j.verdict : "ok", head: txt(j.head, 80), text: txt(j.text, 800), next: nx, model: r.model };
+}
+async function runAsk(ctx, question) {
+  const r = await runModels(coachParts(ASK_TASK, ctx, "OTÁZKA: " + txt(question, 600)), 0.5);
+  const j = JSON.parse(String(r.text).trim().replace(/^```(?:json)?/i, "").replace(/```$/, "").trim());
+  return { answer: txt(j.answer, 1500), model: r.model };
+}
+
+window.TVT_AI = { estimate, runPlan, runReview, runAsk };

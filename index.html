@@ -667,6 +667,36 @@ details.histcard[open]>summary{margin-bottom:10px}
 :root[data-theme="dark"] .blk-train .exform .seg{background:var(--card);border-color:var(--line)}
 :root[data-theme="dark"] .blk-train .exform .seg button{color:var(--soft)}
 :root[data-theme="dark"] .blk-train .exform .seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+/* běžecký trenér */
+.coachrow{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:6px}
+.orline{display:flex;align-items:center;gap:10px;color:var(--soft);font-size:12px;margin:14px 0 10px}
+.orline::before,.orline::after{content:"";flex:1;height:1px;background:var(--line)}
+.runlog{margin-top:16px;padding-top:12px;border-top:1px solid var(--line)}
+.runlog .wsub{margin-top:0}
+.fields3{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:10px}
+.fields3 .field input{font-size:16px;padding:9px 10px}
+.rlfeel{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.rlfeel .energy{display:flex;gap:6px}
+.rlfeel .energy .en{width:36px;height:36px;font-size:16px}
+.rlfeel small{color:var(--soft);font-size:12px}
+.coachout{margin-top:10px;padding:12px;border-radius:12px;background:var(--bg);border-left:3px solid var(--soft);font-size:14px}
+.coachout.good{border-left-color:var(--good)}.coachout.warn{border-left-color:var(--warn)}
+.coachout p{margin:4px 0 0}
+.coachout small{color:var(--soft);font-size:12px}
+.coachnext{margin-top:10px;padding-top:10px;border-top:1px dashed var(--line)}
+.coachnext .btn{margin-top:8px}
+.rlask{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:end;margin-top:14px}
+.rlask .field input{font-size:15px;padding:9px 11px}
+.blk-train .runlog .field input,.blk-train .runlog .field textarea{background:#fff;color:#0B0C0D;border:1px solid #C4C7C9}
+.blk-train .coachout{background:var(--train-2);color:#0B0C0D}
+.blk-train .coachout small,.blk-train .rlfeel small{color:#3A3F44}
+.blk-train .runlog{border-top-color:rgba(11,12,13,.18)}
+:root[data-theme="dark"] .blk-train .runlog{border-top-color:var(--line)}
+:root[data-theme="dark"] .blk-train .runlog .field input,:root[data-theme="dark"] .blk-train .runlog .field textarea{background:var(--night-2);color:var(--ink);border-color:var(--line)}
+:root[data-theme="dark"] .blk-train .coachout{background:var(--night-2);color:var(--ink)}
+:root[data-theme="dark"] .blk-train .coachout small,:root[data-theme="dark"] .blk-train .rlfeel small{color:var(--soft)}
+:root[data-theme="dark"] .blk-train .rlfeel .en{background:var(--night-2);color:var(--ink);border:1px solid var(--line)}
+:root[data-theme="dark"] .blk-train .rlfeel .en.on{background:var(--ink);color:var(--bg)}
 </style>
 </head>
 <body>
@@ -728,17 +758,19 @@ details.histcard[open]>summary{margin-bottom:10px}
       <div class="card" id="weekBox" hidden>
         <p class="sec-t" id="wbTitle">Běhy na týden</p>
         <div id="wbStep1">
+          <div class="coachrow"><button type="button" class="btn" id="wbCoach">Navrhne trenér</button><span class="hint" id="wbCoachMsg"></span></div>
+          <p class="orline"><span>nebo vlož plán z Gemini</span></p>
           <div class="field"><label for="wbText">Vlož celý týdenní plán běhů z Gemini</label><textarea id="wbText" rows="7" placeholder="Pondělí: 10 min rozklus, 6× 800 m…&#10;Čtvrtek: 30 min volně…&#10;Sobota: 14 km klidně…"></textarea></div>
-          <div class="row" style="margin-top:10px"><button type="button" class="btn" id="wbSplit">Rozdělit do dnů</button><button type="button" class="btn ghost" id="wbCancel">Zrušit</button></div>
+          <div class="row" style="margin-top:10px"><button type="button" class="btn ghost" id="wbSplit">Rozdělit do dnů</button><button type="button" class="btn ghost" id="wbCancel">Zrušit</button></div>
         </div>
         <div id="wbPreview" hidden>
           <div class="hint" id="wbMsg" style="margin:0 0 10px"></div>
           <div class="stack">
-            <div class="field"><label for="wb-1" id="wbl-1">Pondělí</label><textarea id="wb-1" rows="3"></textarea></div>
-            <div class="field"><label for="wb-4" id="wbl-4">Čtvrtek</label><textarea id="wb-4" rows="3"></textarea></div>
-            <div class="field"><label for="wb-6" id="wbl-6">Sobota</label><textarea id="wb-6" rows="3"></textarea></div>
+            <div class="field"><label for="wb-1" id="wbl-1">Pondělí</label><textarea id="wb-1" rows="5"></textarea></div>
+            <div class="field"><label for="wb-4" id="wbl-4">Čtvrtek</label><textarea id="wb-4" rows="5"></textarea></div>
+            <div class="field"><label for="wb-6" id="wbl-6">Sobota</label><textarea id="wb-6" rows="5"></textarea></div>
           </div>
-          <div class="row" style="margin-top:12px"><button type="button" class="btn" id="wbSave">Uložit týden</button><button type="button" class="btn ghost" id="wbCancel2">Zrušit</button></div>
+          <div class="row" style="margin-top:12px"><button type="button" class="btn" id="wbSave">Rozložit do dní</button><button type="button" class="btn ghost" id="wbCancel2">Zrušit</button></div>
         </div>
       </div>
 
@@ -758,8 +790,23 @@ details.histcard[open]>summary{margin-bottom:10px}
         <div class="checks" id="trainBox"></div>
         <div class="swaprow"><label for="swapSel" class="sr">Prohodit trénink s jiným dnem v týdnu</label><select id="swapSel"></select><button type="button" class="linkbtn" id="swapReset" hidden>Vrátit týden</button></div>
         <ol class="exl" id="exList" hidden></ol>
-        <div class="field" id="runField" hidden style="margin-top:12px"><label for="f-run">Trénink z Gemini (vlož a uloží se k tomuhle dni)</label><textarea id="f-run" placeholder="Např. 10 min rozklus, 6× 2 min rychle / 2 min klus, 10 min výklus"></textarea>
-          <button type="button" class="todaylink" id="weekLink" style="margin:8px 0 0">Vložit celý týden najednou</button></div>
+        <div class="field" id="runField" hidden style="margin-top:12px"><label for="f-run">Plán běhu (od trenéra nebo z Gemini)</label><textarea id="f-run" placeholder="Např. 10 min rozklus, 6× 2 min rychle / 2 min klus, 10 min výklus"></textarea>
+          <button type="button" class="todaylink" id="weekLink" style="margin:8px 0 0">Naplánovat celý týden (trenér nebo Gemini)</button></div>
+        <div class="runlog" id="runLog" hidden>
+          <p class="wsub">Jak to dopadlo</p>
+          <div class="fields fields3">
+            <div class="field"><label for="rl-km">Km</label><input id="rl-km" type="number" inputmode="decimal" step="0.01" min="0" placeholder="—"></div>
+            <div class="field"><label for="rl-time">Čas</label><input id="rl-time" type="text" inputmode="numeric" placeholder="45:30"></div>
+            <div class="field"><label for="rl-hr">Ø tep</label><input id="rl-hr" type="number" inputmode="numeric" step="1" min="0" placeholder="—"></div>
+          </div>
+          <div class="rlfeel"><span class="lbl">Pocit</span><div class="energy" id="rlFeel"></div><small id="rlFeelTxt"></small></div>
+          <div class="field"><label for="rl-note">Poznámka</label><textarea id="rl-note" rows="2" placeholder="Jak se běželo, co bolelo, počasí…"></textarea></div>
+          <div class="row" style="margin-top:10px"><button type="button" class="btn" id="rlReview">Rozbor od trenéra</button><span class="hint" id="rlPace" style="margin:0"></span></div>
+          <div class="hint" id="rlMsg"></div>
+          <div class="coachout" id="rlOut" hidden></div>
+          <div class="rlask"><div class="field"><label for="rlAsk">Zeptat se trenéra</label><input id="rlAsk" type="text" maxlength="600" placeholder="Např. Můžu dnes místo intervalů jen lehce?"></div><button type="button" class="btn ghost sm" id="rlAskBtn">Zeptat</button></div>
+          <div class="coachout ask" id="rlAnswer" hidden></div>
+        </div>
       </div>
 
       <div class="card">
@@ -1034,7 +1081,7 @@ details.histcard[open]>summary{margin-bottom:10px}
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="app.js?v=32"></script>
-<script type="module" src="ai.js?v=20"></script>
+<script src="app.js?v=33"></script>
+<script type="module" src="ai.js?v=21"></script>
 </body>
 </html>

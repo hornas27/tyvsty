@@ -22,16 +22,18 @@ const { chromium } = require('playwright'); const SP = process.env.OUT;
   const afterAdd2 = await order(); const lpHint = await p.textContent('small[data-hint="legpress"]').catch(() => null);
   const planEx = await p.evaluate(() => JSON.parse(localStorage.getItem('tvt-settings')).planEx);
   // 3) přejmenovat Bayesian curl
-  await p.click('[data-menu="bayes"]'); await p.waitForTimeout(150);
-  await p.click('li[data-ex="bayes"] button[data-mv="edit"]'); await p.waitForTimeout(150);
+  // (úprava a odebrání jsou v Plánu týdne)
+  await p.click('#openPlan'); await p.waitForTimeout(400);
+  await p.click('[data-pv="exopen"][data-slot="2026-11-15"][data-id="bayes"]'); await p.waitForTimeout(150);
+  await p.click('[data-pv="mode"][data-mode="edit"]'); await p.waitForTimeout(150);
   await p.screenshot({ path: SP + '/c2_edit.png', fullPage: true });
-  await p.fill('#edName', 'Bayesian curl na kladce'); await p.click('li[data-ex="bayes"] button[data-mv="editsave"]'); await p.waitForTimeout(300);
-  const afterEdit = await names();
+  await p.fill('#edName', 'Bayesian curl na kladce'); await p.click('[data-pv="editsave"]'); await p.waitForTimeout(300);
   // 4) odebrat triceps jen tento týden (2 klepnutí)
-  await p.click('[data-menu="triceps"]'); await p.waitForTimeout(150);
-  await p.click('li[data-ex="triceps"] button[data-scope="week"]'); await p.waitForTimeout(150);
-  await p.click('li[data-ex="triceps"] button[data-mv="del"]'); await p.waitForTimeout(150);
-  await p.click('li[data-ex="triceps"] button[data-mv="del"]'); await p.waitForTimeout(300);
+  await p.click('[data-pv="exopen"][data-slot="2026-11-15"][data-id="triceps"]'); await p.waitForTimeout(150);
+  await p.click('[data-pv="del"]'); await p.waitForTimeout(150);
+  await p.click('[data-pv="del"]'); await p.waitForTimeout(300);
+  await p.click('#pvBack'); await p.waitForTimeout(300);
+  const afterEdit = await names();
   const afterDel = await order();
   const settings = await p.evaluate(() => JSON.parse(localStorage.getItem('tvt-settings')));
   const day = await p.evaluate(() => JSON.parse(localStorage.getItem('tvt-days'))['2026-11-15']);

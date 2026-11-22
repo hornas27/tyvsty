@@ -215,9 +215,10 @@
     const pill = `<span class="pill ${p.optional ? "opt" : p.type}">${p.optional ? "volitelně" : p.type === "gym" ? "gym" : "běh"}</span>`;
     $("trainBox").innerHTML = chkHtml("training", (p.type === "gym" ? "Gym · " : "Běh · ") + p.label, planKey(k) !== wd ? "Prohozeno · původně " + PLAN[wd].label : "Splněno", !!d.training, "train", pill);
     renderSwap(k);
-    $("exList").hidden = p.type !== "gym";
+    const hasEx = p.type === "gym" || exIdsFor(k).length > 0;
+    $("exList").hidden = !hasEx;
     $("runField").hidden = p.type !== "run";
-    if (p.type === "gym") renderExList(k);
+    if (hasEx) renderExList(k);
     renderRunLog(k);
     renderHabitBox(k);
     renderEnergy(d);
@@ -375,8 +376,6 @@
     if (state.exKey === k && box.contains(document.activeElement) && document.activeElement.matches("input")) return; // nepřepisuj během psaní
     state.exKey = k;
     const lifts = (state.days[k] || {}).lifts || {}, ids = exIdsFor(k), open = state.exOpen;
-    const scope = state.exScope || "week";
-    const targets = weekKeys(k).filter(x => x !== k && planOf(x).type === "gym");
     box.innerHTML = `<li class="exnote">Do selhání · cíl min. 6–8 opakování · nejtěžší série</li>` + ids.map((id, i) => {
       const e = EX[id], cur = lifts[id] || {};
       const lift = `<div class="lift" data-lift="${id}">
@@ -385,16 +384,9 @@
           <div class="unit"><input type="number" inputmode="numeric" step="1" min="0" placeholder="opak." value="${cur.r ?? ""}" data-f="r" aria-label="Opakování ${esc(e.name)}"></div>
           <small data-hint="${id}">${liftHint(id, k, cur)}</small></div>`;
       const panel = open === id ? `<div class="exmove">
-          <div class="seg sm" role="group" aria-label="Platnost změny"><button type="button" data-scope="week" aria-pressed="${scope === "week"}">Jen tento týden</button><button type="button" data-scope="perm" aria-pressed="${scope === "perm"}">Natrvalo</button></div>
-          <div class="exbtns"><button type="button" class="btn ghost sm" data-mv="up" ${i === 0 ? "disabled" : ""}>↑ Výš</button><button type="button" class="btn ghost sm" data-mv="down" ${i === ids.length - 1 ? "disabled" : ""}>↓ Níž</button>
-          <select data-mv="to" aria-label="Přesunout na jiný den"><option value="">Přesunout na…</option>${targets.map(x => `<option value="${x}">${DAYS_SHORT[parseKey(x).getDay()]} ${fmtShort(x)} · ${esc(planOf(x).label)}</option>`).join("")}</select></div>
-          <div class="exbtns"><button type="button" class="btn ghost sm" data-mv="edit" aria-pressed="${state.exEditId === id}">Upravit</button><button type="button" class="btn ghost sm${state.exDelArm === id ? " armed" : ""}" data-mv="del">${state.exDelArm === id ? "Opravdu odebrat?" : "Odebrat"}</button></div>
-          ${state.exEditId === id ? `<div class="exform">
-            <div class="field"><label for="edName">Název</label><input id="edName" type="text" maxlength="60" data-ed="name" value="${esc(e.name)}"></div>
-            <div class="field"><label for="edSets">Série</label><input id="edSets" type="text" maxlength="40" data-ed="sets" value="${esc(e.sets)}"></div>
-            <div class="exbtns"><button type="button" class="btn sm" data-mv="editsave">Uložit</button><button type="button" class="btn ghost sm" data-mv="editcancel">Zrušit</button></div>
-            <small>Změna platí všude, kde cvik máš. Historie a rekordy zůstanou.</small></div>` : ""}
-          <small class="exscope">${scope === "perm" ? "Přesun a odebrání platí natrvalo." : "Přesun a odebrání platí jen tento týden."} Odebraný cvik si nechá historii.</small>
+          <small>Přesunout jen tento týden na… (zápis jde s cvikem)</small>
+          <div class="daychips">${[1, 2, 3, 4, 5, 6, 7].map(n => addDays(k, n)).map(x => `<button type="button" class="daychip${planOf(x).type === "gym" ? "" : " run"}" data-mvto="${x}"><b>${dayLabel(x)}</b><small>${esc(planOf(x).label)}</small></button>`).join("")}</div>
+          <div class="exbtns"><button type="button" class="btn ghost sm" data-mv="up" ${i === 0 ? "disabled" : ""}>↑ Výš</button><button type="button" class="btn ghost sm" data-mv="down" ${i === ids.length - 1 ? "disabled" : ""}>↓ Níž</button><button type="button" class="btn ghost sm" data-mv="plan">Víc v Plánu týdne</button></div>
         </div>` : "";
       return `<li class="haslift" data-ex="${id}"><i>${i + 1}</i><span>${esc(e.name)}</span><span class="exr"><b>${esc(e.sets)}</b><button type="button" class="exmenu" data-menu="${id}" aria-expanded="${open === id}" aria-label="Pořadí a přesun: ${esc(e.name)}">⋯</button></span>${lift}${panel}</li>`;
     }).join("") + (ids.length ? "" : `<li class="exnote">Žádné cviky – všechny jsou přesunuté jinam.</li>`)
@@ -471,12 +463,15 @@
       const hint = box.querySelector(`[data-hint="${id}"]`); if (hint) hint.innerHTML = liftHint(id, state.key, cur);
     });
     box.addEventListener("click", e => {
+      const mt = e.target.closest("[data-mvto]");
+      if (mt) { const id = mt.closest("[data-ex]").dataset.ex; state.exOpen = null; exMove(id, { k: state.key, key: state.key }, { k: mt.dataset.mvto, key: mt.dataset.mvto }); return; }
       const m = e.target.closest("[data-menu]");
       if (m) { state.exOpen = state.exOpen === m.dataset.menu ? null : m.dataset.menu; state.exKey = null; renderExList(state.key); return; }
       const sc = e.target.closest("[data-scope]");
       if (sc) { keepExDraft(); state.exScope = sc.dataset.scope; state.exKey = null; renderExList(state.key); return; }
       const mv = e.target.closest("button[data-mv]"); if (!mv) return;
       const k = state.key, act = mv.dataset.mv;
+      if (act === "plan") { state.exOpen = null; openPlan("today"); return; }
       const rerender = () => { state.exKey = null; renderExList(k); };
       if (act === "add") { state.exAdd = true; state.exOpen = null; state.exDraft = {}; rerender(); const i = $("adName"); if (i) i.focus(); return; }
       if (act === "addcancel") { state.exAdd = false; state.exDraft = null; rerender(); return; }
@@ -911,6 +906,196 @@
     $("habitBox").addEventListener("keydown", e => { if (e.key === "Enter" && e.target.closest("#mrunBox input")) { e.preventDefault(); mrSave(state.key); } });
     $("habitBox").addEventListener("input", e => { if (e.target.id === "mrText") { const p = parseRunText(e.target.value); if (p.km && !$("mrKm").value) $("mrKm").placeholder = nf1.format(p.km); if (p.sec && !$("mrTime").value) $("mrTime").placeholder = fmtDur(p.sec); } });
     $("mr-photo").addEventListener("change", e => mrFromPhoto(e.target.files));
+  }
+
+  // ---------- PLÁN TÝDNE: přehled dnů, přesun / kopie / úprava cviků, běh, prohození dnů, Zpět ----------
+  const PV_WD = [1, 2, 3, 4, 5, 6, 0];
+  const clone = v => v == null ? null : JSON.parse(JSON.stringify(v));
+  const dayLabel = k => DAYS_SHORT[parseKey(k).getDay()] + " " + fmtShort(k);
+  // slot = {k} (jen tento týden, konkrétní den) nebo {dn} (natrvalo, den v týdnu)
+  const slotIds = sl => sl.k ? exIdsFor(sl.k) : planExIds(sl.dn);
+  const slotName = sl => sl.k ? dayLabel(sl.k) : DAYS_CS[sl.dn];
+  // snímek pro Zpět: dny (ex, lifts, plan, run) + plán natrvalo a definice cviků
+  function pvSnap(keys) {
+    const ks = Array.from(new Set(keys));
+    return { s: { planEx: clone(state.settings.planEx || null), exDefs: clone(state.settings.exDefs || null) },
+      d: ks.map(k => { const d = state.days[k] || {}; return [k, { ex: clone(d.ex ?? null), lifts: clone(d.lifts || {}), plan: d.plan ?? null, run: d.run ?? null }]; }) };
+  }
+  const snapKeys = (...ks) => [].concat(...ks.filter(Boolean).map(weekKeys), weekKeys(todayKey()), weekKeys(addDays(todayKey(), 7)));
+  let undoTimer = null;
+  function undoOffer(msg, snap) {
+    state.undo = snap; $("undoTxt").textContent = msg; $("undoBar").hidden = false;
+    clearTimeout(undoTimer); undoTimer = setTimeout(() => { $("undoBar").hidden = true; state.undo = null; }, 8000);
+  }
+  function undoApply() {
+    const sn = state.undo; if (!sn) return;
+    flushSave(); clearTimeout(undoTimer); $("undoBar").hidden = true; state.undo = null;
+    sn.d.forEach(([k, f]) => {
+      const cur = state.days[k] || {}, lifts = { ...f.lifts };
+      Object.keys(cur.lifts || {}).forEach(id => { if (!(id in lifts)) lifts[id] = null; });
+      if (!state.days[k] && f.ex == null && f.plan == null && f.run == null && !Object.keys(lifts).length) return;
+      const same = JSON.stringify(cur.ex ?? null) === JSON.stringify(f.ex) && JSON.stringify(cur.lifts || {}) === JSON.stringify(f.lifts) && (cur.plan ?? null) === f.plan && (cur.run ?? null) === f.run;
+      if (!same) { patchDay({ ex: f.ex, plan: f.plan, run: f.run }, true, k); state.days[k].lifts = lifts; patchDay({}, true, k); }
+    });
+    state.exKey = null; state.formKey = null;
+    saveSettingsPatch({ planEx: sn.s.planEx, exDefs: sn.s.exDefs }, "Vráceno zpět");
+  }
+  // změna seznamů cviků ve více slotech najednou (natrvalo promítne i do úprav „jen tento týden“ v tomto a příštím týdnu)
+  function pvEdit(changes) {
+    flushSave();
+    const perm = changes.filter(c => c.sl.dn != null);
+    changes.filter(c => c.sl.k).forEach(c => patchDay({ ex: c.fn(exIdsFor(c.sl.k).slice()) }, true, c.sl.k));
+    if (perm.length) {
+      const pe = { ...(state.settings.planEx || {}) };
+      perm.forEach(c => { pe[c.sl.dn] = c.fn(planExIds(c.sl.dn).slice()); });
+      weekKeys(todayKey()).concat(weekKeys(addDays(todayKey(), 7))).forEach(x => {
+        const ov = (state.days[x] || {}).ex; if (!Array.isArray(ov)) return;
+        let l = ov.slice(); perm.forEach(c => { if (planKey(x) === c.sl.dn) l = c.fn(l); });
+        if (JSON.stringify(l) !== JSON.stringify(ov)) patchDay({ ex: l }, true, x);
+      });
+      saveSettingsPatch({ planEx: pe });
+    }
+    state.exKey = null;
+  }
+  // zápis váhy jde s cvikem (jen u konkrétních dnů)
+  function moveLift(id, from, to) {
+    const l = ((state.days[from] || {}).lifts || {})[id];
+    if (!l || l.w == null || (((state.days[to] || {}).lifts || {})[id] || {}).w != null) return false;
+    patchDay({ lifts: { [id]: { ...l } } }, true, to);
+    patchDay({ lifts: { [id]: null } }, true, from);
+    return true;
+  }
+  function exMove(id, from, to) {
+    const snap = pvSnap(snapKeys(from.k, to.k));
+    pvEdit([{ sl: from, fn: l => l.filter(x => x !== id) }, { sl: to, fn: l => l.includes(id) ? l : l.concat(id) }]);
+    const moved = from.k && to.k ? moveLift(id, from.k, to.k) : false;
+    afterPlanChange(EX[id].name + " → " + slotName(to) + (moved ? " (i se zápisem)" : ""), snap);
+  }
+  function exCopy(id, from, to) {
+    if (slotIds(to).includes(id)) { showSave(slotName(to) + " už tenhle cvik má"); return; }
+    const snap = pvSnap(snapKeys(from.k, to.k));
+    pvEdit([{ sl: to, fn: l => l.concat(id) }]);
+    afterPlanChange(EX[id].name + " zkopírován na " + slotName(to), snap);
+  }
+  function exRemove(id, sl) {
+    const snap = pvSnap(snapKeys(sl.k));
+    pvEdit([{ sl, fn: l => l.filter(x => x !== id) }]);
+    afterPlanChange(EX[id].name + " odebrán (" + slotName(sl) + ")", snap);
+  }
+  function exShift(id, sl, dir) {
+    const snap = pvSnap(snapKeys(sl.k));
+    pvEdit([{ sl, fn: l => { const i = l.indexOf(id), j = i + dir; if (i < 0 || j < 0 || j >= l.length) return l; [l[i], l[j]] = [l[j], l[i]]; return l; } }]);
+    afterPlanChange(null, snap);
+  }
+  // nový cvik nebo existující podle názvu (stejný název = společná historie)
+  function ensureEx(name, sets, since) {
+    let id = exByName(name);
+    if (!id) { id = "x" + Date.now().toString(36); state.settings = { ...state.settings, exDefs: { ...(state.settings.exDefs || {}), [id]: { name, sets: sets || S2, custom: true, since } } }; syncEx(); }
+    return id;
+  }
+  function afterPlanChange(msg, snap) {
+    trackSave(store.saveSettings(state.settings)).catch(e => showSave("Chyba: " + (e.code || e.message)));
+    state.pvSel = null; state.formKey = null; state.exKey = null; state.exOpen = null;
+    if (msg) undoOffer(msg, snap);
+    renderCurrent();
+  }
+  function pvSlots() {
+    const perm = state.pvScope === "perm", mon = state.pvMon || mondayOf(todayKey());
+    return PV_WD.map((wd, i) => perm ? { dn: wd, p: PLAN[wd], key: "dn" + wd } : { k: addDays(mon, i), p: planOf(addDays(mon, i)), key: addDays(mon, i) });
+  }
+  const findSlot = key => pvSlots().find(s => s.key === key);
+  function pvChips(act, sl, id) {
+    return `<div class="daychips">${pvSlots().filter(s => s.key !== sl.key).map(s => `<button type="button" class="daychip${s.p.type === "gym" ? "" : " run"}" data-pv="${act}" data-to="${s.key}"${id ? ` data-id="${id}"` : ""}><b>${s.k ? dayLabel(s.k) : DAYS_SHORT[s.dn]}</b><small>${esc(s.p.label)}</small></button>`).join("")}</div>`;
+  }
+  function renderPlan() {
+    const box = $("pvDays");
+    if (box.contains(document.activeElement) && /^(INPUT|TEXTAREA)$/.test(document.activeElement.tagName)) return;
+    syncEx();
+    const perm = state.pvScope === "perm", mon = state.pvMon || (state.pvMon = mondayOf(todayKey())), sel = state.pvSel || {}, tk = todayKey();
+    $("pvTitle").textContent = perm ? "Každý týden" : fmtShort(mon) + " – " + fmtShort(addDays(mon, 6)) + (mon === mondayOf(tk) ? " · tento týden" : mon === addDays(mondayOf(tk), 7) ? " · příští týden" : "");
+    $("pvPrev").disabled = perm; $("pvNext").disabled = perm || mon >= addDays(mondayOf(tk), 7);
+    document.querySelectorAll("#pvScope button").forEach(b => b.setAttribute("aria-pressed", b.dataset.scope === (perm ? "perm" : "week")));
+    $("pvHint").textContent = perm ? "Změny platí pro každý týden. Zapsané váhy zůstávají, kde jsou." : "Změny platí jen pro tento týden (třeba zabraný stroj). Zapsaná váha jde s cvikem.";
+    $("pvPlanWeek").hidden = perm;
+    box.innerHTML = pvSlots().map(sl => {
+      const ids = slotIds(sl), p = sl.p, d = sl.k ? state.days[sl.k] || {} : {}, swapped = sl.k && planKey(sl.k) !== parseKey(sl.k).getDay();
+      const head = `<div class="pvhead"><div><b>${sl.k ? dayLabel(sl.k) : DAYS_CS[sl.dn][0].toUpperCase() + DAYS_CS[sl.dn].slice(1)}</b>${sl.k === tk ? ' <span class="pill opt">dnes</span>' : ""}<small>${p.type === "gym" ? "Gym" : "Běh"} · ${esc(p.label)}${swapped ? " · prohozeno" : ""}</small></div>${sl.k ? `<button type="button" class="btn ghost sm" data-pv="swapopen" data-slot="${sl.key}" aria-pressed="${sel.type === "swap" && sel.slot === sl.key}">⇄ Prohodit</button>` : ""}</div>`;
+      const swap = sel.type === "swap" && sel.slot === sl.key ? `<div class="pvsheet"><small>Prohodit celý den s… (trénink i běh se vymění)</small>${pvChips("swap", sl)}</div>` : "";
+      let run = "";
+      if (p.type === "run") {
+        const open = sel.type === "run" && sel.slot === sl.key;
+        run = sl.k ? `<button type="button" class="pvrun" data-pv="runopen" data-slot="${sl.key}"><span>${d.run ? esc(d.run.split("\n")[0].slice(0, 80)) : "Běh zatím nenaplánovaný"}</span><i>✎</i></button>`
+          + (open ? `<div class="pvsheet"><div class="field"><label for="pvRunText">Plán běhu</label><textarea id="pvRunText" rows="4">${esc(d.run || "")}</textarea></div><div class="exbtns"><button type="button" class="btn sm" data-pv="runsave" data-slot="${sl.key}">Uložit</button><button type="button" class="btn ghost sm" data-pv="close">Zavřít</button></div><small>Přesunout běh na jiný den (vymění se s tréninkem toho dne):</small>${pvChips("swap", sl)}</div>` : "")
+          : `<p class="pvnote">Běhy se plánují po týdnech (přepni na Tento týden).</p>`;
+      }
+      const exs = ids.map((id, i) => {
+        const e = EX[id], open = sel.type === "ex" && sel.slot === sl.key && sel.id === id, lw = sl.k ? ((d.lifts || {})[id] || {}) : {};
+        const row = `<button type="button" class="pvex${open ? " on" : ""}" data-pv="exopen" data-slot="${sl.key}" data-id="${id}"><span>${esc(e.name)}</span><small>${lw.w != null ? fmtLift({ w: lw.w, r: lw.r }) + " ✓" : esc(e.sets)}</small><i>⋯</i></button>`;
+        if (!open) return row;
+        const mode = sel.mode || "menu";
+        let body = `<div class="pvacts"><button type="button" class="btn ghost sm" data-pv="mode" data-mode="move" aria-pressed="${mode === "move"}">Přesunout na…</button><button type="button" class="btn ghost sm" data-pv="mode" data-mode="copy" aria-pressed="${mode === "copy"}">Zkopírovat i na…</button>
+          <button type="button" class="btn ghost sm" data-pv="up" ${i === 0 ? "disabled" : ""}>↑</button><button type="button" class="btn ghost sm" data-pv="down" ${i === ids.length - 1 ? "disabled" : ""}>↓</button>
+          <button type="button" class="btn ghost sm" data-pv="mode" data-mode="edit" aria-pressed="${mode === "edit"}">Upravit</button><button type="button" class="btn ghost sm${mode === "del" ? " armed" : ""}" data-pv="del">${mode === "del" ? "Opravdu odebrat?" : "Odebrat"}</button></div>`;
+        if (mode === "move" || mode === "copy") body += `<small>${mode === "move" ? "Kam ho přesunout:" : "Kam ho přidat (zůstane i tady, historie je společná):"}</small>` + pvChips(mode, sl, id);
+        if (mode === "edit") body += `<div class="exform"><div class="field"><label for="edName">Název</label><input id="edName" type="text" maxlength="60" value="${esc(e.name)}"></div><div class="field"><label for="edSets">Série</label><input id="edSets" type="text" maxlength="40" value="${esc(e.sets)}"></div><div class="exbtns"><button type="button" class="btn sm" data-pv="editsave">Uložit</button></div><small>Změna platí všude, kde cvik máš. Historie zůstane.</small></div>`;
+        return row + `<div class="pvsheet">${body}</div>`;
+      }).join("");
+      const addOpen = sel.type === "add" && sel.slot === sl.key;
+      const opts = Object.keys(EX).filter(id => !ids.includes(id)).map(id => EX[id].name).sort((a, b) => a.localeCompare(b, "cs"));
+      const add = addOpen ? `<div class="pvsheet exform"><div class="field"><label for="pvAdName">Cvik</label><input id="pvAdName" type="text" maxlength="60" list="pvAdList" placeholder="Vyber ze seznamu nebo napiš nový" autocomplete="off"><datalist id="pvAdList">${opts.map(n => `<option value="${esc(n)}"></option>`).join("")}</datalist></div><div class="field"><label for="pvAdSets">Série</label><input id="pvAdSets" type="text" maxlength="40" value="${esc(S2)}"></div><div class="exbtns"><button type="button" class="btn sm" data-pv="addsave" data-slot="${sl.key}">Přidat</button><button type="button" class="btn ghost sm" data-pv="close">Zrušit</button></div><small>Cvik ze seznamu má společnou historii.</small></div>`
+        : `<button type="button" class="pvadd" data-pv="addopen" data-slot="${sl.key}">+ Přidat cvik</button>`;
+      return `<div class="pvday${sl.k === tk ? " today" : ""}${p.type === "run" ? " isrun" : ""}" data-slot="${sl.key}">${head}${swap}${run}${exs}${add}</div>`;
+    }).join("");
+    const over = perm ? Object.keys(state.settings.planEx || {}).length : pvSlots().some(s => Array.isArray((state.days[s.k] || {}).ex) || planKey(s.k) !== parseKey(s.k).getDay());
+    $("pvReset").hidden = !over;
+    $("pvReset").textContent = perm ? "Vrátit původní plán (natrvalo)" : "Vrátit tento týden na plán";
+  }
+  function openPlan(fromView) { state.pvFrom = fromView || state.view; state.pvSel = null; state.pvMon = mondayOf(state.view === "today" ? state.key : todayKey()); if (state.pvMon > addDays(mondayOf(todayKey()), 7)) state.pvMon = mondayOf(todayKey()); show("plan"); }
+  function bindPlan() {
+    $("pvBack").onclick = () => show(state.pvFrom && state.pvFrom !== "plan" ? state.pvFrom : "today");
+    $("pvPrev").onclick = () => { state.pvMon = addDays(state.pvMon, -7); state.pvSel = null; renderPlan(); };
+    $("pvNext").onclick = () => { state.pvMon = addDays(state.pvMon, 7); state.pvSel = null; renderPlan(); };
+    $("pvScope").addEventListener("click", e => { const b = e.target.closest("[data-scope]"); if (!b) return; state.pvScope = b.dataset.scope; state.pvSel = null; renderPlan(); });
+    $("pvPlanWeek").onclick = () => { const mon = state.pvMon; state.key = mon >= mondayOf(todayKey()) ? (mon === mondayOf(todayKey()) ? todayKey() : mon) : state.key; show("today"); openWeekBox(mon); };
+    $("pvReset").onclick = () => {
+      const perm = state.pvScope === "perm", slots = pvSlots(), snap = pvSnap(snapKeys(slots[0].k));
+      flushSave();
+      if (perm) saveSettingsPatch({ planEx: {} });
+      else { slots.forEach(s => { if (Array.isArray((state.days[s.k] || {}).ex)) patchDay({ ex: null }, true, s.k); }); resetWeekPlan(slots[0].k); }
+      afterPlanChange(perm ? "Plán vrácen na původní" : "Týden vrácen na plán", snap);
+    };
+    $("undoBtn").onclick = undoApply;
+    $("pvDays").addEventListener("click", e => {
+      const b = e.target.closest("[data-pv]"); if (!b || b.disabled) return;
+      const a = b.dataset.pv, sel = state.pvSel || {};
+      const slot = findSlot(b.dataset.slot || sel.slot), toSlot = b.dataset.to ? findSlot(b.dataset.to) : null;
+      const rer = () => renderPlan();
+      if (a === "close") { state.pvSel = null; return rer(); }
+      if (a === "exopen") { state.pvSel = sel.type === "ex" && sel.slot === b.dataset.slot && sel.id === b.dataset.id ? null : { type: "ex", slot: b.dataset.slot, id: b.dataset.id, mode: "menu" }; return rer(); }
+      if (a === "mode") { state.pvSel = { ...sel, mode: sel.mode === b.dataset.mode ? "menu" : b.dataset.mode }; rer(); if (b.dataset.mode === "edit" && $("edName")) $("edName").focus(); return; }
+      if (a === "addopen") { state.pvSel = { type: "add", slot: b.dataset.slot }; rer(); $("pvAdName").focus(); return; }
+      if (a === "runopen") { state.pvSel = sel.type === "run" && sel.slot === b.dataset.slot ? null : { type: "run", slot: b.dataset.slot }; return rer(); }
+      if (a === "swapopen") { state.pvSel = sel.type === "swap" && sel.slot === b.dataset.slot ? null : { type: "swap", slot: b.dataset.slot }; return rer(); }
+      if (a === "swap" && slot && toSlot) { const snap = pvSnap(snapKeys(slot.k)); swapPlan(slot.k, toSlot.k); afterPlanChange("Prohozeno: " + dayLabel(slot.k) + " ↔ " + dayLabel(toSlot.k), snap); return; }
+      if (a === "runsave" && slot) { patchDay({ run: $("pvRunText").value.trim() || null }, true, slot.k); state.pvSel = null; state.formKey = null; showSave("Běh uložen ✓"); return rer(); }
+      if (a === "move" && slot && toSlot) return exMove(b.dataset.id, slot, toSlot);
+      if (a === "copy" && slot && toSlot) return exCopy(b.dataset.id, slot, toSlot);
+      if (a === "up" || a === "down") return exShift(sel.id, slot, a === "up" ? -1 : 1);
+      if (a === "del") { if (sel.mode !== "del") { state.pvSel = { ...sel, mode: "del" }; return rer(); } return exRemove(sel.id, slot); }
+      if (a === "editsave") { const snap = pvSnap(snapKeys()); state.pvSel = null; saveExEdit(sel.id); undoOffer("Cvik upraven", snap); return; }
+      if (a === "addsave" && slot) {
+        const name = $("pvAdName").value.trim().replace(/\s+/g, " ").slice(0, 60); if (!name) { $("pvAdName").focus(); return; }
+        if (slotIds(slot).includes(exByName(name))) { showSave(slotName(slot) + " už tenhle cvik má"); return; }
+        const snap = pvSnap(snapKeys(slot.k)), id = ensureEx(name, $("pvAdSets").value.trim().slice(0, 40) || S2, slot.k || todayKey());
+        pvEdit([{ sl: slot, fn: l => l.includes(id) ? l : l.concat(id) }]);
+        afterPlanChange(EX[id].name + " přidán (" + slotName(slot) + ")", snap);
+      }
+    });
+    $("pvDays").addEventListener("keydown", e => {
+      if (e.key !== "Enter") return;
+      if (e.target.id === "pvAdName" || e.target.id === "pvAdSets") { e.preventDefault(); e.target.blur(); const b = $("pvDays").querySelector('[data-pv="addsave"]'); if (b) b.click(); }
+      if (e.target.id === "edName" || e.target.id === "edSets") { e.preventDefault(); e.target.blur(); const b = $("pvDays").querySelector('[data-pv="editsave"]'); if (b) b.click(); }
+    });
   }
 
   // ---------- JÍDLO (foto / text → AI odhad → seznam jídel) ----------
@@ -2233,7 +2418,7 @@ Na konec přidej tabulku mých posledních 10 běhů: datum, typ, km, čas, prů
   // ---------- views ----------
   function show(view) {
     state.view = view;
-    ["today", "overview", "notes", "settings", "review"].forEach(v => { $("v-" + v).hidden = v !== view; });
+    ["today", "overview", "notes", "settings", "review", "plan"].forEach(v => { $("v-" + v).hidden = v !== view; });
     document.querySelectorAll("#tabs button").forEach(b => b.setAttribute("aria-current", b.dataset.view === view ? "true" : "false"));
     renderCurrent();
     window.scrollTo(0, 0);
@@ -2243,6 +2428,7 @@ Na konec přidej tabulku mých posledních 10 běhů: datum, typ, km, čas, prů
     if (state.view === "today") renderToday();
     else if (state.view === "overview") renderOverview();
     else if (state.view === "review") renderReview();
+    else if (state.view === "plan") renderPlan();
     else if (state.view === "notes") renderNotes();
     else renderSettings();
   }
@@ -2308,7 +2494,8 @@ Na konec přidej tabulku mých posledních 10 běhů: datum, typ, km, čas, prů
       const b = e.target.closest("[data-sug]"); if (b) { saveWeekGoal(state.rvSug[Number(b.dataset.sug)]); return; }
       if (e.target.closest("#rvSave")) { const t = $("rvText").value.trim(); if (!t) { $("rvText").focus(); return; } saveWeekGoal({ type: "text", t: t.slice(0, 80) }); }
     });
-    bindToday(); bindLifts(); bindWeekBox(); bindFood(); bindSettings(); bindRunProfile(); bindRunCoach(); bindMorningRun(); bindAuth(); bindNotes(); bindTasks();
+    bindToday(); bindLifts(); bindWeekBox(); bindFood(); bindSettings(); bindRunProfile(); bindRunCoach(); bindMorningRun(); bindPlan();
+    $("openPlan").onclick = () => openPlan("today"); $("openPlan2").onclick = () => openPlan("settings"); bindAuth(); bindNotes(); bindTasks();
     $("mapPrev").onclick = () => { state.mapYear = (state.mapYear || Number(todayKey().slice(0, 4))) - 1; renderYearMap(); };
     $("mapNext").onclick = () => { state.mapYear = (state.mapYear || Number(todayKey().slice(0, 4))) + 1; renderYearMap(); };
     $("tabs").addEventListener("click", e => { const b = e.target.closest("button[data-view]"); if (b) show(b.dataset.view); });

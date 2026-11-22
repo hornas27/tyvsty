@@ -183,6 +183,11 @@
       <span class="box">${checkSvg}</span><span class="tx"><b>${esc(title)}</b>${sub ? `<small>${esc(sub)}</small>` : ""}</span>${pill || ""}</button>`;
   }
 
+  function renderHabitBox(k) {
+    const d = state.days[k] || {};
+    $("habitBox").innerHTML = habitsFor(k).map(h => chkHtml("h-" + h.k, h.t, "", !!(d.habits || {})[h.k])).join("") +
+      weeklyFor(k).map(h => chkHtml("h-" + h.k, h.t, weeklyCount(h, k) + "/" + h.perWeek + " tento týden · " + h.perWeek + "× týdně", !!(d.habits || {})[h.k]) + (h.k === MR_HABIT ? mrBoxHtml(k) : "")).join("");
+  }
   function fillForm() {
     const d = currentDay();
     $("f-weight").value = d.weight ?? "";
@@ -214,8 +219,7 @@
     $("runField").hidden = p.type !== "run";
     if (p.type === "gym") renderExList(k);
     renderRunLog(k);
-    $("habitBox").innerHTML = habitsFor(k).map(h => chkHtml("h-" + h.k, h.t, "", !!(d.habits || {})[h.k])).join("") +
-      weeklyFor(k).map(h => chkHtml("h-" + h.k, h.t, weeklyCount(h, k) + "/" + h.perWeek + " tento týden · " + h.perWeek + "× týdně", !!(d.habits || {})[h.k])).join("");
+    renderHabitBox(k);
     renderEnergy(d);
     renderFavs();
     renderBanners();
@@ -285,7 +289,7 @@
       const el = e.target.closest(".chk"); if (!el) return;
       const id = el.dataset.id, d = currentDay();
       if (id === "training") patchDay({ training: !d.training }, true);
-      else { const hk = id.slice(2); patchDay({ habits: { [hk]: !(d.habits || {})[hk] } }, true); if (weeklyFor(state.key).some(h => h.k === hk)) renderToday(); }
+      else { const hk = id.slice(2); patchDay({ habits: { [hk]: !(d.habits || {})[hk] } }, true); if (hk === MR_HABIT && !(d.habits || {})[hk] && !mrunOf(state.key) && state.key <= todayKey()) state.mrOpen = state.key; if (weeklyFor(state.key).some(h => h.k === hk)) renderToday(); }
     };
     $("trainBox").addEventListener("click", toggle);
     $("swapSel").addEventListener("change", e => { if (e.target.value) swapPlan(state.key, e.target.value); });
@@ -622,15 +626,17 @@
     const tk = todayKey(), s = state.settings, runs = [], weeks = {};
     for (let i = 56; i >= -PLAN_AHEAD_DAYS; i--) {
       const k = addDays(tk, -i), d = state.days[k] || {}, p = planOf(k), res = runLogOut(d.runLog);
+      const mres = runLogOut(mrunOf(k));
+      if (mres) runs.push({ datum: k, den: DAYS_SHORT[parseKey(k).getDay()], role: "ranní lehký běh (návyk, navíc k plánu)", vysledek: mres });
       if (p.type === "run" && (d.run || res) || res) runs.push({ datum: k, den: DAYS_SHORT[parseKey(k).getDay()], role: p.type === "run" ? p.label : "navíc", plan: d.run ? d.run.slice(0, 400) : null, vysledek: res, odbehnuto: !!d.training && p.type === "run" });
-      if (i >= 0 && d.runLog && d.runLog.km) { const w = mondayOf(k); weeks[w] = Math.round(((weeks[w] || 0) + d.runLog.km) * 10) / 10; }
-      if (i >= 0 && (d.habits || {}).rannibeh) { const w = mondayOf(k); weeks["ranni-" + w] = (weeks["ranni-" + w] || 0) + 1; }
+      if (i >= 0 && !mres && (d.habits || {}).rannibeh) runs.push({ datum: k, den: DAYS_SHORT[parseKey(k).getDay()], role: "ranní lehký běh (odškrtnutý, bez zápisu)" });
     }
     const recovery = [];
     for (let i = 6; i >= 0; i--) { const k = addDays(tk, -i), d = state.days[k] || {}, h = sleepHours(d.bed, d.wake), p = planOf(k); recovery.push({ datum: k, spanek_h: h != null ? Math.round(h * 10) / 10 : null, usnul: d.bed || null, energie: d.energy || null, trenink: (p.type === "gym" ? "gym " : "běh ") + p.label + (d.training ? " (splněno)" : "") }); }
     const gym = []; for (let i = -3; i <= PLAN_AHEAD_DAYS; i++) { const k = addDays(tk, i), p = planOf(k); if (p.type === "gym") gym.push({ datum: k, den: DAYS_SHORT[parseKey(k).getDay()], co: p.label }); }
     const r = readiness(tk);
-    return { profile: s.runProfile || "", data: { dnes: tk, cil_pulmaraton: s.hmDate || null, vaha: lastWeight(), pripravenost_dnes: r ? r.score + "/100 – " + r.why : null, beh_km_po_tydnech: weeks, ranni_behy: "Marek běhá ráno 3–5 km lehce 3× týdně (návyk), to je navíc k plánu.", behy: runs, regenerace: recovery, gym_dny: gym, ...extra } };
+    for (let i = 7; i >= 0; i--) { const m = addDays(mondayOf(tk), -7 * i), w = runWeekKm(m); if (w.n) weeks[m] = { km_celkem: w.km, z_toho_ranni_km: w.mkm, behu: w.n }; }
+    return { profile: s.runProfile || "", data: { dnes: tk, cil_pulmaraton: s.hmDate || null, vaha: lastWeight(), pripravenost_dnes: r ? r.score + "/100 – " + r.why : null, beh_km_po_tydnech: weeks, ranni_behy: "Marek běhá ráno 3–5 km lehce 3× týdně (návyk). Ty jsou navíc k plánu, ale počítej je do celkové zátěže týdne.", behy: runs, regenerace: recovery, gym_dny: gym, ...extra } };
   }
   // návrh týdne → náhled v okně „Běhy na týden“ → Rozložit do dní
   async function coachPlanWeek() {
@@ -756,15 +762,19 @@
   const QUALITY_RE = /interval|tempo(?!\s*\d)|tempov|rychl|úsek|usek|fartlek|kopc|\d+\s*[×x]\s*\d+/i;
   const LONG_RE = /long|dlouh/i;
   const runOf = k => { const l = (state.days[k] || {}).runLog; return l && (l.km > 0 || l.sec > 0) ? l : null; };
+  const mrunOf = k => { const l = (state.days[k] || {}).morningRun; return l && (l.km > 0 || l.sec > 0) ? l : null; };
+  const logsOf = (k, withMorning = true) => [withMorning && mrunOf(k) && { k, l: mrunOf(k), m: true }, runOf(k) && { k, l: runOf(k), m: false }].filter(Boolean);
+  // ranní běhy se do hlídání objemu počítají, až jsou zapsané ve všech 3 předchozích týdnech (jinak falešný skok)
+  const morningCounts = mon => [1, 2, 3].every(i => [0, 1, 2, 3, 4, 5, 6].some(j => mrunOf(addDays(mon, -7 * i + j))));
   const isLegs = k => { const p = planOf(k); return p.type === "gym" && /noh/i.test(p.label); };
-  function runWeekKm(mon, upto) { let km = 0, n = 0; for (let i = 0; i < 7; i++) { const k = addDays(mon, i); if (upto && k > upto) break; const l = runOf(k); if (l) { km += l.km || 0; n++; } } return { km: Math.round(km * 10) / 10, n }; }
+  function runWeekKm(mon, upto, withMorning = true) { let km = 0, n = 0, mkm = 0; for (let i = 0; i < 7; i++) { const k = addDays(mon, i); if (upto && k > upto) break; logsOf(k, withMorning).forEach(x => { km += x.l.km || 0; n++; if (x.m) mkm += x.l.km || 0; }); } return { km: Math.round(km * 10) / 10, n, mkm: Math.round(mkm * 10) / 10 }; }
   // Ø km za 3 předchozí týdny (jen týdny se zápisem); null když jsou data jen z 1 týdne
-  function runBaseKm(mon) { const w = [1, 2, 3].map(i => runWeekKm(addDays(mon, -7 * i))).filter(x => x.n); return w.length >= 2 ? w.reduce((a, x) => a + x.km, 0) / w.length : null; }
+  function runBaseKm(mon, withMorning = morningCounts(mon)) { const w = [1, 2, 3].map(i => runWeekKm(addDays(mon, -7 * i), null, withMorning)).filter(x => x.n); return w.length >= 2 ? w.reduce((a, x) => a + x.km, 0) / w.length : null; }
   const kmOfText = t => { const m = String(t || "").match(/(\d+(?:[.,]\d+)?)\s*km/i); return m ? Number(m[1].replace(",", ".")) : null; };
   // pravidla nad plánem týdne (z trenéra i z Gemini): objem +10 %, kvalita den po nohách, long run před nohama
   function planChecks(items) {
-    const out = [], base = runBaseKm(mondayOf(items[0].key)), sum = items.reduce((a, x) => a + (x.km ?? kmOfText(x.text) ?? 0), 0);
-    if (base != null && sum > base * 1.1 + 1) out.push("Plán má " + nf1.format(sum) + " km, poslední 3 týdny běháš Ø " + nf1.format(base) + " km (+" + nf0.format((sum / base - 1) * 100) + " %). Bezpečně je max +10 %.");
+    const out = [], base = runBaseKm(mondayOf(items[0].key), false), sum = items.reduce((a, x) => a + (x.km ?? kmOfText(x.text) ?? 0), 0);
+    if (base != null && sum > base * 1.1 + 1) out.push("Plán má " + nf1.format(sum) + " km, hlavní běhy poslední 3 týdny Ø " + nf1.format(base) + " km (+" + nf0.format((sum / base - 1) * 100) + " %). Bezpečně je max +10 %.");
     items.forEach(x => {
       if (!x.text) return;
       const dn = DAYS_SHORT[parseKey(x.key).getDay()];
@@ -786,12 +796,13 @@
     L.push("", "Moje běhy za poslední 3 týdny:");
     let any = false;
     for (let i = 21; i >= 0; i--) {
-      const k = addDays(tk, -i), d = state.days[k] || {}, l = runOf(k), o = runLogOut(l);
+      const k = addDays(tk, -i), d = state.days[k] || {}, l = runOf(k), o = runLogOut(l), mo = runLogOut(mrunOf(k));
+      if (mo) { any = true; L.push("- " + DAYS_SHORT[parseKey(k).getDay()] + " " + fmtShort(k) + " ranní lehký běh → " + [mo.km && nf1.format(mo.km) + " km", mo.cas, mo.tempo, mo.tep && "tep " + mo.tep].filter(Boolean).join(", ")); }
       if (!o && !(planOf(k).type === "run" && d.run)) continue; any = true;
       L.push("- " + DAYS_SHORT[parseKey(k).getDay()] + " " + fmtShort(k) + (d.run ? " plán: " + d.run.replace(/\s*\n\s*/g, "; ").slice(0, 160) : "") + (o ? " → " + [o.km && nf1.format(o.km) + " km", o.cas, o.tempo, o.tep && "tep " + o.tep, o.pocit && "pocit " + o.pocit, o.z_hodinek, o.poznamka && "„" + o.poznamka + "“"].filter(Boolean).join(", ") : " → nezapsáno" + (d.training ? " (odběhnuto)" : "")));
     }
     if (!any) L.push("- zatím nic zapsaného");
-    L.push("", "Km po týdnech: " + [5, 4, 3, 2, 1, 0].map(i => { const m = addDays(mondayOf(tk), -7 * i); return fmtShort(m) + " " + nf1.format(runWeekKm(m).km) + " km"; }).join(" · "));
+    L.push("", "Km po týdnech (včetně ranních běhů): " + [5, 4, 3, 2, 1, 0].map(i => { const m = addDays(mondayOf(tk), -7 * i), w = runWeekKm(m); return fmtShort(m) + " " + nf1.format(w.km) + " km" + (w.mkm ? " (ranní " + nf1.format(w.mkm) + ")" : ""); }).join(" · "));
     const sl = [], en = []; for (let i = 0; i < 7; i++) { const d = state.days[addDays(tk, -i)] || {}, h = sleepHours(d.bed, d.wake); if (h != null) sl.push(h); if (d.energy) en.push(d.energy); }
     L.push("Posledních 7 dní: Ø spánek " + (sl.length ? fmtHM(avg(sl)) : "—") + ", Ø energie " + (en.length ? nf1.format(avg(en)) + "/5" : "—") + ".");
     L.push("", "Odpověz prosím přesně v tomto formátu, ať to aplikace rozdělí do dnů:", "Pondělí: název · km", "celý trénink (rozklus, hlavní část s tempem nebo tep. zónou, výklus)", "Čtvrtek: název · km", "…", "Sobota: název · km", "…");
@@ -801,21 +812,105 @@
   function renderRunCard() {
     const tk = todayKey(), mon = mondayOf(tk), cur = runWeekKm(mon), prev = runWeekKm(addDays(mon, -7));
     const weeks = [7, 6, 5, 4, 3, 2, 1, 0].map(i => { const m = addDays(mon, -7 * i); return { m, ...runWeekKm(m) }; });
-    const all = Object.keys(state.days).sort().map(k => ({ k, l: runOf(k) })).filter(x => x.l);
+    const all = [].concat(...Object.keys(state.days).sort().map(k => logsOf(k)));
     const last28 = all.filter(x => x.k > addDays(tk, -28)), paces = last28.map(x => paceOf(x.l)).filter(Boolean), hrs = last28.map(x => x.l.hr).filter(Boolean);
     const avg4 = weeks.slice(4).reduce((a, w) => a + w.km, 0) / 4;
     const tile = (l, v, sub) => `<div class="kpi"><div class="l">${l}</div><div class="v sm">${v}</div><div class="s">${sub}</div></div>`;
-    $("runStats").innerHTML = tile("Tento týden", nf1.format(cur.km) + " km", cur.n + "× · minule " + nf1.format(prev.km) + " km") + tile("Ø 4 týdny", nf1.format(avg4) + " km", "za týden")
+    $("runStats").innerHTML = tile("Tento týden", nf1.format(cur.km) + " km", cur.n + "×" + (cur.mkm ? " · z toho ranní " + nf1.format(cur.mkm) + " km" : "") + " · minule " + nf1.format(prev.km) + " km") + tile("Ø 4 týdny", nf1.format(avg4) + " km", "za týden")
       + tile("Ø tempo", paces.length ? fmtPace(avg(paces)) : "—", "28 dní") + tile("Ø tep", hrs.length ? nf0.format(avg(hrs)) : "—", "28 dní");
-    const base = runBaseKm(mon);
-    $("runStatus").innerHTML = !all.length ? '<span class="status none">Sbírám data</span>' : base != null && cur.km > base * 1.1 + 1 ? '<span class="status warn">Objem roste o víc než 10 %</span>' : '<span class="status good">Objem v pohodě</span>';
+    const mInc = morningCounts(mon), base = runBaseKm(mon, mInc), curV = runWeekKm(mon, null, mInc);
+    $("runStatus").innerHTML = !all.length ? '<span class="status none">Sbírám data</span>' : base != null && curV.km > base * 1.1 + 1 ? '<span class="status warn">Objem roste o víc než 10 %</span>' : '<span class="status good">Objem v pohodě</span>';
     const W = Math.max(280, $("runChart").clientWidth || 320), H = 150, B = 20, T = 14, hi = Math.max(5, ...weeks.map(w => w.km)) * 1.15, bw = W / weeks.length;
     $("runChart").innerHTML = all.length ? `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Km po týdnech">${weeks.map((w, i) => { const h = (H - B - T) * w.km / hi, x = i * bw + bw * 0.2, y = H - B - h; return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${(bw * 0.6).toFixed(1)}" height="${Math.max(h, 1).toFixed(1)}" rx="3" fill="${i === weeks.length - 1 ? "var(--ink)" : "var(--soft)"}"><title>${fmtShort(w.m)}: ${nf1.format(w.km)} km</title></rect>${w.km ? `<text x="${(x + bw * 0.3).toFixed(1)}" y="${(y - 3).toFixed(1)}" text-anchor="middle">${nf0.format(w.km)}</text>` : ""}<text x="${(x + bw * 0.3).toFixed(1)}" y="${H - 5}" text-anchor="middle">${fmtShort(w.m)}</text>`; }).join("")}</svg>` : `<p class="empty">Zatím žádné zapsané běhy. Po běhu dej na Dnes „Ze screenshotu“.</p>`;
     const best = min => { const c = all.filter(x => x.l.km >= min && paceOf(x.l)); return c.length ? c.reduce((a, x) => paceOf(x.l) < paceOf(a.l) ? x : a) : null; };
     const longest = all.filter(x => x.l.km).reduce((a, x) => !a || x.l.km > a.l.km ? x : a, null);
     const rec = (l, x, v) => `<div class="rec"><div class="rl">${l}</div><div class="rv">${x ? v : "—"}</div><div class="rs">${x ? fmtShort(x.k) : "zatím nic"}</div></div>`;
     $("runRecs").innerHTML = rec("Nejdelší běh", longest, longest && nf1.format(longest.l.km) + " km") + [[5, "5+ km"], [10, "10+ km"], [21, "21+ km"]].map(([m, t]) => { const x = best(m); return rec("Nejrychlejší " + t, x, x && fmtPace(paceOf(x.l))); }).join("");
-    $("runList").innerHTML = all.length ? all.slice(-10).reverse().map(x => `<li><span>${DAYS_SHORT[parseKey(x.k).getDay()]} ${fmtShort(x.k)}</span><b>${x.l.km ? nf1.format(x.l.km) + " km" : "—"}</b><span>${[fmtDur(x.l.sec), fmtPace(paceOf(x.l)), x.l.hr && x.l.hr + " tep", x.l.feel && FEEL[x.l.feel]].filter(Boolean).join(" · ")}</span></li>`).join("") : `<li class="empty">Zatím nic.</li>`;
+    $("runList").innerHTML = all.length ? all.slice(-10).reverse().map(x => `<li><span>${DAYS_SHORT[parseKey(x.k).getDay()]} ${fmtShort(x.k)}${x.m ? " <em>ranní</em>" : ""}</span><b>${x.l.km ? nf1.format(x.l.km) + " km" : "—"}</b><span>${[fmtDur(x.l.sec), fmtPace(paceOf(x.l)), x.l.hr && x.l.hr + " tep", x.l.feel && FEEL[x.l.feel]].filter(Boolean).join(" · ")}</span></li>`).join("") : `<li class="empty">Zatím nic.</li>`;
+  }
+
+  // ---------- ranní běh (návyk rannibeh): day.morningRun = {km, sec, hr, note, extra, fromPhoto} ----------
+  const MR_HABIT = "rannibeh";
+  // popis „4 km, 5:30/km“, „3,5 km za 20 min“, „5 km 27:30 tep 150“ → {km, sec, hr}
+  function parseRunText(t) {
+    const s = String(t || "").replace(/,(?=\d)/g, "."), out = {};
+    const km = s.match(/(\d+(?:\.\d+)?)\s*km(?!\s*\/)/i); if (km) out.km = Number(km[1]);
+    const pace = s.match(/(\d{1,2}):(\d{2})\s*(?:min\s*)?\/\s*km/i) || s.match(/tempo\s*(\d{1,2}):(\d{2})/i);
+    const tm = s.match(/(?:za|čas|cas)\s*(\d{1,2}(?::\d{2}){1,2})/i) || s.match(/(?:^|[\s,])(\d{1,2}:\d{2}(?::\d{2})?)(?!\s*(?:min\s*)?\/)(?![\d:])/);
+    const mins = s.match(/(\d+(?:\.\d+)?)\s*(?:min|minut)(?!\s*\/)/i);
+    if (tm) out.sec = parseDur(tm[1]); else if (mins) out.sec = Math.round(Number(mins[1]) * 60);
+    if (!out.sec && pace && out.km) out.sec = Math.round((Number(pace[1]) * 60 + Number(pace[2])) * out.km);
+    const hr = s.match(/(?:tep|hr|puls)\D{0,3}(\d{2,3})/i) || s.match(/(\d{2,3})\s*(?:tep|bpm)/i); if (hr) out.hr = Number(hr[1]);
+    return out;
+  }
+  const mrSummary = l => [l.km && nf1.format(l.km) + " km", fmtDur(l.sec), fmtPace(paceOf(l)), l.hr && l.hr + " tep"].filter(Boolean).join(" · ");
+  function mrBoxHtml(k) {
+    if (k > todayKey()) return "";
+    const l = mrunOf(k), open = state.mrOpen === k, dr = state.mrDraft || {};
+    const head = `<div class="mrun-h"><span>${l ? "Ranní běh: <b>" + esc(mrSummary(l)) + "</b>" : "Zapiš ranní běh: km, tempo nebo screenshot"}</span><button type="button" class="btn ghost sm" data-mr="${open ? "close" : "open"}">${open ? "Zavřít" : l ? "Upravit" : "Zapsat"}</button></div>`;
+    if (!open) return `<div class="mrun" id="mrunBox">${head}</div>`;
+    const v = f => dr[f] != null ? dr[f] : f === "time" ? fmtDur(l && l.sec) : f === "km" ? (l && l.km) ?? "" : f === "hr" ? (l && l.hr) ?? "" : "";
+    return `<div class="mrun open" id="mrunBox">${head}
+      <div class="field"><label for="mrText">Popiš běh</label><input id="mrText" type="text" maxlength="200" placeholder="Např. 4 km, 5:30/km nebo 3,5 km za 20 min" value="${esc(dr.text ?? (l && l.note) ?? "")}"></div>
+      <div class="fields fields3">
+        <div class="field"><label for="mrKm">Km</label><input id="mrKm" type="number" inputmode="decimal" step="0.01" min="0" placeholder="—" value="${esc(v("km"))}"></div>
+        <div class="field"><label for="mrTime">Čas</label><input id="mrTime" type="text" inputmode="numeric" placeholder="22:00" value="${esc(v("time"))}"></div>
+        <div class="field"><label for="mrHr">Ø tep</label><input id="mrHr" type="number" inputmode="numeric" min="0" placeholder="—" value="${esc(v("hr"))}"></div>
+      </div>
+      ${l && l.extra ? `<div class="hint mrextra">Z hodinek: ${esc(l.extra)}</div>` : ""}
+      <div class="mrun-b"><button type="button" class="btn sm" data-mr="save">Uložit</button><button type="button" class="btn ghost sm" data-mr="photo">Ze screenshotu</button>${l ? `<button type="button" class="btn ghost sm${state.mrDelArm ? " armed" : ""}" data-mr="del">${state.mrDelArm ? "Opravdu smazat?" : "Smazat"}</button>` : ""}</div>
+      <div class="hint" id="mrMsg">${esc(state.mrMsg || "")}</div></div>`;
+  }
+  function mrKeepDraft() {
+    if (!$("mrText")) return;
+    state.mrDraft = { text: $("mrText").value, km: $("mrKm").value, time: $("mrTime").value, hr: $("mrHr").value };
+  }
+  function mrRerender() { renderHabitBox(state.key); }
+  function mrSave(k) {
+    mrKeepDraft();
+    const dr = state.mrDraft || {}, fromText = parseRunText(dr.text);
+    const km = num(dr.km) || fromText.km || null, sec = parseDur(dr.time) || fromText.sec || null, hr = num(dr.hr) || fromText.hr || null;
+    if (!km && !sec) { state.mrMsg = "Napiš aspoň km nebo čas (např. „4 km, 5:30/km“)."; mrRerender(); return; }
+    const prev = mrunOf(k) || (state.days[k] || {}).morningRun || {};
+    const l = { ...prev, km: km ? Math.round(km * 100) / 100 : null, sec, hr: hr ? Math.round(hr) : null, note: (dr.text || "").trim().slice(0, 200) || null };
+    patchDay({ morningRun: l, habits: { [MR_HABIT]: true } }, true, k);
+    state.mrOpen = null; state.mrDraft = null; state.mrMsg = ""; state.mrDelArm = false;
+    showSave("Ranní běh zapsán ✓ " + mrSummary(l));
+    renderToday();
+  }
+  async function mrFromPhoto(files) {
+    const ai = coachAI(), list = Array.from(files || []).slice(0, 3); if (!list.length) return;
+    if (!ai || !ai.runFromImages) { state.mrMsg = coachErrText(); mrRerender(); return; }
+    mrKeepDraft(); state.mrMsg = "Čtu běh ze screenshotu…"; mrRerender();
+    try {
+      const imgs = []; for (const f of list) imgs.push(await compressImage(f, 1600));
+      const r = await ai.runFromImages(imgs);
+      if (!r.isRun || !(r.km || r.time)) { state.mrMsg = "Na obrázku jsem nenašel záznam běhu."; mrRerender(); return; }
+      const k = state.key, extra = [r.hrMax && "max tep " + r.hrMax, r.cadence && "kadence " + r.cadence, r.elevation && "převýšení " + r.elevation + " m", r.splits && "úseky: " + r.splits, r.other].filter(Boolean).join(" · ") || null;
+      const prev = (state.days[k] || {}).morningRun || {};
+      patchDay({ morningRun: { ...prev, extra, fromPhoto: true } }, true, k);
+      state.mrDraft = { ...(state.mrDraft || {}), km: r.km ? String(Math.round(r.km * 100) / 100) : "", time: fmtDur(parseDur(r.time)) || "", hr: r.hr ? String(Math.round(r.hr)) : "" };
+      state.mrMsg = "Načteno ✓ Zkontroluj a dej Uložit." + (r.date && r.date !== k ? " Pozor: na obrázku je datum " + fmtShort(r.date) + "." : "");
+    } catch (e) { state.mrMsg = coachErrText(e); }
+    $("mr-photo").value = ""; mrRerender();
+  }
+  function bindMorningRun() {
+    $("habitBox").addEventListener("click", e => {
+      const b = e.target.closest("[data-mr]"); if (!b) return;
+      const k = state.key, a = b.dataset.mr;
+      if (a === "open") { state.mrOpen = k; state.mrDraft = null; state.mrMsg = ""; state.mrDelArm = false; mrRerender(); const t = $("mrText"); if (t && !mrunOf(k)) t.focus(); }
+      else if (a === "close") { state.mrOpen = null; state.mrDraft = null; mrRerender(); }
+      else if (a === "save") mrSave(k);
+      else if (a === "photo") { mrKeepDraft(); $("mr-photo").click(); }
+      else if (a === "del") {
+        if (!state.mrDelArm) { mrKeepDraft(); state.mrDelArm = true; mrRerender(); return; }
+        patchDay({ morningRun: null, habits: { [MR_HABIT]: false } }, true, k);
+        state.mrOpen = null; state.mrDraft = null; state.mrDelArm = false; showSave("Ranní běh smazán"); renderToday();
+      }
+    });
+    $("habitBox").addEventListener("keydown", e => { if (e.key === "Enter" && e.target.closest("#mrunBox input")) { e.preventDefault(); mrSave(state.key); } });
+    $("habitBox").addEventListener("input", e => { if (e.target.id === "mrText") { const p = parseRunText(e.target.value); if (p.km && !$("mrKm").value) $("mrKm").placeholder = nf1.format(p.km); if (p.sec && !$("mrTime").value) $("mrTime").placeholder = fmtDur(p.sec); } });
+    $("mr-photo").addEventListener("change", e => mrFromPhoto(e.target.files));
   }
 
   // ---------- JÍDLO (foto / text → AI odhad → seznam jídel) ----------
@@ -1282,7 +1377,7 @@
     const wg = (s.weekGoals || {})[mondayOf(k)], gp = goalProgress(wg, mondayOf(k));
     if (gp && gp.n < gp.of && gp.of - gp.n >= gp.left) probs.push({ id: "goal-" + mondayOf(k), lvl: gp.of - gp.n > gp.left ? "bad" : "warn", t: "Cíl týdne v ohrožení: " + gp.n + "/" + gp.of, s: gp.of - gp.n > gp.left ? "Tento týden už ho nedáš. V neděli si dej realističtější." : "Už nemáš rezervu. Každý zbývající den se počítá." });
     // běh
-    const mon = mondayOf(k), wk = runWeekKm(mon, k), base = runBaseKm(mon);
+    const mon = mondayOf(k), mInc = morningCounts(mon), wk = runWeekKm(mon, k, mInc), base = runBaseKm(mon, mInc);
     if (base != null && wk.km > base * 1.1 + 1) probs.push({ id: "runvol-" + mon, lvl: "warn", t: "Běh: " + nf1.format(wk.km) + " km tento týden (+" + nf0.format((wk.km / base - 1) * 100) + " %)", s: "Ø poslední 3 týdny " + nf1.format(base) + " km. Víc než +10 % zvyšuje riziko zranění, zbytek týdne lehce." });
     const dk = state.days[k] || {}, rk = readiness(k), hk = sleepHours(dk.bed, dk.wake);
     if (planOf(k).type === "run" && dk.run && QUALITY_RE.test(dk.run) && !runOf(k) && ((rk && rk.score < 50) || (hk != null && hk < 6))) probs.push({ id: "runq-" + k, lvl: "bad", t: "Dnes kvalitní běh, ale " + (hk != null && hk < 6 ? "spal jsi jen " + fmtHM(hk) : "připravenost je " + rk.score), s: "Udělej z něj lehký běh, nebo se zeptej trenéra." });
@@ -2213,7 +2308,7 @@ Na konec přidej tabulku mých posledních 10 běhů: datum, typ, km, čas, prů
       const b = e.target.closest("[data-sug]"); if (b) { saveWeekGoal(state.rvSug[Number(b.dataset.sug)]); return; }
       if (e.target.closest("#rvSave")) { const t = $("rvText").value.trim(); if (!t) { $("rvText").focus(); return; } saveWeekGoal({ type: "text", t: t.slice(0, 80) }); }
     });
-    bindToday(); bindLifts(); bindWeekBox(); bindFood(); bindSettings(); bindRunProfile(); bindRunCoach(); bindAuth(); bindNotes(); bindTasks();
+    bindToday(); bindLifts(); bindWeekBox(); bindFood(); bindSettings(); bindRunProfile(); bindRunCoach(); bindMorningRun(); bindAuth(); bindNotes(); bindTasks();
     $("mapPrev").onclick = () => { state.mapYear = (state.mapYear || Number(todayKey().slice(0, 4))) - 1; renderYearMap(); };
     $("mapNext").onclick = () => { state.mapYear = (state.mapYear || Number(todayKey().slice(0, 4))) + 1; renderYearMap(); };
     $("tabs").addEventListener("click", e => { const b = e.target.closest("button[data-view]"); if (b) show(b.dataset.view); });

@@ -709,6 +709,21 @@ details.histcard[open]>summary{margin-bottom:10px}
 .runlist li span:last-child{color:var(--soft);font-size:12.5px}
 .runlist li.empty{display:block;color:var(--soft)}
 #runChart text{font-size:10px;fill:var(--soft)}
+/* ranní běh pod návykem */
+.mrun{margin:-2px 0 6px;padding:10px 12px;border-radius:12px;background:var(--night-2);color:var(--ink);font-size:13.5px}
+.mrun-h{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.mrun-h span{min-width:0}
+.mrun.open{display:flex;flex-direction:column;gap:10px}
+.mrun .field label{color:var(--soft)}
+.mrun .field input{font-size:15px;padding:9px 10px;background:var(--card);color:var(--ink);border:1px solid var(--line)}
+.mrun .fields3{margin:0}
+.mrun-b{display:flex;gap:8px;flex-wrap:wrap}
+.mrun .btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+.mrun .btn:not(.ghost){background:var(--ink);color:var(--bg)}
+.mrun #mrMsg:empty,.mrun .hint:empty{display:none}
+.mrun .hint{margin:0;color:var(--soft)}
+.runlist li em{font-style:normal;font-size:11px;color:var(--soft);border:1px solid var(--line);border-radius:99px;padding:0 6px;margin-left:2px}
+:root:not([data-theme="dark"]) .mrun{background:#2A2E32;color:#F0F0EC}
 </style>
 </head>
 <body>
@@ -882,6 +897,7 @@ details.histcard[open]>summary{margin-bottom:10px}
       <div class="card blk-dark">
         <p class="sec-t">Návyky</p>
         <div class="checks" id="habitBox"></div>
+        <input id="mr-photo" type="file" accept="image/*" multiple hidden>
       </div>
 
       <div class="card">
@@ -1107,7 +1123,7 @@ details.histcard[open]>summary{margin-bottom:10px}
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="app.js?v=35"></script>
+<script src="app.js?v=36"></script>
 <script type="module" src="ai.js?v=22"></script>
 </body>
 </html>
